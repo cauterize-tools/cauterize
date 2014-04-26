@@ -1,13 +1,13 @@
 module Cauterize.Schema.Types where
 
 data Schema = Schema
-  { name :: String
-  , version :: String
-  , forms :: [Form]
+  { schemaName :: String
+  , schemaVersion :: String
+  , schemaForms :: [SchemaForm]
   }
   deriving (Show)
 
-data Form = FType Type
+data SchemaForm = FType Type
   deriving (Show)
 
 {- 

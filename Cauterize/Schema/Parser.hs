@@ -23,7 +23,7 @@ parseSchema = pSexp "schema" pSchema
     pSchema = liftM3 Schema spacedQuoted spacedQuoted pForms
     pForms = option [] $ spaces1 >> parseForm `sepBy` spaces1 
 
-parseForm :: Parser Form
+parseForm :: Parser SchemaForm
 parseForm = liftM FType parseType
 
 parseType :: Parser Type
