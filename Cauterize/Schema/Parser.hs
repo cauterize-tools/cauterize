@@ -1,6 +1,5 @@
-module Cauterize.Schema.Parser where
+module Cauterize.Schema.Parser (parseFile) where
 
-import qualified Data.Map as M
 import Control.Monad
 
 import Text.Parsec
@@ -26,12 +25,26 @@ parseSchema = parens $ do
   return (Schema sName sVersion sForms)
 
 parseForm :: Parser Form
-parseForm = parens $ do
+parseForm = liftM FType parseType
+
+parseType :: Parser Type
+parseType = choice $ map try [parseScalar, parseConst]
+
+parseScalar :: Parser Type
+parseScalar = parens $ do
   _ <- string "scalar"
   sName <- spaces1 >> validName
   bTarget <- spaces1 >> parseBuiltInName
 
-  return $ FType $ TScalar sName bTarget
+  return $ TScalar sName bTarget
+
+parseConst :: Parser Type
+parseConst = parens $ do
+  _ <- string "const"
+  sName <- spaces1 >> parseBuiltInName
+  bValue <- spaces1 >> validNumber
+
+  return $ TConst sName bValue
 
 parseBuiltInName :: Parser BuiltIn
 parseBuiltInName = liftM read $ choice names

@@ -22,24 +22,17 @@ data Form = FType Type
  -}
 data Type = TBuiltIn BuiltIn
           | TScalar String BuiltIn
+          | TConst BuiltIn Integer
 --           | TEnumeration
 --           | TBoundedArray
 --           | TArray
 --           | TSet
---           | TConstant
   deriving (Show)
 
-data BuiltIn = BIu8
-             | BIu16
-             | BIu32
-             | BIu64
-             | BIs8
-             | BIs16
-             | BIs32
-             | BIs64
+data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
+             | BIs8 | BIs16 | BIs32 | BIs64
+             | BIieee754s | BIieee754d
              | BIbool
-             | BIieee754s
-             | BIieee754d
   deriving (Enum, Bounded)
 
 instance Show BuiltIn where
