@@ -22,10 +22,11 @@ data Form = FType Type
  -}
 data Type = TBuiltIn BuiltIn
           | TScalar String BuiltIn
-          | TConst BuiltIn Integer
---           | TEnumeration
---           | TBoundedArray
---           | TArray
+          | TConst String BuiltIn Integer
+          | TFixedArray String String Integer
+          | TBoundedArray String String Integer
+          | TStruct String [StructField]
+          | TEnum String [EnumVariants]
 --           | TSet
   deriving (Show)
 
@@ -34,6 +35,12 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIieee754s | BIieee754d
              | BIbool
   deriving (Enum, Bounded)
+
+data StructField = StructField String String
+  deriving (Show)
+
+data EnumVariants = EnumVariants String (Maybe String)
+  deriving (Show)
 
 instance Show BuiltIn where
   show BIu8       = "u8"
