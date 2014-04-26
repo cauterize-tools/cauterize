@@ -26,8 +26,8 @@ data Type = TBuiltIn BuiltIn
           | TFixedArray String String Integer
           | TBoundedArray String String Integer
           | TStruct String [StructField]
-          | TEnum String [EnumVariants]
---           | TSet
+          | TEnum String [EnumVariant]
+          | TSet String [SetField]
   deriving (Show)
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
@@ -39,7 +39,10 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
 data StructField = StructField String String
   deriving (Show)
 
-data EnumVariants = EnumVariants String (Maybe String)
+data EnumVariant = EnumVariant String (Maybe String)
+  deriving (Show)
+
+data SetField = SetField String String
   deriving (Show)
 
 instance Show BuiltIn where

@@ -34,6 +34,7 @@ parseType = choice $ map try
   , parseBoundedArray
   , parseStruct
   , parseEnum
+  , parseSet
   ]
 
 parseScalar :: Parser Type
@@ -58,8 +59,13 @@ parseEnum :: Parser Type
 parseEnum = pSexp "enum" $ liftM2 TEnum spacedName parseVariants
   where
     parseVariants = many $ spaces1 >> parseVariant
-    parseVariant = pSexp "var" $ liftM2 EnumVariants spacedName (optionMaybe spacedName)
+    parseVariant = pSexp "var" $ liftM2 EnumVariant spacedName (optionMaybe spacedName)
 
+parseSet :: Parser Type
+parseSet = pSexp "set" $ liftM2 TSet spacedName parseMembers
+  where
+    parseMembers = many $ spaces1 >> parseMember
+    parseMember = pSexp "mem" $ liftM2 SetField spacedName spacedName
 
 
 
