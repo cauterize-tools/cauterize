@@ -217,6 +217,25 @@ If no sensor difference is detected in a specific sensor in a given time slice,
 the value won't be included in the serialized value. This allows users to
 encode values that only have deltas in a space-efficient way.
 
+#### Padding
+
+Padding types can be used to insert null bits into a payload. Padding types
+must be 0 in the stream. Any other value will result in a pack/unpack error.
+
+```scheme
+(pad [type name] [padding width in bits])
+```
+
+Note that we represent padding with as bits. Currently, this must be
+represented as multiples of 8 bits. Any value that is not evenly divisible by 8
+is an error.
+
+The following defines a type that can only be represented by 8 null bits.
+
+```scheme
+(pad p8 8)
+```
+
 ## Specifications
 
 ```scheme
