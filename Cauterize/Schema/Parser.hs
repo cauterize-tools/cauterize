@@ -35,6 +35,7 @@ parseType = choice $ map try
   , parseStruct
   , parseEnum
   , parseSet
+  , parsePad
   ]
 
 parseScalar :: Parser Type
@@ -67,6 +68,8 @@ parseSet = pSexp "set" $ liftM2 TSet spacedName parseMembers
     parseMembers = many $ spaces1 >> parseMember
     parseMember = pSexp "mem" $ liftM2 SetField spacedName spacedName
 
+parsePad :: Parser Type
+parsePad = pSexp "pad" $ liftM2 TPad spacedName spacedNumber
 
 
 parseBuiltInName :: Parser BuiltIn

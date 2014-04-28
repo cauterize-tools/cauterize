@@ -28,7 +28,7 @@ data Type = TBuiltIn BuiltIn
           | TStruct String [StructField]
           | TEnum String [EnumVariant]
           | TSet String [SetField]
-          | TPadding String Integer
+          | TPad String Integer
   deriving (Show)
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
