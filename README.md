@@ -236,6 +236,41 @@ The following defines a type that can only be represented by 8 null bits.
 (pad p8 8)
 ```
 
+#### Partial
+
+Partials allow code generators to emit partial implementations of protocol
+specifications. This can be useful if there are several small devices that are
+to be part of a larger federated system. If there's a central node that
+broadcasts messages to many nodes, but not all nodes are interested in all
+messages, then Partial types allow the smaller nodes to only include packing
+and unpacking code for the portions of the partial they use.
+
+Partials use a hash of each variant's contained type as the type tag in the
+serialization stream rather than an incrementing value as is used in an
+enumeration. This makes the Parital types order-independent in their definition
+and allows only part of the partial to be implemented by any given node. This
+also includes the possibility for extension of the type in the future.
+
+Partials have only two major semantic differences from enumerations: the
+contained type on each variant is required rather than optional and the maximum
+length of any contained type must be specified.
+
+```scheme
+(partial [type name] [maximum contained type length in bytes] [variant list]) 
+```
+
+Here's the same example demonstrated for Enumerations, but changed to meet the
+requirements of a Partial.
+
+```scheme
+(partial request 1024 (var getKeyCount)
+                      (var checkKeyExists keyName)
+                      (var getKey keyName)
+                      (var eraseKey keyName)
+                      (var setKey keyValuePair))
+```
+
+
 ## Specifications
 
 ```scheme
