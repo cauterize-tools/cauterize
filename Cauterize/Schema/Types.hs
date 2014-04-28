@@ -23,11 +23,16 @@ data SchemaForm = FType Type
 data Type = TBuiltIn BuiltIn
           | TScalar String BuiltIn
           | TConst String BuiltIn Integer
+
           | TFixedArray String String Integer
           | TBoundedArray String String Integer
+
           | TStruct String [StructField]
-          | TEnum String [EnumVariant]
           | TSet String [SetField]
+
+          | TEnum String [EnumVariant]
+          | TPartial String Integer [PartialVariant]
+
           | TPad String Integer
   deriving (Show)
 
@@ -41,6 +46,9 @@ data StructField = StructField String String
   deriving (Show)
 
 data EnumVariant = EnumVariant String (Maybe String)
+  deriving (Show)
+
+data PartialVariant = PartialVariant String String
   deriving (Show)
 
 data SetField = SetField String String

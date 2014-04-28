@@ -36,6 +36,7 @@ parseType = choice $ map try
   , parseEnum
   , parseSet
   , parsePad
+  , parsePartial
   ]
 
 parseScalar :: Parser Type
@@ -70,6 +71,12 @@ parseSet = pSexp "set" $ liftM2 TSet spacedName parseMembers
 
 parsePad :: Parser Type
 parsePad = pSexp "pad" $ liftM2 TPad spacedName spacedNumber
+
+parsePartial :: Parser Type
+parsePartial = pSexp "partial" $ liftM3 TPartial spacedName spacedNumber parseVariants
+  where
+    parseVariants = many $ spaces1 >> parseVariant
+    parseVariant = pSexp "var" $ liftM2 PartialVariant spacedName spacedName
 
 
 parseBuiltInName :: Parser BuiltIn

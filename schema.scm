@@ -17,4 +17,6 @@
         (set aset
              (mem a number)
              (mem b s8)
-             (mem c anenum)))
+             (mem c anenum))
+        (partial req 16 (var a s32)
+                        (var b s64)))
