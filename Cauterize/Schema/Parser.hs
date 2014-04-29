@@ -7,6 +7,7 @@ import Text.Parsec.String
 
 import Cauterize.Schema.Types
 import Cauterize.Schema.Utils
+import Cauterize.Common.BuiltIn
 
 parseFile :: FilePath -> IO (Either ParseError Schema)
 parseFile path = readFile path >>= parseString path
