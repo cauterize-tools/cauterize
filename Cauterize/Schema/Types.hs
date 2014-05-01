@@ -1,6 +1,9 @@
 module Cauterize.Schema.Types where
 
 import Cauterize.Common.BuiltIn
+import Cauterize.Common.Named
+import Data.List
+import Data.Maybe
 
 data Schema = Schema
   { schemaName :: String
@@ -50,3 +53,26 @@ data PartialVariant = PartialVariant String String
 data SetField = SetField String String
   deriving (Show)
 
+instance CautName Type where
+  cautName (TBuiltIn b) = show b
+  cautName (TScalar n _) = n
+  cautName (TConst n _ _) = n
+  cautName (TFixedArray n _ _) = n
+  cautName (TBoundedArray n _ _) = n
+  cautName (TStruct n _) = n
+  cautName (TSet n _) = n
+  cautName (TEnum n _) = n
+  cautName (TPartial n _ _) = n
+  cautName (TPad n _) = n
+
+instance RefersNames Type where
+  referredNames (TBuiltIn _) = []
+  referredNames (TScalar _ b) = [cautName b]
+  referredNames (TConst _ b _) = [cautName b]
+  referredNames (TFixedArray _ n _) = [n]
+  referredNames (TBoundedArray _ n _) = [n]
+  referredNames (TStruct _ fs) = nub $  map (\(StructField _ n) -> n) fs
+  referredNames (TSet _ fs) = nub $  map (\(SetField _ n) -> n) fs
+  referredNames (TEnum _ vs) = nub $ mapMaybe (\(EnumVariant _ n) -> n) vs
+  referredNames (TPartial _ _ fs) = nub $ map (\(PartialVariant _ n) -> n) fs
+  referredNames (TPad _ _) = []

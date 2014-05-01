@@ -1,12 +1,13 @@
 module Cauterize.FormHash where
 
-import qualified Crypto.Hash.SHA256 as C
+import qualified Crypto.Hash.SHA1 as C
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Data.Char
 import Numeric
 
 data FormHash = FormHash B.ByteString
+  deriving (Eq, Ord)
 
 hashFn :: C.Ctx -> String -> C.Ctx
 hashFn ctx s = ctx `C.update` BC.pack s

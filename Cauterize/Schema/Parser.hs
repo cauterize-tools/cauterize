@@ -19,10 +19,14 @@ parseString path str =
               Right s -> Right s
 
 parseSchema :: Parser Schema
-parseSchema = pSexp "schema" pSchema
+parseSchema = pSexp "schema" $ do
+    qname <- spacedQuoted
+    qver <- spacedQuoted
+    forms <- pForms
+    return $ Schema qname qver (bis ++ forms)
   where
-    pSchema = liftM3 Schema spacedQuoted spacedQuoted pForms
     pForms = option [] $ spaces1 >> parseForm `sepBy` spaces1 
+    bis = map (FType . TBuiltIn) [minBound .. maxBound]
 
 parseForm :: Parser SchemaForm
 parseForm = liftM FType parseType

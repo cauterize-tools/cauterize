@@ -8,7 +8,13 @@
         (struct astruct
                 (field a s8)
                 (field padding p8)
-                (field b smallconst))
+                (field b smallconst)
+                (field d bstruct))
+        (struct bstruct
+                (field a s8)
+                (field d cstruct))
+        (struct cstruct
+                (field a s8))
         (enum anenum
               (var a)
               (var b)

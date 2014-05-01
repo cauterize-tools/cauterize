@@ -1,5 +1,8 @@
 module Cauterize.Common.BuiltIn where
 
+import Cauterize.FormHash
+import Cauterize.Common.Named
+
 -- | Returns the smallest BuiltIn that is capable of representing the provided
 -- value.
 minimalExpression :: Integral a => a -> BuiltIn
@@ -61,3 +64,9 @@ instance Read BuiltIn where
   readsPrec _ "ieee754s" = [ (BIieee754s, "") ]
   readsPrec _ "ieee754d" = [ (BIieee754d, "") ]
   readsPrec _ s = error $ "ERROR: \"" ++ s ++ "\" is not a BuiltIn."
+
+instance Hashable BuiltIn where
+  formHashWith ctx b = ctx `hashFn` show b
+
+instance CautName BuiltIn where
+  cautName = show

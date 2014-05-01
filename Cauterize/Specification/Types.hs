@@ -2,6 +2,7 @@ module Cauterize.Specification.Types where
 
 import Cauterize.FormHash
 import Cauterize.Common.BuiltIn
+import Cauterize.Common.Named
 
 data Specification = Specification
   { name :: String
@@ -25,8 +26,9 @@ data Type = TBuiltIn BuiltIn
           | TSet String BuiltIn [SetField]
 
           | TEnum String BuiltIn [EnumVariant]
+          | TPartial String Integer BuiltIn [PartialVariant]
 
-          | TOther
+          | TPad String Integer
   deriving (Show)
 
 data StructField = StructField String String
@@ -38,6 +40,9 @@ data SetField = SetField String String Integer
 data EnumVariant = EnumVariant String (Maybe String) Integer
   deriving (Show)
 
+data PartialVariant = PartialVariant String String FormHash
+  deriving (Show)
+
 instance Hashable Specification where
   formHashWith ctx (Specification n v _ fs) = finalCtx
     where
@@ -46,3 +51,15 @@ instance Hashable Specification where
 
 instance Hashable SpecForm where
   formHashWith ctx _ = ctx `hashFn` "specform"
+
+instance CautName Type where
+  cautName (TBuiltIn b) = show b
+  cautName (TScalar n _) = n
+  cautName (TConst n _ _) = n
+  cautName (TFixedArray n _ _) = n
+  cautName (TBoundedArray n _ _ _) = n
+  cautName (TStruct n _) = n
+  cautName (TSet n _ _) = n
+  cautName (TEnum n _ _) = n
+  cautName (TPartial n _ _ _) = n
+  cautName (TPad n _) = n
