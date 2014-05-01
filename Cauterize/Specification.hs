@@ -31,6 +31,25 @@ fromSchemaForms = map fromSchemaForm
   where
     fromSchemaForm (SC.FType f) = SpecForm $ fromSchemaType f
 
+schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Maybe (FormHash, [Name]))
+schemaTypeIdRefMap m = r
+  where
+    r = fmap hashType m
+    hashType :: SC.Type -> (Maybe FormHash, [Name])
+    hashType t = (undefined, refs)
+      where
+        refs = concat $ maybeToList $ m `references` (cautName t)
+        dirRefs = mapM (liftM fst . (`M.lookup` r)) (referredNames t) >>= sequence >>= magicHash -- :: Maybe [FormHash]
+
+
+-- schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Maybe (FormHash, [Name]))
+-- schemaTypeIdRefMap m = fmap hashType m
+--   where
+--     hashType :: SC.Type -> Maybe (FormHash, [Name])
+--     hashType t = do
+--       refs <- references m (cautName t)
+--       return (undefined, refs)
+
 schemaTypeMap :: SC.Schema -> M.Map Name SC.Type
 schemaTypeMap (SC.Schema _ _ fs) = M.fromList $ map (\(SC.FType t) -> (cautName t, t)) fs
 
@@ -39,7 +58,7 @@ references m n = do
   t <- n `M.lookup` m
 
   let rns = referredNames t
-  let refs = map (maybeToList . references m) rns :: [[[Name]]]
+  let refs = map (maybeToList . references m) rns
 
   return $ n : (concat . concat) refs
 
