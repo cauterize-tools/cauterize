@@ -35,11 +35,14 @@ fromSchemaForms = map fromSchemaForm
 schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Either [Name] FormHash)
 schemaTypeIdRefMap m = r
   where
-    r = fmap (hashType []) m
-    hashType :: [Name] -> SC.Type -> Either [Name] FormHash
-    hashType path t = if n `elem` path
-                        then (Left . reverse) (n:path)
-                        else result
+    r = fmap hashType m
+    hashType :: SC.Type -> Either [Name] FormHash
+    -- hashType path t = if n `elem` path
+    --                     then (Left . reverse) (n:path)
+    --                     else result
+    hashType t = case cycs of
+                        Just cyc -> Left $ reverse cyc
+                        Nothing -> result
       where
         n = cautName t
         th = formHashCtx t
@@ -54,9 +57,18 @@ schemaTypeIdRefMap m = r
           fhs <- sequence dirRefs
           return $ finalize $ foldl formHashWith th fhs
 
-        -- refs = concat $ maybeToList $ m `references` n
+        refs = concat $ maybeToList $ m `references` n
+        cycs = cycCheck refs
         -- refHashs
         -- dirRefs = mapM (liftM fst . (`M.lookup` r)) (referredNames t) >>= sequence >>= magicHash -- :: Maybe [FormHash]
+
+cycCheck :: [Name] -> Maybe [Name]
+cycCheck ns = go ns []
+  where
+    go [] _ = Nothing
+    go (i:rs) prev = if i `elem` prev
+                        then Just (i:prev)
+                        else go rs (i:prev)
 
 
 -- schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Maybe (FormHash, [Name]))
