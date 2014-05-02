@@ -26,4 +26,4 @@
              (mem b s8)
              (mem c anenum))
         (partial req 16 (var a s32)
-                        (var b s64)))
+                        (var b s32)))
