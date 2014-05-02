@@ -14,6 +14,4 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
                       (Right r) -> print $ doThings r -- fromSchema r
 
 doThings s = let m = schemaTypeMap s
-             in case m `references` "astruct" of
-                  Nothing -> []
-                  Just x -> x
+             in schemaTypeIdRefMap m

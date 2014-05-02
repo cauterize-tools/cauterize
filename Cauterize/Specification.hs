@@ -3,6 +3,7 @@ module Cauterize.Specification
   , fromSchema
   , references
   , schemaTypeMap
+  , schemaTypeIdRefMap
   ) where
 
 import Cauterize.Specification.Types
@@ -31,15 +32,31 @@ fromSchemaForms = map fromSchemaForm
   where
     fromSchemaForm (SC.FType f) = SpecForm $ fromSchemaType f
 
-schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Maybe (FormHash, [Name]))
+schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Either [Name] FormHash)
 schemaTypeIdRefMap m = r
   where
-    r = fmap hashType m
-    hashType :: SC.Type -> (Maybe FormHash, [Name])
-    hashType t = (undefined, refs)
+    r = fmap (hashType []) m
+    hashType :: [Name] -> SC.Type -> Either [Name] FormHash
+    hashType path t = if n `elem` path
+                        then (Left . reverse) (n:path)
+                        else result
       where
-        refs = concat $ maybeToList $ m `references` (cautName t)
-        dirRefs = mapM (liftM fst . (`M.lookup` r)) (referredNames t) >>= sequence >>= magicHash -- :: Maybe [FormHash]
+        n = cautName t
+        th = formHashCtx t
+
+        -- YO! There's a fromJust here. The way the input map is constructed
+        -- should keep us from having to worry about this.
+        dirRefs :: [Either [Name] FormHash]
+        dirRefs = fromJust $ mapM (`M.lookup` r) (referredNames t)
+
+        -- result = foldM formHashWith th dirRefs
+        result = do
+          fhs <- sequence dirRefs
+          return $ finalize $ foldl formHashWith th fhs
+
+        -- refs = concat $ maybeToList $ m `references` n
+        -- refHashs
+        -- dirRefs = mapM (liftM fst . (`M.lookup` r)) (referredNames t) >>= sequence >>= magicHash -- :: Maybe [FormHash]
 
 
 -- schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Maybe (FormHash, [Name]))

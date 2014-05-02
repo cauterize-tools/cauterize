@@ -12,9 +12,15 @@ data FormHash = FormHash B.ByteString
 hashFn :: C.Ctx -> String -> C.Ctx
 hashFn ctx s = ctx `C.update` BC.pack s
 
+finalize :: C.Ctx -> FormHash
+finalize = FormHash . C.finalize
+
 class Hashable a where
   formHash :: a ->  FormHash
-  formHash a = FormHash $ C.finalize $ C.init `formHashWith` a
+  formHash = finalize . formHashCtx
+
+  formHashCtx :: a -> C.Ctx
+  formHashCtx = formHashWith C.init
 
   formHashWith :: C.Ctx -> a -> C.Ctx
 
@@ -25,3 +31,6 @@ instance Show FormHash where
                     [x,y] -> [toUpper x, toUpper y]
                     [x]   -> ['0', toUpper x]
                     _     -> error "This should be impossible."
+
+instance Hashable FormHash where
+  formHashWith ctx (FormHash b) = ctx `C.update` b

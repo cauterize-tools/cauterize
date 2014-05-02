@@ -2,6 +2,7 @@ module Cauterize.Schema.Types where
 
 import Cauterize.Common.BuiltIn
 import Cauterize.Common.Named
+import Cauterize.FormHash
 import Data.List
 import Data.Maybe
 
@@ -76,3 +77,24 @@ instance RefersNames Type where
   referredNames (TEnum _ vs) = nub $ mapMaybe (\(EnumVariant _ n) -> n) vs
   referredNames (TPartial _ _ fs) = nub $ map (\(PartialVariant _ n) -> n) fs
   referredNames (TPad _ _) = []
+
+instance Hashable Type where
+  formHashWith ctx (TBuiltIn b) = ctx `hashFn` "built-in" `formHashWith` b
+  formHashWith ctx (TScalar n b) = ctx `hashFn` "scalar" `hashFn` n `formHashWith` b
+  formHashWith ctx (TConst n b i) = ctx `hashFn` "const" `hashFn` n `formHashWith` b `hashFn` padShowInteger i
+  formHashWith ctx (TFixedArray n m i) = ctx `hashFn` "fixed" `hashFn` n `hashFn` m `hashFn` padShowInteger i
+  formHashWith ctx (TBoundedArray n m i) = ctx `hashFn` "bounded" `hashFn` n `hashFn` m `hashFn` padShowInteger i
+  formHashWith ctx (TStruct n _) = ctx `hashFn` "struct" `hashFn` n -- TODO: INCOMPLETE
+  formHashWith ctx (TSet n _) = ctx `hashFn` "set" `hashFn` n -- TODO: INCOMPLETE
+  formHashWith ctx (TEnum n _) = ctx `hashFn` "enum" `hashFn` n -- TODO: INCOMPLETE
+  formHashWith ctx (TPartial n i _) = ctx `hashFn` "partial" `hashFn` n `hashFn` padShowInteger i
+  formHashWith ctx (TPad n i) = ctx `hashFn` "pad" `hashFn` n `hashFn` padShowInteger i
+
+padShowInteger :: Integer -> String
+padShowInteger v = let w = 20
+                       v' = abs v
+                       v'' = show v'
+                       num = replicate (w - length v'') '0' ++ v''
+                   in if v < 0
+                        then '-':num
+                        else '+':num

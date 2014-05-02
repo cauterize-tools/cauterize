@@ -14,7 +14,8 @@
                 (field a s8)
                 (field d cstruct))
         (struct cstruct
-                (field a s8))
+                (field a s8)
+                (field b s8))
         (enum anenum
               (var a)
               (var b)
