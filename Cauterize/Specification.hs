@@ -1,25 +1,17 @@
 module Cauterize.Specification
   ( module Cauterize.Specification.Types
   , fromSchema
-  , schemaTypeIdMap
   ) where
 
 import Cauterize.Specification.Types
 import Cauterize.FormHash
 import Cauterize.Common.BuiltIn
-import Cauterize.Common.Named
-import qualified Cauterize.Schema.Types as SC
 
 import Data.Bits
 import Data.List
-import Data.Maybe
-import qualified Data.Map as M
+
 import qualified Data.ByteString as B
-
-import Data.Graph
-
-type Name = String
-type Cycle = [Name]
+import qualified Cauterize.Schema as SC
 
 fromSchema :: SC.Schema -> Maybe Specification
 fromSchema (SC.Schema n v fs) =
@@ -30,30 +22,6 @@ fromSchemaForms :: [SC.SchemaForm] -> [SpecForm]
 fromSchemaForms = map fromSchemaForm
   where
     fromSchemaForm (SC.FType f) = SpecForm $ fromSchemaType f
-
--- | This function serves two purposes:
---    1. If there are cycles in the schema, they are reported.
---    2. If the schema is valid, then a Map of names to Type IDs are produced.
-schemaTypeIdMap :: SC.Schema -> Either [Cycle] (M.Map Name FormHash)
-schemaTypeIdMap schema = case typeCycles (map snd $ M.toList tyMap) of
-                          [] -> Right resultMap
-                          cs -> Left cs
-  where
-    schemaTypeMap (SC.Schema _ _ fs) = M.fromList $ map (\(SC.FType t) -> (cautName t, t)) fs
-    tyMap = schemaTypeMap schema
-    resultMap = fmap hashType tyMap
-
-    -- YO! There's a fromJust here. The way the input map is constructed
-    -- should keep us from having to worry about this.
-    hashType t = let dirRefs = fromJust $ mapM (`M.lookup` resultMap) (referredNames t)
-                 in finalize $ foldl formHashWith (formHashCtx t) dirRefs
-
-typeCycles :: [SC.Type] -> [[Name]]
-typeCycles ts = let ns = map (\t -> (cautName t, cautName t, referredNames t)) ts
-                in mapMaybe isScc (stronglyConnComp ns)
-  where
-    isScc (CyclicSCC vs) = Just vs
-    isScc _ = Nothing
 
 fromSchemaType :: SC.Type -> Type
 fromSchemaType (SC.TBuiltIn b) = TBuiltIn b
