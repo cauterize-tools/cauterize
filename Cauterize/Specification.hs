@@ -1,7 +1,6 @@
 module Cauterize.Specification
   ( module Cauterize.Specification.Types
   , fromSchema
-  , schemaTypeMap
   , schemaTypeIdMap
   ) where
 
@@ -31,21 +30,19 @@ fromSchemaForms = map fromSchemaForm
   where
     fromSchemaForm (SC.FType f) = SpecForm $ fromSchemaType f
 
-schemaTypeIdMap :: M.Map Name SC.Type -> Either [[Name]] (M.Map Name FormHash)
-schemaTypeIdMap m = case cycs of
+schemaTypeIdMap :: SC.Schema -> Either [[Name]] (M.Map Name FormHash)
+schemaTypeIdMap schema = case cycs of
                           [] -> Right $ fmap hashType m
                           cs -> Left cs
   where
+    m = schemaTypeMap schema
     cycs = cycles (map snd $ M.toList m)
     r = fmap hashType m
 
-    hashType :: SC.Type -> FormHash
-    hashType t = result
-      where
-        -- YO! There's a fromJust here. The way the input map is constructed
-        -- should keep us from having to worry about this.
-        dirRefs = fromJust $ mapM (`M.lookup` r) (referredNames t)
-        result = finalize $ foldl formHashWith (formHashCtx t) dirRefs
+    -- YO! There's a fromJust here. The way the input map is constructed
+    -- should keep us from having to worry about this.
+    hashType t = let dirRefs = fromJust $ mapM (`M.lookup` r) (referredNames t)
+                 in finalize $ foldl formHashWith (formHashCtx t) dirRefs
 
 cycles :: [SC.Type] -> [[Name]]
 cycles ts = let ns = map (\t -> (cautName t, cautName t, referredNames t)) ts
