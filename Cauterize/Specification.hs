@@ -19,6 +19,9 @@ import Control.Monad
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 
+-- import qualified Data.Graph.SCC
+import Data.Graph
+
 type Name = String
 type Error = String
 
@@ -32,35 +35,44 @@ fromSchemaForms = map fromSchemaForm
   where
     fromSchemaForm (SC.FType f) = SpecForm $ fromSchemaType f
 
-schemaTypeIdRefMap :: M.Map Name SC.Type -> M.Map Name (Either [Name] FormHash)
-schemaTypeIdRefMap m = r
+schemaTypeIdRefMap :: M.Map Name SC.Type -> (Either [[Name]] (M.Map Name FormHash))
+schemaTypeIdRefMap m = case cycs of
+                          [] -> Right $ fmap hashType m
+                          cs -> Left cs
   where
+    -- refs = concat $ maybeToList $ m `references` n
+    cycs = cycles (map snd $ M.toList m)
     r = fmap hashType m
-    hashType :: SC.Type -> Either [Name] FormHash
-    -- hashType path t = if n `elem` path
-    --                     then (Left . reverse) (n:path)
-    --                     else result
-    hashType t = case cycs of
-                        Just cyc -> Left $ reverse cyc
-                        Nothing -> result
+
+    hashType :: SC.Type -> FormHash
+    hashType t = result
       where
         n = cautName t
         th = formHashCtx t
 
         -- YO! There's a fromJust here. The way the input map is constructed
         -- should keep us from having to worry about this.
-        dirRefs :: [Either [Name] FormHash]
+        -- dirRefs :: [Either [Name] FormHash]
+        dirRefs :: [FormHash]
         dirRefs = fromJust $ mapM (`M.lookup` r) (referredNames t)
 
         -- result = foldM formHashWith th dirRefs
-        result = do
-          fhs <- sequence dirRefs
-          return $ finalize $ foldl formHashWith th fhs
+        result :: FormHash
+        result = finalize $ foldl formHashWith th dirRefs
 
-        refs = concat $ maybeToList $ m `references` n
-        cycs = cycCheck refs
         -- refHashs
         -- dirRefs = mapM (liftM fst . (`M.lookup` r)) (referredNames t) >>= sequence >>= magicHash -- :: Maybe [FormHash]
+
+cycles :: [SC.Type] -> [[Name]]
+cycles ts = let ns = map cautName ts
+                ns' = map (\t -> (cautName t, cautName t, referredNames t)) ts
+
+            in mapMaybe isScc (stronglyConnComp ns')
+  where
+    isScc (CyclicSCC vs) = Just vs
+    isScc _ = Nothing
+
+            
 
 cycCheck :: [Name] -> Maybe [Name]
 cycCheck ns = go ns []
