@@ -66,11 +66,10 @@ data SetField = SetField String String
 --    1. If there are cycles in the schema, they are reported.
 --    2. If the schema is valid, then a Map of names to Type IDs are produced.
 schemaTypeIdMap :: Schema -> Either [Cycle] TypeIdMap
-schemaTypeIdMap schema = case typeCycles (map snd $ M.toList tyMap) of
+schemaTypeIdMap schema = case schemaCycles schema of
                           [] -> Right resultMap
                           cs -> Left cs
   where
-    schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (cautName t, t)) fs
     tyMap = schemaTypeMap schema
     resultMap = fmap hashType tyMap
 
@@ -78,6 +77,14 @@ schemaTypeIdMap schema = case typeCycles (map snd $ M.toList tyMap) of
     -- should keep us from having to worry about this.
     hashType t = let dirRefs = fromJust $ mapM (`M.lookup` resultMap) (referredNames t)
                  in finalize $ foldl formHashWith (formHashCtx t) dirRefs
+
+schemaCycles :: Schema -> [Cycle]
+schemaCycles s = typeCycles (map snd $ M.toList tyMap)
+  where
+    tyMap = schemaTypeMap s
+
+schemaTypeMap :: Schema -> M.Map Name Type
+schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (cautName t, t)) fs
 
 typeCycles :: [Type] -> [Cycle]
 typeCycles ts = let ns = map (\t -> (cautName t, cautName t, referredNames t)) ts
