@@ -43,15 +43,6 @@ data EnumVariant = EnumVariant String (Maybe String) Integer
 data PartialVariant = PartialVariant String String FormHash
   deriving (Show)
 
--- instance Hashable Specification where
---   formHashWith ctx (Specification n v _ fs) = finalCtx
---     where
---       nextCtx = foldl hashFn ctx ["specification", n, v]
---       finalCtx = foldl formHashWith nextCtx fs
--- 
--- instance Hashable SpecForm where
---   formHashWith ctx _ = ctx `hashFn` "specform"
-
 instance CautName Type where
   cautName (TBuiltIn b _) = show b
   cautName (TScalar n _ _) = n
