@@ -278,3 +278,8 @@ requirements of a Partial.
 (version "0.1.0")
 (hash "22596363b3de40b06f981fb85d82312e8c0ed511")
 ```
+
+# TODO List
+
+* Exhaustive checking for hash-collisions.
+* Hash algorithm selection.
