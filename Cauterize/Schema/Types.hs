@@ -102,6 +102,19 @@ schemaStructuralHash s@(Schema n v fs) =
     hshFn :: TypeIdMap -> HashContext -> SchemaForm -> HashContext
     hshFn m ctx (FType t) = let tyId = fromJust $ cautName t `M.lookup` m
                             in ctx `formHashWith` tyId
+
+referredNames :: Type -> [Name]
+referredNames (TBuiltIn _) = []
+referredNames (TScalar _ b) = [cautName b]
+referredNames (TConst _ b _) = [cautName b]
+referredNames (TFixedArray _ n _) = [n]
+referredNames (TBoundedArray _ n _) = [n]
+referredNames (TStruct _ fs) = nub $  map (\(StructField _ n) -> n) fs
+referredNames (TSet _ fs) = nub $  map (\(SetField _ n) -> n) fs
+referredNames (TEnum _ vs) = nub $ mapMaybe (\(EnumVariant _ n) -> n) vs
+referredNames (TPartial _ _ fs) = nub $ map (\(PartialVariant _ n) -> n) fs
+referredNames (TPad _ _) = []
+
 instance CautName Type where
   cautName (TBuiltIn b) = show b
   cautName (TScalar n _) = n
@@ -113,18 +126,6 @@ instance CautName Type where
   cautName (TEnum n _) = n
   cautName (TPartial n _ _) = n
   cautName (TPad n _) = n
-
-instance RefersNames Type where
-  referredNames (TBuiltIn _) = []
-  referredNames (TScalar _ b) = [cautName b]
-  referredNames (TConst _ b _) = [cautName b]
-  referredNames (TFixedArray _ n _) = [n]
-  referredNames (TBoundedArray _ n _) = [n]
-  referredNames (TStruct _ fs) = nub $  map (\(StructField _ n) -> n) fs
-  referredNames (TSet _ fs) = nub $  map (\(SetField _ n) -> n) fs
-  referredNames (TEnum _ vs) = nub $ mapMaybe (\(EnumVariant _ n) -> n) vs
-  referredNames (TPartial _ _ fs) = nub $ map (\(PartialVariant _ n) -> n) fs
-  referredNames (TPad _ _) = []
 
 -- Note: these instances only hash on the *value* of the type. This hash does
 -- not take into account the structure of depended-uppon types.
