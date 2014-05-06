@@ -23,7 +23,7 @@ executable ref-caut
   build-depends:       base >=4.6 && <4.7,
                        parsec ==3.1.*,
                        pretty ==1.1.*,
-                       prettyclass ==1.0.*,
+                       pretty-class ==0.1.*,
                        optparse-applicative ==0.8.*,
                        cryptohash ==0.11.*,
                        QuickCheck ==2.7.3.*,

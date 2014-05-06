@@ -8,6 +8,9 @@ import Data.Maybe
 
 import Data.Graph
 
+import Text.PrettyPrint
+import Text.PrettyPrint.Class
+
 import qualified Data.Map as M
 
 type Name = String
@@ -154,6 +157,46 @@ instance Hashable EnumVariant where
 instance Hashable PartialVariant where
   formHashWith ctx (PartialVariant n m) = ctx `hashFn` n `hashFn` m
 
+
+instance Pretty Schema where
+  pretty (Schema n v fs) = parens $ text "schema" <+> text n <+> text v <+> (vcat $ map pretty fs)
+
+instance Pretty SchemaForm where
+  pretty (FType t) = pretty t
+
+instance Pretty Type where
+  pretty (TBuiltIn _) = empty
+  pretty (TScalar n b) = parens $ text "scalar" <+> text n <+> (text . show) b
+  pretty (TConst n b i) = parens $ text "const" <+> text n <+> (text . show) b <+> (text . show) i
+  pretty (TFixedArray n m i) = parens $ text "fixed" <+> text n <+> text m <+> (text . show) i
+  pretty (TBoundedArray n m i) = parens $ text "bounded" <+> text n <+> text m <+> (text . show) i
+  pretty (TStruct n sfs) = parens $ text "struct" <+> text n <+> psfs
+    where
+      psfs = vcat $ map pretty sfs
+  pretty (TSet n sfs) = parens $ text "set" <+> text n <+> psfs
+    where
+      psfs = vcat $ map pretty sfs
+  pretty (TEnum n evs) = parens $ text "enum" <+> text n <+> pevs
+    where
+      pevs = vcat $ map pretty evs
+  pretty (TPartial n i pfs) = parens $ text "partial" <+> text n <+> (text . show) i <+> ppfs
+    where
+      ppfs = vcat $ map pretty pfs
+  pretty (TPad n i) = parens $ text "pad" <+> text n <+> (text . show) i
+
+
+instance Pretty StructField where
+  pretty (StructField n m) = parens $ text "field" <+> text n <+> text m
+
+instance Pretty EnumVariant where
+  pretty (EnumVariant n Nothing) = parens $ text "var" <+> text n
+  pretty (EnumVariant n (Just m)) = parens $ text "var" <+> text n <+> text m
+
+instance Pretty SetField where
+  pretty (SetField n m) = parens $ text "mem" <+> text n <+> text m
+
+instance Pretty PartialVariant where
+  pretty (PartialVariant n m) = parens $ text "var" <+> text n <+> text m
 
 padShowInteger :: Integer -> String
 padShowInteger v = let w = 20
