@@ -283,3 +283,5 @@ requirements of a Partial.
 
 * Exhaustive checking for hash-collisions.
 * Hash algorithm selection.
+* Prune unused builtins out of specifications.
+* Note that specifications must list their dependencies in topographical order.

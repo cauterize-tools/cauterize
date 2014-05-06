@@ -59,8 +59,9 @@ instance CautName Type where
   cautName (TPad n _ _) = n
 
 instance Pretty Specification where
-  pretty (Specification n v h fs) = parens $ text "specification" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> text h <+> pfs
+  pretty (Specification n v h fs) = parens $ hang psp 1 pfs
     where
+      psp = text "specification" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> text h
       pfs = vcat $ map pretty fs
 
 instance Pretty SpecForm where
@@ -69,17 +70,36 @@ instance Pretty SpecForm where
 instance Pretty Type where
   pretty (TBuiltIn b h) = parens $ text "builtin" <+> (text . show) b <+> pretty h
   pretty (TScalar n r h) = parens $ text "scalar" <+> text n <+> (text . show) r <+> pretty h
-  pretty (TConst n b i h) = parens $ text "const" <+> text n <+> (text . show) b
-  pretty (TFixedArray n m i h) = parens $ text "fixed" <+> text n
-  pretty (TBoundedArray n m i r h) = parens $ text "bounded" <+> text n
-  pretty (TStruct n fs h) = parens $ text "struct" <+> text n
-  pretty (TSet n r fs h) = parens $ text "set" <+> text n
-  pretty (TEnum n r vs h) = parens $ text "enum" <+> text n <+> (text . show) r <+> pretty h <+> pvs
+  pretty (TConst n b i h) = parens $ text "const" <+> text n <+> (text . show) b <+> (text . show) i  <+> pretty h
+  pretty (TFixedArray n m i h) = parens $ text "fixed" <+> text n <+> text m <+> (text . show) i <+> pretty h
+  pretty (TBoundedArray n m i r h) = parens $ text "bounded" <+> text n <+> text m <+> (text . show) i <+> (text . show) r <+> pretty h
+  pretty (TStruct n fs h) = parens $ hang pst 1 pfs
     where
+      pst = text "struct" <+> text n <+> pretty h
+      pfs = vcat $ map pretty fs
+  pretty (TSet n r fs h) = parens $ hang pse 1 pfs
+    where
+      pse = text "set" <+> text n <+> (text . show) r <+> pretty h
+      pfs = vcat $ map pretty fs
+  pretty (TEnum n r vs h) = parens $ hang pen 1 pvs
+    where
+      pen = text "enum" <+> text n <+> (text . show) r <+> pretty h
       pvs = vcat $ map pretty vs
-  pretty (TPartial n s r ps h) = parens $ text "partial" <+> text n
-  pretty (TPad n l h) = parens $ text "pad" <+> text n
+  pretty (TPartial n s r ps h) = parens $ hang ppa 1 pps
+    where
+      ppa = text "partial" <+> text n <+> (text . show) s <+> (text . show) r <+> pretty h
+      pps = vcat $ map pretty ps
+  pretty (TPad n l h) = parens $ text "pad" <+> text n <+> (text . show) l <+> pretty h
 
 instance Pretty EnumVariant where
   pretty (EnumVariant n Nothing t) = parens $ text "var" <+> text n <+> (text . show) t
   pretty (EnumVariant n (Just m) t) = parens $ text "var" <+> text n <+> (text . show) t <+> text m
+
+instance Pretty StructField where
+  pretty (StructField n m) = parens $ text "field" <+> text n <+> text m
+
+instance Pretty SetField where
+  pretty (SetField n m i) = parens $ text "mem" <+> text n <+> text m <+> (text . show) i
+
+instance Pretty PartialVariant where
+  pretty (PartialVariant n m h) = parens $ text "var" <+> text n <+> text m <+> pretty h
