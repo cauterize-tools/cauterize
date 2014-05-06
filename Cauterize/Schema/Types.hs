@@ -159,7 +159,9 @@ instance Hashable PartialVariant where
 
 
 instance Pretty Schema where
-  pretty (Schema n v fs) = parens $ text "schema" <+> text n <+> text v <+> (vcat $ map pretty fs)
+  pretty (Schema n v fs) = parens $ text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> pfs
+    where
+      pfs = vcat $ map pretty fs
 
 instance Pretty SchemaForm where
   pretty (FType t) = pretty t
