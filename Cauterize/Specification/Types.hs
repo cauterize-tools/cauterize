@@ -4,6 +4,9 @@ import Cauterize.FormHash
 import Cauterize.Common.BuiltIn
 import Cauterize.Common.Named
 
+import Text.PrettyPrint
+import Text.PrettyPrint.Class
+
 data Specification = Specification
   { name :: String
   , version :: String
@@ -54,3 +57,29 @@ instance CautName Type where
   cautName (TEnum n _ _ _) = n
   cautName (TPartial n _ _ _ _) = n
   cautName (TPad n _ _) = n
+
+instance Pretty Specification where
+  pretty (Specification n v h fs) = parens $ text "specification" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> text h <+> pfs
+    where
+      pfs = vcat $ map pretty fs
+
+instance Pretty SpecForm where
+  pretty (SpecForm t) = pretty t
+
+instance Pretty Type where
+  pretty (TBuiltIn b h) = parens $ text "builtin" <+> (text . show) b <+> pretty h
+  pretty (TScalar n r h) = parens $ text "scalar" <+> text n <+> (text . show) r <+> pretty h
+  pretty (TConst n b i h) = parens $ text "const" <+> text n <+> (text . show) b
+  pretty (TFixedArray n m i h) = parens $ text "fixed" <+> text n
+  pretty (TBoundedArray n m i r h) = parens $ text "bounded" <+> text n
+  pretty (TStruct n fs h) = parens $ text "struct" <+> text n
+  pretty (TSet n r fs h) = parens $ text "set" <+> text n
+  pretty (TEnum n r vs h) = parens $ text "enum" <+> text n <+> (text . show) r <+> pretty h <+> pvs
+    where
+      pvs = vcat $ map pretty vs
+  pretty (TPartial n s r ps h) = parens $ text "partial" <+> text n
+  pretty (TPad n l h) = parens $ text "pad" <+> text n
+
+instance Pretty EnumVariant where
+  pretty (EnumVariant n Nothing t) = parens $ text "var" <+> text n <+> (text . show) t
+  pretty (EnumVariant n (Just m) t) = parens $ text "var" <+> text n <+> (text . show) t <+> text m

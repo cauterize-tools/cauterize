@@ -12,5 +12,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
     render result = case result of
                       (Left e) -> print e
                       (Right r) -> case checkSchema r of
-                                      [] -> print $ pretty r -- print $ fromSchema r
+                                      [] -> case fromSchema r of
+                                              Just spec -> print $ pretty spec
+                                              Nothing -> error "ERROR: Inconsistent schema."
                                       es -> print es

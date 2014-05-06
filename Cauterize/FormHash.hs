@@ -6,6 +6,9 @@ import qualified Data.ByteString.Char8 as BC
 import Data.Char
 import Numeric
 
+import Text.PrettyPrint
+import Text.PrettyPrint.Class
+
 data FormHash = FormHash B.ByteString
   deriving (Eq, Ord)
 
@@ -47,3 +50,6 @@ instance Hashable FormHash where
 
 instance Hashable a => Hashable [a] where
   formHashWith = foldl formHashWith
+
+instance Pretty FormHash where
+  pretty = text . show
