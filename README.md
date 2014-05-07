@@ -285,3 +285,4 @@ requirements of a Partial.
 * Hash algorithm selection.
 * Prune unused builtins out of specifications.
 * Note that specifications must list their dependencies in topographical order.
+* Add a "ranged" type that's similar to a scalar but only accepts n..m values in a builtin.
