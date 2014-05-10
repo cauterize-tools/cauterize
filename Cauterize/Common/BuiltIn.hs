@@ -36,9 +36,11 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
              | BIieee754s | BIieee754d
              | BIbool
+             | BIvoid
   deriving (Enum, Bounded)
 
 instance Show BuiltIn where
+  show BIvoid     = "void"
   show BIu8       = "u8"
   show BIu16      = "u16"
   show BIu32      = "u32"
@@ -52,6 +54,7 @@ instance Show BuiltIn where
   show BIieee754d = "ieee754d"
 
 instance Read BuiltIn where
+  readsPrec _ "void"     = [ (BIvoid, "") ]
   readsPrec _ "u8"       = [ (BIu8, "") ]
   readsPrec _ "u16"      = [ (BIu16, "") ]
   readsPrec _ "u32"      = [ (BIu32, "") ]

@@ -53,3 +53,6 @@ instance Hashable a => Hashable [a] where
 
 instance Pretty FormHash where
   pretty = text . show
+
+instance Hashable Char where
+  formHashWith ctx c = ctx `C.update` BC.pack [c]

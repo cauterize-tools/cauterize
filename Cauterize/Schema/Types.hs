@@ -17,58 +17,41 @@ type Name = String
 type Cycle = [Name]
 type TypeIdMap = M.Map Name FormHash
 
-data Schema = Schema
+data Schema t a = Schema
   { schemaName :: String
   , schemaVersion :: String
-  , schemaForms :: [SchemaForm]
+  , schemaForms :: [SchemaForm t a]
   }
   deriving (Show)
 
-data SchemaForm = FType Type
+data SchemaForm t a = FType (Type t a)
   deriving (Show)
 
-{- 
- - Valid types in Cauterize
- -
- -    * BuiltIn
- -    * Enumeration
- -    * BoundedArray
- -    * UnboundedArray
- -    * Set
- -    * Constant
- -}
-data Type = TBuiltIn BuiltIn
-          | TScalar String BuiltIn
-          | TConst String BuiltIn Integer
+data Type t a = TBuiltIn BuiltIn a
+              | TScalar String BuiltIn a
+              | TConst String BuiltIn Integer a
 
-          | TFixedArray String String Integer
-          | TBoundedArray String String Integer
+              | TFixedArray String t Integer a
+              | TBoundedArray String t Integer a
 
-          | TStruct String [StructField]
-          | TSet String [SetField]
+              | TStruct String [IndexedRef t] a
+              | TSet String [IndexedRef t] a
 
-          | TEnum String [EnumVariant]
-          | TPartial String Integer [PartialVariant]
+              | TEnum String [IndexedRef t] a
+              | TPartial String [IndexedRef t] a
 
-          | TPad String Integer
+              | TPad String Integer a
   deriving (Show)
 
-data StructField = StructField String String
+data IndexedRef t = IndexedRef String t Integer
   deriving (Show)
 
-data EnumVariant = EnumVariant String (Maybe String)
-  deriving (Show)
-
-data PartialVariant = PartialVariant String String
-  deriving (Show)
-
-data SetField = SetField String String
-  deriving (Show)
-
+{-
+  
 -- | This function serves two purposes:
 --    1. If there are cycles in the schema, they are reported.
 --    2. If the schema is valid, then a Map of names to Type IDs are produced.
-schemaTypeIdMap :: Schema -> Either [Cycle] TypeIdMap
+schemaTypeIdMap :: Schema String a -> Either [Cycle] TypeIdMap
 schemaTypeIdMap schema = case schemaCycles schema of
                           [] -> Right resultMap
                           cs -> Left cs
@@ -81,125 +64,104 @@ schemaTypeIdMap schema = case schemaCycles schema of
     hashType t = let dirRefs = fromJust $ mapM (`M.lookup` resultMap) (referredNames t)
                  in finalize $ foldl formHashWith (formHashCtx t) dirRefs
 
-schemaCycles :: Schema -> [Cycle]
+schemaCycles :: Schema String a -> [Cycle]
 schemaCycles s = typeCycles (map snd $ M.toList tyMap)
   where
     tyMap = schemaTypeMap s
 
-schemaTypeMap :: Schema -> M.Map Name Type
+schemaTypeMap :: Schema t a -> M.Map Name (Type t a)
 schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (cautName t, t)) fs
 
-typeCycles :: [Type] -> [Cycle]
+typeCycles :: [Type String a] -> [Cycle]
 typeCycles ts = let ns = map (\t -> (cautName t, cautName t, referredNames t)) ts
                 in mapMaybe isScc (stronglyConnComp ns)
   where
     isScc (CyclicSCC vs) = Just vs
     isScc _ = Nothing
 
-schemaStructuralHash :: Schema -> FormHash
+schemaStructuralHash :: Schema String a -> FormHash
 schemaStructuralHash s@(Schema n v fs) =
     let (Right m) = schemaTypeIdMap s
         ctx = hashInit `hashFn` n `hashFn` v
     in finalize $ foldl (hshFn m) ctx fs
   where
-    hshFn :: TypeIdMap -> HashContext -> SchemaForm -> HashContext
+    hshFn :: TypeIdMap -> HashContext -> SchemaForm t a -> HashContext
     hshFn m ctx (FType t) = let tyId = fromJust $ cautName t `M.lookup` m
                             in ctx `formHashWith` tyId
 
-referredNames :: Type -> [Name]
-referredNames (TBuiltIn _) = []
-referredNames (TScalar _ b) = [cautName b]
-referredNames (TConst _ b _) = [cautName b]
-referredNames (TFixedArray _ n _) = [n]
-referredNames (TBoundedArray _ n _) = [n]
-referredNames (TStruct _ fs) = nub $  map (\(StructField _ n) -> n) fs
-referredNames (TSet _ fs) = nub $  map (\(SetField _ n) -> n) fs
-referredNames (TEnum _ vs) = nub $ mapMaybe (\(EnumVariant _ n) -> n) vs
-referredNames (TPartial _ _ fs) = nub $ map (\(PartialVariant _ n) -> n) fs
-referredNames (TPad _ _) = []
+referredNames :: Type Name a -> [Name]
+referredNames (TBuiltIn _ _) = []
+referredNames (TScalar _ b _) = [cautName b]
+referredNames (TConst _ b _ _) = [cautName b]
+referredNames (TFixedArray _ n _ _) = [n]
+referredNames (TBoundedArray _ n _ _) = [n]
+referredNames (TStruct _ fs _) = nub $  map (\(IndexedRef _ n _) -> n) fs
+referredNames (TSet _ fs _) = nub $  map (\(IndexedRef _ n _) -> n) fs
+referredNames (TEnum _ vs _) = nub $ map (\(IndexedRef _ n _) -> n) vs
+referredNames (TPartial _ fs _) = nub $ map (\(IndexedRef _ n _) -> n) fs
+referredNames (TPad _ _ _) = []
 
-instance CautName Type where
-  cautName (TBuiltIn b) = show b
-  cautName (TScalar n _) = n
-  cautName (TConst n _ _) = n
-  cautName (TFixedArray n _ _) = n
-  cautName (TBoundedArray n _ _) = n
-  cautName (TStruct n _) = n
-  cautName (TSet n _) = n
-  cautName (TEnum n _) = n
+instance CautName (Type t a) where
+  cautName (TBuiltIn b _) = show b
+  cautName (TScalar n _ _) = n
+  cautName (TConst n _ _ _) = n
+  cautName (TFixedArray n _ _ _) = n
+  cautName (TBoundedArray n _ _ _) = n
+  cautName (TStruct n _ _) = n
+  cautName (TSet n _ _) = n
+  cautName (TEnum n _ _) = n
   cautName (TPartial n _ _) = n
-  cautName (TPad n _) = n
+  cautName (TPad n _ _) = n
 
 -- Note: these instances only hash on the *value* of the type. This hash does
 -- not take into account the structure of depended-uppon types.
-instance Hashable Type where
-  formHashWith ctx (TBuiltIn b) = ctx `hashFn` "built-in" `formHashWith` b
-  formHashWith ctx (TScalar n b) = ctx `hashFn` "scalar" `hashFn` n `formHashWith` b
-  formHashWith ctx (TConst n b i) = ctx `hashFn` "const" `hashFn` n `formHashWith` b `hashFn` padShowInteger i
-  formHashWith ctx (TFixedArray n m i) = ctx `hashFn` "fixed" `hashFn` n `hashFn` m `hashFn` padShowInteger i
-  formHashWith ctx (TBoundedArray n m i) = ctx `hashFn` "bounded" `hashFn` n `hashFn` m `hashFn` padShowInteger i
-  formHashWith ctx (TStruct n sfs) = ctx `hashFn` "struct" `hashFn` n `formHashWith` sfs
-  formHashWith ctx (TSet n sfs) = ctx `hashFn` "set" `hashFn` n `formHashWith` sfs
-  formHashWith ctx (TEnum n evs) = ctx `hashFn` "enum" `hashFn` n `formHashWith` evs
-  formHashWith ctx (TPartial n i pfs) = ctx `hashFn` "partial" `hashFn` n `hashFn` padShowInteger i `formHashWith` pfs
-  formHashWith ctx (TPad n i) = ctx `hashFn` "pad" `hashFn` n `hashFn` padShowInteger i
+instance (Hashable t) => Hashable (Type t a) where
+  formHashWith ctx (TBuiltIn b _) = ctx `hashFn` "built-in" `formHashWith` b
+  formHashWith ctx (TScalar n b _) = ctx `hashFn` "scalar" `hashFn` n `formHashWith` b
+  formHashWith ctx (TConst n b i _) = ctx `hashFn` "const" `hashFn` n `formHashWith` b `hashFn` padShowInteger i
+  formHashWith ctx (TFixedArray n m i _) = ctx `hashFn` "fixed" `hashFn` n `formHashWith` m `hashFn` padShowInteger i
+  formHashWith ctx (TBoundedArray n m i _) = ctx `hashFn` "bounded" `hashFn` n `formHashWith` m `hashFn` padShowInteger i
+  formHashWith ctx (TStruct n sfs _) = ctx `hashFn` "struct" `hashFn` n `formHashWith` sfs
+  formHashWith ctx (TSet n sfs _) = ctx `hashFn` "set" `hashFn` n `formHashWith` sfs
+  formHashWith ctx (TEnum n evs _) = ctx `hashFn` "enum" `hashFn` n `formHashWith` evs
+  formHashWith ctx (TPartial n pfs _) = ctx `hashFn` "partial" `hashFn` n `formHashWith` pfs
+  formHashWith ctx (TPad n i _) = ctx `hashFn` "pad" `hashFn` n `hashFn` padShowInteger i
 
-instance Hashable StructField where
-  formHashWith ctx (StructField n m) = ctx `hashFn` n `hashFn` m
-
-instance Hashable SetField where
-  formHashWith ctx (SetField n m) = ctx `hashFn` n `hashFn` m
-
-instance Hashable EnumVariant where
-  formHashWith ctx (EnumVariant n (Just m)) = ctx `hashFn` n `hashFn` m
-  formHashWith ctx (EnumVariant n Nothing) = ctx `hashFn` n
-
-instance Hashable PartialVariant where
-  formHashWith ctx (PartialVariant n m) = ctx `hashFn` n `hashFn` m
-
-
-instance Pretty Schema where
+instance (Hashable t) => Hashable (IndexedRef t) where
+  formHashWith ctx (IndexedRef n m i) = ctx `hashFn` n `formHashWith` m `hashFn` padShowInteger i
+  
+instance Pretty (Schema t a) where
   pretty (Schema n v fs) = parens $ text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> pfs
     where
       pfs = vcat $ map pretty fs
 
-instance Pretty SchemaForm where
+instance Pretty (SchemaForm t a) where
   pretty (FType t) = pretty t
 
-instance Pretty Type where
-  pretty (TBuiltIn _) = empty
-  pretty (TScalar n b) = parens $ text "scalar" <+> text n <+> (text . show) b
-  pretty (TConst n b i) = parens $ text "const" <+> text n <+> (text . show) b <+> (text . show) i
-  pretty (TFixedArray n m i) = parens $ text "fixed" <+> text n <+> text m <+> (text . show) i
-  pretty (TBoundedArray n m i) = parens $ text "bounded" <+> text n <+> text m <+> (text . show) i
-  pretty (TStruct n sfs) = parens $ text "struct" <+> text n <+> psfs
+instance Pretty (Type t a) where
+  pretty (TBuiltIn _ _) = empty
+  pretty (TScalar n b _) = parens $ text "scalar" <+> text n <+> (text . show) b
+  pretty (TConst n b i _) = parens $ text "const" <+> text n <+> (text . show) b <+> (text . show) i
+  pretty (TFixedArray n m i _) = parens $ text "fixed" <+> text n <+> text m <+> (text . show) i
+  pretty (TBoundedArray n m i _) = parens $ text "bounded" <+> text n <+> text m <+> (text . show) i
+  pretty (TStruct n sfs _) = parens $ text "struct" <+> text n <+> psfs
     where
       psfs = vcat $ map pretty sfs
-  pretty (TSet n sfs) = parens $ text "set" <+> text n <+> psfs
+  pretty (TSet n sfs _) = parens $ text "set" <+> text n <+> psfs
     where
       psfs = vcat $ map pretty sfs
-  pretty (TEnum n evs) = parens $ text "enum" <+> text n <+> pevs
+  pretty (TEnum n evs _) = parens $ text "enum" <+> text n <+> pevs
     where
       pevs = vcat $ map pretty evs
-  pretty (TPartial n i pfs) = parens $ text "partial" <+> text n <+> (text . show) i <+> ppfs
+  pretty (TPartial n pfs _) = parens $ text "partial" <+> text n <+> ppfs
     where
       ppfs = vcat $ map pretty pfs
-  pretty (TPad n i) = parens $ text "pad" <+> text n <+> (text . show) i
+  pretty (TPad n i _) = parens $ text "pad" <+> text n <+> (text . show) i
 
 
-instance Pretty StructField where
-  pretty (StructField n m) = parens $ text "field" <+> text n <+> text m
-
-instance Pretty EnumVariant where
-  pretty (EnumVariant n Nothing) = parens $ text "var" <+> text n
-  pretty (EnumVariant n (Just m)) = parens $ text "var" <+> text n <+> text m
-
-instance Pretty SetField where
-  pretty (SetField n m) = parens $ text "mem" <+> text n <+> text m
-
-instance Pretty PartialVariant where
-  pretty (PartialVariant n m) = parens $ text "var" <+> text n <+> text m
-
+instance Pretty (IndexedRef t) where
+  pretty (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
+  
 padShowInteger :: Integer -> String
 padShowInteger v = let w = 20
                        v' = abs v
@@ -208,3 +170,4 @@ padShowInteger v = let w = 20
                    in if v < 0
                         then '-':num
                         else '+':num
+-}

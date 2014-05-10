@@ -1,4 +1,7 @@
-module Cauterize.Schema.Parser (parseFile) where
+module Cauterize.Schema.Parser
+  ( parseFile
+  , ASTSchema
+  ) where
 
 import Control.Monad
 
@@ -9,16 +12,20 @@ import Cauterize.Schema.Types
 import Cauterize.Schema.Utils
 import Cauterize.Common.BuiltIn
 
-parseFile :: FilePath -> IO (Either ParseError Schema)
+type ASTSchema = Schema String ()
+type ASTType = Type String ()
+type ASTIndexedRef = IndexedRef String
+
+parseFile :: FilePath -> IO (Either ParseError ASTSchema)
 parseFile path = readFile path >>= parseString path
 
-parseString :: FilePath -> String -> IO (Either ParseError Schema)
+parseString :: FilePath -> String -> IO (Either ParseError ASTSchema)
 parseString path str = 
   return $ case parse parseSchema path str of
               Left e -> Left e
               Right s -> Right s
 
-parseSchema :: Parser Schema
+parseSchema :: Parser (Schema String ())
 parseSchema = pSexp "schema" $ do
     qname <- spacedQuoted
     qver <- spacedQuoted
@@ -26,12 +33,12 @@ parseSchema = pSexp "schema" $ do
     return $ Schema qname qver (bis ++ forms)
   where
     pForms = option [] $ spaces1 >> parseForm `sepBy` spaces1 
-    bis = map (FType . TBuiltIn) [minBound .. maxBound]
+    bis = map (FType . flip TBuiltIn ()) [minBound .. maxBound]
 
-parseForm :: Parser SchemaForm
+parseForm :: Parser (SchemaForm String ())
 parseForm = liftM FType parseType
 
-parseType :: Parser Type
+parseType :: Parser ASTType
 parseType = choice $ map try
   [ parseScalar
   , parseConst
@@ -44,45 +51,74 @@ parseType = choice $ map try
   , parsePartial
   ]
 
-parseScalar :: Parser Type
-parseScalar = pSexp "scalar" $ liftM2 TScalar spacedName spacedBuiltIn
+parseScalar :: Parser ASTType
+parseScalar = pSexp "scalar" $ do
+  n <- spacedName
+  b <- spacedBuiltIn
+  return $ TScalar n b ()
 
-parseConst :: Parser Type
-parseConst = pSexp "const" $ liftM3 TConst spacedName spacedBuiltIn spacedNumber
+parseConst :: Parser ASTType
+parseConst = pSexp "const" $ do
+  n <- spacedName
+  b <- spacedBuiltIn
+  i <- spacedNumber
+  return $ TConst n b i ()
 
-parseFixedArray :: Parser Type
-parseFixedArray = pSexp "fixed" $ liftM3 TFixedArray spacedName spacedName spacedNumber
+parseFixedArray :: Parser ASTType
+parseFixedArray = pSexp "fixed" $ do
+  n <- spacedName
+  m <- spacedName
+  i <- spacedNumber
+  return $ TFixedArray n m i ()
 
-parseBoundedArray :: Parser Type
-parseBoundedArray = pSexp "bounded" $ liftM3 TBoundedArray spacedName spacedName spacedNumber
+parseBoundedArray :: Parser ASTType
+parseBoundedArray = pSexp "bounded" $ do
+  n <- spacedName
+  m <- spacedName
+  i <- spacedNumber
+  return $ TBoundedArray n m i ()
 
-parseStruct :: Parser Type
-parseStruct = pSexp "struct" $ liftM2 TStruct spacedName parseFields
-  where
-    parseFields = many $ spaces1 >> parseField
-    parseField = pSexp "field" $ liftM2 StructField spacedName spacedName
+parseIndexedRef :: Parser (Integer -> ASTIndexedRef)
+parseIndexedRef = pSexp "field" $ do
+  n <- spacedName
+  m <- option "void" spacedName
+  return $ \i -> IndexedRef n m i
 
-parseEnum :: Parser Type
-parseEnum = pSexp "enum" $ liftM2 TEnum spacedName parseVariants
-  where
-    parseVariants = many $ spaces1 >> parseVariant
-    parseVariant = pSexp "var" $ liftM2 EnumVariant spacedName (optionMaybe spacedName)
+parseIndexedRefs :: Parser [Integer -> ASTIndexedRef]
+parseIndexedRefs = many $ spaces1 >> parseIndexedRef
 
-parseSet :: Parser Type
-parseSet = pSexp "set" $ liftM2 TSet spacedName parseMembers
-  where
-    parseMembers = many $ spaces1 >> parseMember
-    parseMember = pSexp "mem" $ liftM2 SetField spacedName spacedName
+parseStruct :: Parser ASTType
+parseStruct = pSexp "struct" $ do
+  n <- spacedName
+  rs <- parseIndexedRefs
+  return $ TStruct n (tagWithIndex rs) ()
 
-parsePad :: Parser Type
-parsePad = pSexp "pad" $ liftM2 TPad spacedName spacedNumber
+parseEnum :: Parser ASTType
+parseEnum = pSexp "enum" $ do
+  n <- spacedName
+  rs <- parseIndexedRefs
+  return $ TEnum n (tagWithIndex rs) ()
 
-parsePartial :: Parser Type
-parsePartial = pSexp "partial" $ liftM3 TPartial spacedName spacedNumber parseVariants
-  where
-    parseVariants = many $ spaces1 >> parseVariant
-    parseVariant = pSexp "var" $ liftM2 PartialVariant spacedName spacedName
+parseSet :: Parser ASTType
+parseSet = pSexp "set" $ do
+  n <- spacedName
+  rs <- parseIndexedRefs 
+  return $ TSet n (tagWithIndex rs) ()
 
+parsePad :: Parser ASTType
+parsePad = pSexp "pad" $ do
+  n <- spacedName
+  i <- spacedNumber
+  return $ TPad n i ()
+
+parsePartial :: Parser ASTType
+parsePartial = pSexp "partial" $ do
+  n <- spacedName
+  rs <- parseIndexedRefs
+  return $ TPartial n (tagWithIndex rs) ()
+
+tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
+tagWithIndex rs = zipWith ($) rs [0..]
 
 parseBuiltInName :: Parser BuiltIn
 parseBuiltInName = liftM read $ choice names
