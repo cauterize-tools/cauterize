@@ -138,18 +138,6 @@ schemaSigMap schema = resultMap
     tyMap = schemaTypeMap schema
     resultMap = fmap (typeSig resultMap) tyMap
 
-schemaCycles :: Schema Name a -> [Cycle]
-schemaCycles s = typeCycles (map snd $ M.toList tyMap)
-  where
-    tyMap = schemaTypeMap s
-
-    typeCycles :: [Type Name a] -> [Cycle]
-    typeCycles ts = let ns = map (\t -> (typeName t, typeName t, referredNames t)) ts
-                    in mapMaybe isScc (stronglyConnComp ns)
-      where
-        isScc (CyclicSCC vs) = Just vs
-        isScc _ = Nothing
-
 referredNames :: Type Name a -> [Name]
 referredNames (TBuiltIn _ _) = []
 referredNames (TScalar _ b _) = [show b]
@@ -190,6 +178,17 @@ checkSchema s@(Schema _ _ fs) = catMaybes [duplicateNames, cycles, nonExistent]
                       [] -> Nothing
                       bn -> Just $ NonExistent bn
 
+schemaCycles :: Schema Name a -> [Cycle]
+schemaCycles s = typeCycles (map snd $ M.toList tyMap)
+  where
+    tyMap = schemaTypeMap s
+
+    typeCycles :: [Type Name a] -> [Cycle]
+    typeCycles ts = let ns = map (\t -> (typeName t, typeName t, referredNames t)) ts
+                    in mapMaybe isScc (stronglyConnComp ns)
+      where
+        isScc (CyclicSCC vs) = Just vs
+        isScc _ = Nothing
 
 duplicates :: (Eq a, Ord a) => [a] -> [a]
 duplicates ins = map fst $ M.toList dups
@@ -204,40 +203,3 @@ padShowInteger v = let v' = abs v
                    in if v < 0
                         then '-':v''
                         else '+':v''
-
-{-
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
-
-instance Pretty (Schema t a) where
-  pretty (Schema n v fs) = parens $ text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> pfs
-    where
-      pfs = vcat $ map pretty fs
-
-instance Pretty (SchemaForm t a) where
-  pretty (FType t) = pretty t
-
-instance Pretty (Type t a) where
-  pretty (TBuiltIn _ _) = empty
-  pretty (TScalar n b _) = parens $ text "scalar" <+> text n <+> (text . show) b
-  pretty (TConst n b i _) = parens $ text "const" <+> text n <+> (text . show) b <+> (text . show) i
-  pretty (TFixedArray n m i _) = parens $ text "fixed" <+> text n <+> text m <+> (text . show) i
-  pretty (TBoundedArray n m i _) = parens $ text "bounded" <+> text n <+> text m <+> (text . show) i
-  pretty (TStruct n sfs _) = parens $ text "struct" <+> text n <+> psfs
-    where
-      psfs = vcat $ map pretty sfs
-  pretty (TSet n sfs _) = parens $ text "set" <+> text n <+> psfs
-    where
-      psfs = vcat $ map pretty sfs
-  pretty (TEnum n evs _) = parens $ text "enum" <+> text n <+> pevs
-    where
-      pevs = vcat $ map pretty evs
-  pretty (TPartial n pfs _) = parens $ text "partial" <+> text n <+> ppfs
-    where
-      ppfs = vcat $ map pretty pfs
-  pretty (TPad n i _) = parens $ text "pad" <+> text n <+> (text . show) i
-
-
-instance Pretty (IndexedRef t) where
-  pretty (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
--}

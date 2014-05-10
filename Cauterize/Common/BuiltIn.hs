@@ -1,4 +1,16 @@
-module Cauterize.Common.BuiltIn where
+module Cauterize.Common.BuiltIn
+  ( BuiltIn(..)
+  , minimalExpression
+  , minimalBitField
+  , builtInSize
+  ) where
+
+data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
+             | BIs8 | BIs16 | BIs32 | BIs64
+             | BIieee754s | BIieee754d
+             | BIbool
+             | BIvoid
+  deriving (Enum, Bounded, Ord, Eq)
 
 -- | Returns the smallest BuiltIn that is capable of representing the provided
 -- value.
@@ -28,13 +40,19 @@ minimalBitField v | 0 <= v' && v' < 8 = BIu8
   where
     v' = fromIntegral v :: Integer
 
-
-data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
-             | BIs8 | BIs16 | BIs32 | BIs64
-             | BIieee754s | BIieee754d
-             | BIbool
-             | BIvoid
-  deriving (Enum, Bounded, Ord, Eq)
+builtInSize :: BuiltIn -> Integer
+builtInSize BIvoid     = 0
+builtInSize BIu8       = 1
+builtInSize BIu16      = 2
+builtInSize BIu32      = 4
+builtInSize BIu64      = 8
+builtInSize BIs8       = 1
+builtInSize BIs16      = 2
+builtInSize BIs32      = 4
+builtInSize BIs64      = 8
+builtInSize BIbool     = 1
+builtInSize BIieee754s = 4
+builtInSize BIieee754d = 8
 
 instance Show BuiltIn where
   show BIvoid     = "void"

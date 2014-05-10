@@ -15,8 +15,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
       case checkSchema s of
         [] -> do
             putStrLn $ sigLines $ schemaSigMap s
-            print s
-            print $ annotateSchema s
+            print $ annotateHash s
         es -> print es
 
 sigLines :: M.Map Name Signature -> String
