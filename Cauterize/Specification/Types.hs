@@ -1,5 +1,6 @@
 module Cauterize.Specification.Types where
 
+{-
 import Cauterize.FormHash
 import Cauterize.Common.BuiltIn
 import Cauterize.Common.Named
@@ -103,3 +104,4 @@ instance Pretty SetField where
 
 instance Pretty PartialVariant where
   pretty (PartialVariant n m h) = parens $ text "var" <+> text n <+> text m <+> pretty h
+  -}

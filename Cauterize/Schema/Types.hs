@@ -10,6 +10,8 @@ module Cauterize.Schema.Types
   , schemaTypeMap
   , schemaSigMap
   , checkSchema
+  , annotateWith
+  , typeName
   ) where
 
 import Cauterize.Common.BuiltIn
@@ -22,12 +24,13 @@ import qualified Data.Set as L
 import qualified Data.Map as M
 
 type Name = String
+type Version = String
 type Signature = String
 type Cycle = [Name]
 
 data Schema t a = Schema
-  { schemaName :: String
-  , schemaVersion :: String
+  { schemaName :: Name
+  , schemaVersion :: Version
   , schemaForms :: [SchemaForm t a]
   }
   deriving (Show)
@@ -68,6 +71,20 @@ typeName (TSet n _ _) = n
 typeName (TEnum n _ _) = n
 typeName (TPartial n _ _) = n
 typeName (TPad n _ _) = n
+
+annotateWith :: Type t a -> (Type t a -> b) -> Type t b
+annotateWith t fn =
+  case t of
+    (TBuiltIn b _) -> TBuiltIn b (fn t)
+    (TScalar n b _) -> TScalar n b (fn t)
+    (TConst n b i _) -> TConst n b i (fn t)
+    (TFixedArray n r i _) -> TFixedArray n r i (fn t)
+    (TBoundedArray n r i _) -> TFixedArray n r i (fn t)
+    (TStruct n rs _) -> TStruct n rs (fn t)
+    (TSet n rs _) -> TSet n rs (fn t)
+    (TEnum n rs _) -> TEnum n rs (fn t)
+    (TPartial n rs _) -> TPartial n rs (fn t)
+    (TPad n i _) -> TPad n i (fn t)
 
 biSig :: BuiltIn -> Signature
 biSig b = "(" ++ show b ++ ")"
@@ -132,6 +149,8 @@ data SchemaErrors = DuplicateNames [Name]
                   | NonExistent [Name]
   deriving (Show)
 
+-- |If checkSchema returns [], then the Schema should be safe to operate on
+-- with any of the methods provided in the Cauterize.Schema module.
 checkSchema :: Schema Name a -> [SchemaErrors]
 checkSchema s@(Schema _ _ fs) = catMaybes [duplicateNames, cycles, nonExistent]
   where
@@ -157,17 +176,6 @@ duplicates ins = map fst $ M.toList dups
     counts = foldl insertWith M.empty ins
     insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
   
-{-
-padShowInteger :: Integer -> String
-padShowInteger v = let w = 20
-                       v' = abs v
-                       v'' = show v'
-                       num = replicate (w - length v'') '0' ++ v''
-                   in if v < 0
-                        then '-':num
-                        else '+':num
-                        -}
-
 padShowInteger :: Integer -> String
 padShowInteger v = let v' = abs v
                        v'' = show v'

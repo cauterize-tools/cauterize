@@ -1,4 +1,12 @@
-module Cauterize.FormHash where
+module Cauterize.FormHash
+  ( FormHash(hashToByteString)
+  , HashContext
+
+  , hashInit
+  , hashUpdate
+  , hashString
+  , hashFinalize
+  ) where
 
 import qualified Crypto.Hash.SHA1 as C
 import qualified Data.ByteString as B
@@ -6,23 +14,33 @@ import qualified Data.ByteString.Char8 as BC
 import Data.Char
 import Numeric
 
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
-
-data FormHash = FormHash B.ByteString
+data FormHash = FormHash { hashToByteString :: B.ByteString }
   deriving (Eq, Ord)
 
 type HashContext = C.Ctx
 
-hashInit :: C.Ctx
+hashInit :: HashContext
 hashInit = C.init
 
-hashFn :: C.Ctx -> String -> C.Ctx
-hashFn ctx s = ctx `C.update` BC.pack s
+hashUpdate :: HashContext -> String -> HashContext
+hashUpdate ctx s = ctx `C.update` BC.pack s
 
-finalize :: C.Ctx -> FormHash
-finalize = FormHash . C.finalize
+hashString :: String -> FormHash
+hashString = hashFinalize . hashUpdate C.init
 
+hashFinalize :: HashContext -> FormHash
+hashFinalize = FormHash . C.finalize
+
+
+instance Show FormHash where
+  show (FormHash bs) = concatMap showByte $ B.unpack bs
+    where
+      showByte b = case showHex b "" of
+                    [x,y] -> [toUpper x, toUpper y]
+                    [x]   -> ['0', toUpper x]
+                    _     -> error "This should be impossible."
+
+{-
 -- NOTE! This class should *NOT* be used by anyone dependent on the Cauterize
 -- libraries. It is used simply to help compute different portions of the
 -- Cauterize type tree. IT'S ALMOST NEVER THE CASE THAT A HASH COMPUTED WITH
@@ -37,14 +55,6 @@ class Hashable a where
 
   formHashWith :: C.Ctx -> a -> C.Ctx
 
-instance Show FormHash where
-  show (FormHash bs) = concatMap showByte $ B.unpack bs
-    where
-      showByte b = case showHex b "" of
-                    [x,y] -> [toUpper x, toUpper y]
-                    [x]   -> ['0', toUpper x]
-                    _     -> error "This should be impossible."
-
 instance Hashable FormHash where
   formHashWith ctx (FormHash b) = ctx `C.update` b
 
@@ -56,3 +66,4 @@ instance Pretty FormHash where
 
 instance Hashable Char where
   formHashWith ctx c = ctx `C.update` BC.pack [c]
+  -}

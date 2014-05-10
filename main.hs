@@ -3,6 +3,7 @@ module Main where
 import Cauterize.Options
 import Cauterize.Schema.Parser
 import Cauterize.Schema.Types
+import Cauterize.Specification
 
 import qualified Data.Map as M
 
@@ -15,6 +16,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
         [] -> do
             putStrLn $ sigLines $ schemaSigMap s
             print s
+            print $ annotateSchema s
         es -> print es
 
 sigLines :: M.Map Name Signature -> String
