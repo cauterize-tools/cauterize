@@ -1,22 +1,28 @@
-module Cauterize.Schema.Types where
+module Cauterize.Schema.Types
+  ( Name
+  , Signature
+  , Cycle
+  , Schema(..)
+  , SchemaForm(..)
+  , Type(..)
+  , IndexedRef(..)
+
+  , schemaTypeMap
+  , schemaSigMap
+  , checkSchema
+  ) where
 
 import Cauterize.Common.BuiltIn
-import Cauterize.Common.Named
-import Cauterize.FormHash
 import Data.List
 import Data.Maybe
 
 import Data.Graph
-
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
 
 import qualified Data.Map as M
 
 type Name = String
 type Signature = String
 type Cycle = [Name]
-type TypeIdMap = M.Map Name FormHash
 
 data Schema t a = Schema
   { schemaName :: String
@@ -29,22 +35,22 @@ data SchemaForm t a = FType (Type t a)
   deriving (Show)
 
 data Type t a = TBuiltIn BuiltIn a
-              | TScalar String BuiltIn a
-              | TConst String BuiltIn Integer a
+              | TScalar Name BuiltIn a
+              | TConst Name BuiltIn Integer a
 
-              | TFixedArray String t Integer a
-              | TBoundedArray String t Integer a
+              | TFixedArray Name t Integer a
+              | TBoundedArray Name t Integer a
 
-              | TStruct String [IndexedRef t] a
-              | TSet String [IndexedRef t] a
+              | TStruct Name [IndexedRef t] a
+              | TSet Name [IndexedRef t] a
 
-              | TEnum String [IndexedRef t] a
-              | TPartial String [IndexedRef t] a
+              | TEnum Name [IndexedRef t] a
+              | TPartial Name [IndexedRef t] a
 
-              | TPad String Integer a
+              | TPad Name Integer a
   deriving (Show, Ord, Eq)
 
-data IndexedRef t = IndexedRef String t Integer
+data IndexedRef t = IndexedRef Name t Integer
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema t a -> M.Map Name (Type t a)
@@ -65,7 +71,7 @@ typeName (TPad n _ _) = n
 biSig :: BuiltIn -> Signature
 biSig b = "(" ++ show b ++ ")"
 
-typeSig :: (Ord a) => M.Map Name Signature -> Type String a -> Signature 
+typeSig :: (Ord a) => M.Map Name Signature -> Type Name a -> Signature 
 typeSig sm t =
   case t of
     (TBuiltIn b _) -> biSig b
@@ -81,77 +87,34 @@ typeSig sm t =
   where
     luSig n = fromJust $ n `M.lookup` sm
 
-refSig :: M.Map Name Signature -> IndexedRef String -> Signature
+refSig :: M.Map Name Signature -> IndexedRef Name -> Signature
 refSig sm (IndexedRef n m _) = concat ["(field ", n, " ", luSig m, ")"]
   where
     luSig na = fromJust $ na `M.lookup` sm
 
-schemaSigMap :: (Ord a) => Schema String a -> M.Map Name Signature
+-- | Creates a map of Type Names to Type Signatures
+schemaSigMap :: (Ord a) => Schema Name a -> M.Map Name Signature
 schemaSigMap schema = resultMap
   where
     tyMap = schemaTypeMap schema
     resultMap = fmap (typeSig resultMap) tyMap
-{-
 
-
-schemaTypeIdMap schema = case schemaCycles schema of
-                          [] -> Right resultMap
-                          cs -> Left cs
-  where
-    tyMap = schemaTypeMap schema
-    resultMap = fmap hashType tyMap
-
-    -- YO! There's a fromJust here. The way the input map is constructed
-    -- should keep us from having to worry about this.
-    hashType t = let dirRefs = fromJust $ mapM (`M.lookup` resultMap) (referredNames t)
-                 in finalize $ foldl formHashWith (formHashCtx t) dirRefs
-
--}
-{-
-  
--- | This function serves two purposes:
---    1. If there are cycles in the schema, they are reported.
---    2. If the schema is valid, then a Map of names to Type IDs are produced.
-schemaTypeIdMap :: Schema String a -> Either [Cycle] TypeIdMap
-schemaTypeIdMap schema = case schemaCycles schema of
-                          [] -> Right resultMap
-                          cs -> Left cs
-  where
-    tyMap = schemaTypeMap schema
-    resultMap = fmap hashType tyMap
-
-    -- YO! There's a fromJust here. The way the input map is constructed
-    -- should keep us from having to worry about this.
-    hashType t = let dirRefs = fromJust $ mapM (`M.lookup` resultMap) (referredNames t)
-                 in finalize $ foldl formHashWith (formHashCtx t) dirRefs
-
-schemaCycles :: Schema String a -> [Cycle]
+schemaCycles :: Schema Name a -> [Cycle]
 schemaCycles s = typeCycles (map snd $ M.toList tyMap)
   where
     tyMap = schemaTypeMap s
 
-
-typeCycles :: [Type String a] -> [Cycle]
-typeCycles ts = let ns = map (\t -> (cautName t, cautName t, referredNames t)) ts
-                in mapMaybe isScc (stronglyConnComp ns)
-  where
-    isScc (CyclicSCC vs) = Just vs
-    isScc _ = Nothing
-
-schemaStructuralHash :: Schema String a -> FormHash
-schemaStructuralHash s@(Schema n v fs) =
-    let (Right m) = schemaTypeIdMap s
-        ctx = hashInit `hashFn` n `hashFn` v
-    in finalize $ foldl (hshFn m) ctx fs
-  where
-    hshFn :: TypeIdMap -> HashContext -> SchemaForm t a -> HashContext
-    hshFn m ctx (FType t) = let tyId = fromJust $ cautName t `M.lookup` m
-                            in ctx `formHashWith` tyId
+    typeCycles :: [Type Name a] -> [Cycle]
+    typeCycles ts = let ns = map (\t -> (typeName t, typeName t, referredNames t)) ts
+                    in mapMaybe isScc (stronglyConnComp ns)
+      where
+        isScc (CyclicSCC vs) = Just vs
+        isScc _ = Nothing
 
 referredNames :: Type Name a -> [Name]
 referredNames (TBuiltIn _ _) = []
-referredNames (TScalar _ b _) = [cautName b]
-referredNames (TConst _ b _ _) = [cautName b]
+referredNames (TScalar _ b _) = [show b]
+referredNames (TConst _ b _ _) = [show b]
 referredNames (TFixedArray _ n _ _) = [n]
 referredNames (TBoundedArray _ n _ _) = [n]
 referredNames (TStruct _ fs _) = nub $  map (\(IndexedRef _ n _) -> n) fs
@@ -160,35 +123,41 @@ referredNames (TEnum _ vs _) = nub $ map (\(IndexedRef _ n _) -> n) vs
 referredNames (TPartial _ fs _) = nub $ map (\(IndexedRef _ n _) -> n) fs
 referredNames (TPad _ _ _) = []
 
-instance CautName (Type t a) where
-  cautName (TBuiltIn b _) = show b
-  cautName (TScalar n _ _) = n
-  cautName (TConst n _ _ _) = n
-  cautName (TFixedArray n _ _ _) = n
-  cautName (TBoundedArray n _ _ _) = n
-  cautName (TStruct n _ _) = n
-  cautName (TSet n _ _) = n
-  cautName (TEnum n _ _) = n
-  cautName (TPartial n _ _) = n
-  cautName (TPad n _ _) = n
+data SchemaErrors = DuplicateNames [Name]
+                  | Cycles [Cycle]
+  deriving (Show)
 
--- Note: these instances only hash on the *value* of the type. This hash does
--- not take into account the structure of depended-uppon types.
-instance (Hashable t) => Hashable (Type t a) where
-  formHashWith ctx (TBuiltIn b _) = ctx `hashFn` "built-in" `formHashWith` b
-  formHashWith ctx (TScalar n b _) = ctx `hashFn` "scalar" `hashFn` n `formHashWith` b
-  formHashWith ctx (TConst n b i _) = ctx `hashFn` "const" `hashFn` n `formHashWith` b `hashFn` padShowInteger i
-  formHashWith ctx (TFixedArray n m i _) = ctx `hashFn` "fixed" `hashFn` n `formHashWith` m `hashFn` padShowInteger i
-  formHashWith ctx (TBoundedArray n m i _) = ctx `hashFn` "bounded" `hashFn` n `formHashWith` m `hashFn` padShowInteger i
-  formHashWith ctx (TStruct n sfs _) = ctx `hashFn` "struct" `hashFn` n `formHashWith` sfs
-  formHashWith ctx (TSet n sfs _) = ctx `hashFn` "set" `hashFn` n `formHashWith` sfs
-  formHashWith ctx (TEnum n evs _) = ctx `hashFn` "enum" `hashFn` n `formHashWith` evs
-  formHashWith ctx (TPartial n pfs _) = ctx `hashFn` "partial" `hashFn` n `formHashWith` pfs
-  formHashWith ctx (TPad n i _) = ctx `hashFn` "pad" `hashFn` n `hashFn` padShowInteger i
+checkSchema :: Schema Name a -> [SchemaErrors]
+checkSchema s@(Schema _ _ fs) = catMaybes [duplicateNames, cycles]
+  where
+    duplicateNames = case duplicates $ map (\(FType t) -> typeName t) fs of
+                        [] -> Nothing
+                        ds -> Just $ DuplicateNames ds
+    cycles = case schemaCycles s of
+                [] -> Nothing
+                cs -> Just $ Cycles cs
 
-instance (Hashable t) => Hashable (IndexedRef t) where
-  formHashWith ctx (IndexedRef n m i) = ctx `hashFn` n `formHashWith` m `hashFn` padShowInteger i
+
+duplicates :: (Eq a, Ord a) => [a] -> [a]
+duplicates ins = map fst $ M.toList dups
+  where
+    dups = M.filter (>1) counts
+    counts = foldl insertWith M.empty ins
+    insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
   
+padShowInteger :: Integer -> String
+padShowInteger v = let w = 20
+                       v' = abs v
+                       v'' = show v'
+                       num = replicate (w - length v'') '0' ++ v''
+                   in if v < 0
+                        then '-':num
+                        else '+':num
+
+{-
+import Text.PrettyPrint
+import Text.PrettyPrint.Class
+
 instance Pretty (Schema t a) where
   pretty (Schema n v fs) = parens $ text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v <+> pfs
     where
@@ -221,12 +190,3 @@ instance Pretty (Type t a) where
 instance Pretty (IndexedRef t) where
   pretty (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
 -}
-  
-padShowInteger :: Integer -> String
-padShowInteger v = let w = 20
-                       v' = abs v
-                       v'' = show v'
-                       num = replicate (w - length v'') '0' ++ v''
-                   in if v < 0
-                        then '-':num
-                        else '+':num
