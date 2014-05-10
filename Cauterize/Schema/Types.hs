@@ -117,11 +117,14 @@ referredNames (TScalar _ b _) = [show b]
 referredNames (TConst _ b _ _) = [show b]
 referredNames (TFixedArray _ n _ _) = [n]
 referredNames (TBoundedArray _ n _ _) = [n]
-referredNames (TStruct _ fs _) = nub $  map (\(IndexedRef _ n _) -> n) fs
-referredNames (TSet _ fs _) = nub $  map (\(IndexedRef _ n _) -> n) fs
-referredNames (TEnum _ vs _) = nub $ map (\(IndexedRef _ n _) -> n) vs
-referredNames (TPartial _ fs _) = nub $ map (\(IndexedRef _ n _) -> n) fs
+referredNames (TStruct _ fs _) = nub $  map refRef fs
+referredNames (TSet _ fs _) = nub $  map refRef fs
+referredNames (TEnum _ vs _) = nub $ map refRef vs
+referredNames (TPartial _ fs _) = nub $ map refRef fs
 referredNames (TPad _ _ _) = []
+
+refRef :: IndexedRef t -> t
+refRef (IndexedRef _ n _) = n
 
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]
