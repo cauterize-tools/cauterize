@@ -18,6 +18,7 @@ import Data.Maybe
 
 import Data.Graph
 
+import qualified Data.Set as L
 import qualified Data.Map as M
 
 type Name = String
@@ -128,17 +129,25 @@ refRef (IndexedRef _ n _) = n
 
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]
+                  | NonExistent [Name]
   deriving (Show)
 
 checkSchema :: Schema Name a -> [SchemaErrors]
-checkSchema s@(Schema _ _ fs) = catMaybes [duplicateNames, cycles]
+checkSchema s@(Schema _ _ fs) = catMaybes [duplicateNames, cycles, nonExistent]
   where
-    duplicateNames = case duplicates $ map (\(FType t) -> typeName t) fs of
+    ts = map (\(FType t) -> t) fs
+    tns  = map typeName ts
+    duplicateNames = case duplicates tns of
                         [] -> Nothing
                         ds -> Just $ DuplicateNames ds
     cycles = case schemaCycles s of
                 [] -> Nothing
                 cs -> Just $ Cycles cs
+    nonExistent = let rSet = L.fromList $ concatMap referredNames ts 
+                      tnSet = L.fromList tns
+                  in case L.toList $ rSet `L.difference` tnSet of
+                      [] -> Nothing
+                      bn -> Just $ NonExistent bn
 
 
 duplicates :: (Eq a, Ord a) => [a] -> [a]
@@ -148,6 +157,7 @@ duplicates ins = map fst $ M.toList dups
     counts = foldl insertWith M.empty ins
     insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
   
+{-
 padShowInteger :: Integer -> String
 padShowInteger v = let w = 20
                        v' = abs v
@@ -156,6 +166,14 @@ padShowInteger v = let w = 20
                    in if v < 0
                         then '-':num
                         else '+':num
+                        -}
+
+padShowInteger :: Integer -> String
+padShowInteger v = let v' = abs v
+                       v'' = show v'
+                   in if v < 0
+                        then '-':v''
+                        else '+':v''
 
 {-
 import Text.PrettyPrint

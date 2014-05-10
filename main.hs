@@ -4,6 +4,8 @@ import Cauterize.Options
 import Cauterize.Schema.Parser
 import Cauterize.Schema.Types
 
+import qualified Data.Map as M
+
 main :: IO ()
 main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
   where
@@ -11,6 +13,10 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
     render (Right s) = 
       case checkSchema s of
         [] -> do
-            print $ schemaSigMap s
+            putStrLn $ sigLines $ schemaSigMap s
             print s
         es -> print es
+
+sigLines :: M.Map Name Signature -> String
+sigLines m = let sigs = map snd $ M.toList m
+             in unlines sigs
