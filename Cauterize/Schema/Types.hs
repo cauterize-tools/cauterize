@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs, StandaloneDeriving #-}
 module Cauterize.Schema.Types
   ( Name
   , Signature
@@ -35,6 +36,7 @@ data Schema t a = Schema
   }
   deriving (Show)
 
+
 data SchemaForm t a = FType (Type t a)
   deriving (Show)
 
@@ -54,8 +56,27 @@ data Type t a = TBuiltIn BuiltIn a
               | TPad Name Integer a
   deriving (Show, Ord, Eq)
 
-data IndexedRef t = IndexedRef Name t Integer
-  deriving (Show, Ord, Eq)
+instance Functor (Type t) where
+  fmap fn t = 
+    case t of
+      (TBuiltIn b a) -> TBuiltIn b (fn a)
+      (TScalar n b a) -> TScalar n b (fn a)
+      (TConst n b i a) -> TConst n b i (fn a)
+      (TFixedArray n r i a) -> TFixedArray n r i (fn a)
+      (TBoundedArray n r i a) -> TFixedArray n r i (fn a)
+      (TStruct n rs a) -> TStruct n rs (fn a)
+      (TSet n rs a) -> TSet n rs (fn a)
+      (TEnum n rs a) -> TEnum n rs (fn a)
+      (TPartial n rs a) -> TPartial n rs (fn a)
+      (TPad n i a) -> TPad n i (fn a)
+
+data IndexedRef r where
+  NameRef :: Name -> Name -> Integer -> IndexedRef Name
+  TypeRef :: Name -> Type t a -> Integer -> IndexedRef (Type t a)
+
+deriving instance (Show r) => Show (IndexedRef r)
+deriving instance (Ord r) => Ord (IndexedRef r)
+deriving instance (Eq r) => Eq (IndexedRef r)
 
 schemaTypeMap :: Schema t a -> M.Map Name (Type t a)
 schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (typeName t, t)) fs
@@ -106,7 +127,7 @@ typeSig sm t =
     luSig n = fromJust $ n `M.lookup` sm
 
 refSig :: M.Map Name Signature -> IndexedRef Name -> Signature
-refSig sm (IndexedRef n m _) = concat ["(field ", n, " ", luSig m, ")"]
+refSig sm (NameRef n m _) = concat ["(field ", n, " ", luSig m, ")"]
   where
     luSig na = fromJust $ na `M.lookup` sm
 
@@ -142,7 +163,8 @@ referredNames (TPartial _ fs _) = nub $ map refRef fs
 referredNames (TPad _ _ _) = []
 
 refRef :: IndexedRef t -> t
-refRef (IndexedRef _ n _) = n
+refRef (NameRef _ n _) = n
+refRef (TypeRef _ n _) = n
 
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]

@@ -82,7 +82,7 @@ parseIndexedRef :: Parser (Integer -> ASTIndexedRef)
 parseIndexedRef = pSexp "field" $ do
   n <- spacedName
   m <- option "void" spacedName
-  return $ \i -> IndexedRef n m i
+  return $ \i -> NameRef n m i
 
 parseIndexedRefs :: Parser [Integer -> ASTIndexedRef]
 parseIndexedRefs = many $ spaces1 >> parseIndexedRef
