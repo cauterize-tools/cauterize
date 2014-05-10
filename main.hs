@@ -9,4 +9,7 @@ import Text.PrettyPrint.Class
 main :: IO ()
 main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
   where
-    render = print
+    render (Left s) = print s
+    render (Right s) = do
+      print $ schemaSigMap s
+      print s

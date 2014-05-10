@@ -14,6 +14,7 @@ import Text.PrettyPrint.Class
 import qualified Data.Map as M
 
 type Name = String
+type Signature = String
 type Cycle = [Name]
 type TypeIdMap = M.Map Name FormHash
 
@@ -41,11 +42,71 @@ data Type t a = TBuiltIn BuiltIn a
               | TPartial String [IndexedRef t] a
 
               | TPad String Integer a
-  deriving (Show)
+  deriving (Show, Ord, Eq)
 
 data IndexedRef t = IndexedRef String t Integer
-  deriving (Show)
+  deriving (Show, Ord, Eq)
 
+schemaTypeMap :: Schema t a -> M.Map Name (Type t a)
+schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (typeName t, t)) fs
+
+typeName :: Type t a -> Name
+typeName (TBuiltIn b _) = show b
+typeName (TScalar n _ _) = n
+typeName (TConst n _ _ _) = n
+typeName (TFixedArray n _ _ _) = n
+typeName (TBoundedArray n _ _ _) = n
+typeName (TStruct n _ _) = n
+typeName (TSet n _ _) = n
+typeName (TEnum n _ _) = n
+typeName (TPartial n _ _) = n
+typeName (TPad n _ _) = n
+
+biSig :: BuiltIn -> Signature
+biSig b = "(" ++ show b ++ ")"
+
+typeSig :: (Ord a) => M.Map Name Signature -> Type String a -> Signature 
+typeSig sm t =
+  case t of
+    (TBuiltIn b _) -> biSig b
+    (TScalar n b _) -> concat ["(scalar ", n, " ", biSig b, ")"]
+    (TConst n b i _) -> concat ["(const ", n, " ", biSig b, " ", padShowInteger i, ")"]
+    (TFixedArray n m i _) -> concat ["(fixed ", n, " ", luSig m, " ", padShowInteger i, ")"]
+    (TBoundedArray n m i _) -> concat ["(bounded ", n, " ", luSig m, " ", padShowInteger i, ")"]
+    (TStruct n rs _) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (TSet n rs _) -> concat ["(set ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (TEnum n rs _) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (TPartial n rs _) -> concat ["(partial ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (TPad n i _) -> concat ["(pad ", n, " ", padShowInteger i, ")"]
+  where
+    luSig n = fromJust $ n `M.lookup` sm
+
+refSig :: M.Map Name Signature -> IndexedRef String -> Signature
+refSig sm (IndexedRef n m _) = concat ["(field ", n, " ", luSig m, ")"]
+  where
+    luSig na = fromJust $ na `M.lookup` sm
+
+schemaSigMap :: (Ord a) => Schema String a -> M.Map Name Signature
+schemaSigMap schema = resultMap
+  where
+    tyMap = schemaTypeMap schema
+    resultMap = fmap (typeSig resultMap) tyMap
+{-
+
+
+schemaTypeIdMap schema = case schemaCycles schema of
+                          [] -> Right resultMap
+                          cs -> Left cs
+  where
+    tyMap = schemaTypeMap schema
+    resultMap = fmap hashType tyMap
+
+    -- YO! There's a fromJust here. The way the input map is constructed
+    -- should keep us from having to worry about this.
+    hashType t = let dirRefs = fromJust $ mapM (`M.lookup` resultMap) (referredNames t)
+                 in finalize $ foldl formHashWith (formHashCtx t) dirRefs
+
+-}
 {-
   
 -- | This function serves two purposes:
@@ -69,8 +130,6 @@ schemaCycles s = typeCycles (map snd $ M.toList tyMap)
   where
     tyMap = schemaTypeMap s
 
-schemaTypeMap :: Schema t a -> M.Map Name (Type t a)
-schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (cautName t, t)) fs
 
 typeCycles :: [Type String a] -> [Cycle]
 typeCycles ts = let ns = map (\t -> (cautName t, cautName t, referredNames t)) ts
@@ -161,6 +220,7 @@ instance Pretty (Type t a) where
 
 instance Pretty (IndexedRef t) where
   pretty (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
+-}
   
 padShowInteger :: Integer -> String
 padShowInteger v = let w = 20
@@ -170,4 +230,3 @@ padShowInteger v = let w = 20
                    in if v < 0
                         then '-':num
                         else '+':num
--}

@@ -37,7 +37,7 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIieee754s | BIieee754d
              | BIbool
              | BIvoid
-  deriving (Enum, Bounded)
+  deriving (Enum, Bounded, Ord, Eq)
 
 instance Show BuiltIn where
   show BIvoid     = "void"
