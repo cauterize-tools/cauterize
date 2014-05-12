@@ -1,5 +1,5 @@
 (schema "aName" "0.0.1"
-        (scalar number s8) 
+        (scalar number s64) 
         (scalar unsigned u8)
         (const smallconst u8 34)
         (fixed somefixed number 64)

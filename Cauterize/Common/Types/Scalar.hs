@@ -7,4 +7,4 @@ data TScalar = TScalar Name BuiltIn
   deriving (Show, Ord, Eq)
 
 instance References TScalar where
-  referencesOf (TScalar _  b) = [show b]
+  referencesOf (TScalar _ b) = [show b]
