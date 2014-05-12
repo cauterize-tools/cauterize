@@ -2,6 +2,7 @@ module Main where
 
 import Cauterize.Options
 import Cauterize.Schema.Parser
+import Cauterize.Common.Primitives
 import Cauterize.Schema.Types
 import Cauterize.Specification
 
@@ -15,7 +16,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
       case checkSchema s of
         [] -> do
             putStrLn $ sigLines $ schemaSigMap s
-            print $ annotateHash s
+            print s
         es -> print es
 
 sigLines :: M.Map Name Signature -> String

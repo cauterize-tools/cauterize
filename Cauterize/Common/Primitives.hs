@@ -1,9 +1,16 @@
-module Cauterize.Common.BuiltIn
+module Cauterize.Common.Primitives
   ( BuiltIn(..)
+  , Name
+  , Signature
+  , Version
   , minimalExpression
   , minimalBitField
   , builtInSize
   ) where
+
+type Name = String
+type Signature = String
+type Version = String
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
