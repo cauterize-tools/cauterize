@@ -17,6 +17,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
         [] -> do
             putStrLn $ sigLines $ schemaSigMap s
             print s
+            print $ fromSchema s
         es -> print es
 
 sigLines :: M.Map Name Signature -> String
