@@ -14,16 +14,7 @@ import Data.Maybe
 import qualified Data.Map as M
 import qualified Cauterize.Schema.Types as SC
 
-import Cauterize.Common.Types.BuiltIn
-import Cauterize.Common.Types.Scalar
-import Cauterize.Common.Types.Const
-import Cauterize.Common.Types.FixedArray
-import Cauterize.Common.Types.BoundedArray
-import Cauterize.Common.Types.Struct
-import Cauterize.Common.Types.Set
-import Cauterize.Common.Types.Enum
-import Cauterize.Common.Types.Partial
-import Cauterize.Common.Types.Pad
+import Cauterize.Common.Types
 
 data Spec t = Spec
   { specName :: Name

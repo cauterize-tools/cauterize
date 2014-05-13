@@ -1,5 +1,6 @@
 module Cauterize.Schema.Parser
   ( parseFile
+  , parseString
   , ASTSchema
   ) where
 
@@ -8,20 +9,11 @@ import Control.Monad
 import Text.Parsec
 import Text.Parsec.String
 
-import Cauterize.Schema.Types
-import Cauterize.Common.Types.BuiltIn
-import Cauterize.Common.Types.Scalar
-import Cauterize.Common.Types.Const
-import Cauterize.Common.Types.FixedArray
-import Cauterize.Common.Types.BoundedArray
-import Cauterize.Common.Types.Struct
-import Cauterize.Common.Types.Set
-import Cauterize.Common.Types.Enum
-import Cauterize.Common.Types.Partial
-import Cauterize.Common.Types.Pad
-
 import Cauterize.Schema.Utils
+import Cauterize.Schema.Types
+
 import Cauterize.Common.Primitives
+import Cauterize.Common.Types
 import Cauterize.Common.IndexedRef
 
 type ASTSchema = Schema String

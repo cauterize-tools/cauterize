@@ -13,17 +13,7 @@ module Cauterize.Schema.Types
 import Cauterize.Common.Primitives
 import Cauterize.Common.IndexedRef
 import Cauterize.Common.References
-
-import Cauterize.Common.Types.BuiltIn
-import Cauterize.Common.Types.Scalar
-import Cauterize.Common.Types.Const
-import Cauterize.Common.Types.FixedArray
-import Cauterize.Common.Types.BoundedArray
-import Cauterize.Common.Types.Struct
-import Cauterize.Common.Types.Set
-import Cauterize.Common.Types.Enum
-import Cauterize.Common.Types.Partial
-import Cauterize.Common.Types.Pad
+import Cauterize.Common.Types
 
 import Data.Maybe
 

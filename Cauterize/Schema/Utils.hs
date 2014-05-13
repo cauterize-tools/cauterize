@@ -1,4 +1,10 @@
-module Cauterize.Schema.Utils where
+module Cauterize.Schema.Utils
+  ( pSexp
+  , spacedQuoted
+  , spaces1
+  , spacedName
+  , spacedNumber
+  ) where
 
 import Text.Parsec
 import Text.Parsec.String
