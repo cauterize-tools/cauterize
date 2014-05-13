@@ -1,14 +1,5 @@
-module Cauterize.Schema 
-  ( module Cauterize.Schema.Parser
-  , module Cauterize.Schema.Types
-  , module Cauterize.Schema.Utils
-  ) where
+module Cauterize.Schema (module X) where
 
-import Cauterize.Schema.Parser
-import Cauterize.Schema.Types
-import Cauterize.Schema.Utils
-
-import Data.Maybe
-import qualified Data.Map as M
-
-import Cauterize.Common.Named
+import Cauterize.Schema.Parser as X
+import Cauterize.Schema.Types as X
+import Cauterize.Schema.Utils as X

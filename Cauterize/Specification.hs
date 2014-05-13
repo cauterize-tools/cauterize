@@ -98,16 +98,12 @@ mkSpecType m p =
           reprSz = builtInSize repr
       in \h -> SpSet t h (reprSz, reprSz + sumMax) repr
     (SC.ScEnum t@(TEnum _ rs)) ->
-      let minMaxs = refsMinMaxes rs
-          minMin = minimum $ map fst minMaxs
-          maxMax = maximum $ map snd minMaxs
+      let (minMin, maxMax) = minMinMaxMax rs
           repr = minimalBitField (length rs)
           reprSz = builtInSize repr
       in \h -> SpEnum t h (reprSz + minMin, reprSz + maxMax) repr
     (SC.ScPartial t@(TPartial _ rs)) ->
-      let minMaxs = refsMinMaxes rs
-          minMin = minimum $ map fst minMaxs
-          maxMax = maximum $ map snd minMaxs
+      let (minMin, maxMax) = minMinMaxMax rs
           tagRepr = minimalExpression (length rs)
           tagReprSz = builtInSize tagRepr
           lenRepr = minimalExpression maxMax
@@ -119,3 +115,7 @@ mkSpecType m p =
     lookupRef r = spTypeSizeFields . fromJust $ r `M.lookup` m
     lookupIndexedRef (IndexedRef _ r _) = lookupRef r
     refsMinMaxes = map lookupIndexedRef
+    minMinMaxMax rs = let minMaxs = refsMinMaxes rs
+                          miMi = minimum $ map fst minMaxs
+                          maMa = maximum $ map snd minMaxs
+                      in (miMi, maMa)

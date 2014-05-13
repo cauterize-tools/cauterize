@@ -1,23 +1,12 @@
-module Cauterize.Common.Types
-  ( module Cauterize.Common.Types.BuiltIn
-  , module Cauterize.Common.Types.Scalar
-  , module Cauterize.Common.Types.Const
-  , module Cauterize.Common.Types.FixedArray
-  , module Cauterize.Common.Types.BoundedArray
-  , module Cauterize.Common.Types.Struct
-  , module Cauterize.Common.Types.Set
-  , module Cauterize.Common.Types.Enum
-  , module Cauterize.Common.Types.Partial
-  , module Cauterize.Common.Types.Pad
-  ) where
+module Cauterize.Common.Types (module X) where
 
-import Cauterize.Common.Types.BuiltIn
-import Cauterize.Common.Types.Scalar
-import Cauterize.Common.Types.Const
-import Cauterize.Common.Types.FixedArray
-import Cauterize.Common.Types.BoundedArray
-import Cauterize.Common.Types.Struct
-import Cauterize.Common.Types.Set
-import Cauterize.Common.Types.Enum
-import Cauterize.Common.Types.Partial
-import Cauterize.Common.Types.Pad
+import Cauterize.Common.Types.BuiltIn as X
+import Cauterize.Common.Types.Scalar as X
+import Cauterize.Common.Types.Const as X
+import Cauterize.Common.Types.FixedArray as X
+import Cauterize.Common.Types.BoundedArray as X
+import Cauterize.Common.Types.Struct as X
+import Cauterize.Common.Types.Set as X
+import Cauterize.Common.Types.Enum as X
+import Cauterize.Common.Types.Partial as X
+import Cauterize.Common.Types.Pad as X

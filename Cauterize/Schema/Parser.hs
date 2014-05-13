@@ -69,18 +69,17 @@ parseConst = pSexp "const" $ do
   return $ ScConst $ TConst n b i
 
 parseFixedArray :: Parser ASTType
-parseFixedArray = pSexp "fixed" $ do
-  n <- spacedName
-  m <- spacedName
-  i <- spacedNumber
-  return $ ScFixedArray $ TFixedArray n m i
+parseFixedArray = parseArr "fixed" (\n m i -> ScFixedArray $ TFixedArray n m i)
 
 parseBoundedArray :: Parser ASTType
-parseBoundedArray = pSexp "bounded" $ do
+parseBoundedArray = parseArr "bounded" (\n m i -> ScBoundedArray $ TBoundedArray n m i)
+
+parseArr :: String -> (Name -> Name -> Integer -> a) -> Parser a
+parseArr identStr mkArrFn = pSexp identStr $ do
   n <- spacedName
   m <- spacedName
   i <- spacedNumber
-  return $ ScBoundedArray $ TBoundedArray n m i
+  return $ mkArrFn n m i
 
 parseIndexedRef :: Parser (Integer -> ASTIndexedRef)
 parseIndexedRef = pSexp "field" $ do
