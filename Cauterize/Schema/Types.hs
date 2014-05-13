@@ -24,13 +24,8 @@ import qualified Data.Map as M
 
 type Cycle = [Name]
 
-data Schema t = Schema
-  { schemaName :: Name
-  , schemaVersion :: Version
-  , schemaForms :: [SchemaForm t]
-  }
+data Schema t = Schema Name Version [SchemaForm t]
   deriving (Show)
-
 
 data SchemaForm t = FType (ScType t)
   deriving (Show)

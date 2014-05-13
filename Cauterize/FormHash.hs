@@ -26,7 +26,7 @@ hashUpdate :: HashContext -> String -> HashContext
 hashUpdate ctx s = ctx `C.update` BC.pack s
 
 hashString :: String -> FormHash
-hashString = hashFinalize . hashUpdate C.init
+hashString = hashFinalize . hashUpdate hashInit
 
 hashFinalize :: HashContext -> FormHash
 hashFinalize = FormHash . C.finalize

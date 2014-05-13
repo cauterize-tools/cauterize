@@ -16,11 +16,7 @@ import qualified Cauterize.Schema.Types as SC
 
 import Cauterize.Common.Types
 
-data Spec t = Spec
-  { specName :: Name
-  , specVersion :: Version
-  , specForms :: [SpecForm t]
-  }
+data Spec t = Spec Name Version [SpecForm t]
   deriving (Show)
 
 data SpecForm t = FType (SpType t)
