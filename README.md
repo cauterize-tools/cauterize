@@ -219,18 +219,14 @@ encode values that only have deltas in a space-efficient way.
 
 #### Padding
 
-Padding types can be used to insert null bits into a payload. Padding types
+Padding types can be used to insert null bytes into a payload. Padding types
 must be 0 in the stream. Any other value will result in a pack/unpack error.
 
 ```scheme
-(pad [type name] [padding width in bits])
+(pad [type name] [padding width in bytes])
 ```
 
-Note that we represent padding with as bits. Currently, this must be
-represented as multiples of 8 bits. Any value that is not evenly divisible by 8
-is an error.
-
-The following defines a type that can only be represented by 8 null bits.
+The following defines a type that can only be represented by 8 null bytes.
 
 ```scheme
 (pad p8 8)

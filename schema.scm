@@ -6,6 +6,7 @@
         (bounded somebounded number 64)
         (pad p8 8)
         (struct astruct
+                (field z somebounded)
                 (field a s8)
                 (field padding p8)
                 (field b smallconst)
