@@ -22,16 +22,41 @@ data Spec t = Spec Name Version [SpecForm t]
 data SpecForm t = FType (SpType t)
   deriving (Show)
 
-data SpType t = BuiltIn      TBuiltIn          FormHash (MinSize, MaxSize)
-              | Scalar       TScalar           FormHash (MinSize, MaxSize)
-              | Const        TConst            FormHash (MinSize, MaxSize)
-              | FixedArray   (TFixedArray t)   FormHash (MinSize, MaxSize)
-              | BoundedArray (TBoundedArray t) FormHash (MinSize, MaxSize) BuiltIn
-              | Struct       (TStruct t)       FormHash (MinSize, MaxSize)
-              | Set          (TSet t)          FormHash (MinSize, MaxSize) BuiltIn
-              | Enum         (TEnum t)         FormHash (MinSize, MaxSize) BuiltIn
-              | Partial      (TPartial t)      FormHash (MinSize, MaxSize) BuiltIn BuiltIn
-              | Pad          TPad              FormHash (MinSize, MaxSize)
+data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
+                             , spHash :: FormHash
+                             , spSizes :: (MinSize, MaxSize) }
+              | Scalar       { unScalar  :: TScalar
+                             , spHash :: FormHash
+                             , spSizes :: (MinSize, MaxSize) }
+              | Const        { unConst   :: TConst
+                             , spHash :: FormHash
+                             , spSizes :: (MinSize, MaxSize) }
+              | FixedArray   { unFixed   :: TFixedArray t
+                             , spHash :: FormHash
+                             , spSizes :: (MinSize, MaxSize) }
+              | BoundedArray { unBounded :: TBoundedArray t
+                             , spHash    :: FormHash
+                             , spSizes   :: (MinSize, MaxSize)
+                             , lenRepr   :: BuiltIn }
+              | Struct       { unStruct :: TStruct t
+                             , spHash   :: FormHash
+                             , spSizes  :: (MinSize, MaxSize) }
+              | Set          { unSet     :: TSet t
+                             , spHash    :: FormHash
+                             , spSizes   :: (MinSize, MaxSize)
+                             , flagsRepr :: BuiltIn }
+              | Enum         { unEnum  :: TEnum t
+                             , spHash  :: FormHash
+                             , spSizes :: (MinSize, MaxSize)
+                             , tagRepr :: BuiltIn }
+              | Partial      { unPartial :: TPartial t
+                             , spHash    :: FormHash
+                             , spSizes   :: (MinSize, MaxSize)
+                             , tagRepr   :: BuiltIn
+                             , lenRepr   :: BuiltIn }
+              | Pad          { unPad   :: TPad
+                             , spHash  :: FormHash
+                             , spSizes :: (MinSize, MaxSize) }
   deriving (Show, Ord, Eq)
 
 fromSchema :: SC.Schema Name -> Spec Name
@@ -49,18 +74,6 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v (map (FType . fromF . getT) fs)
     fromF p = mkSpecType specMap p hash
       where
         hash = hashScType p
-
-spTypeSizeFields :: SpType t -> (MinSize, MaxSize)
-spTypeSizeFields (BuiltIn      _ _ ss) = ss
-spTypeSizeFields (Scalar       _ _ ss) = ss
-spTypeSizeFields (Const        _ _ ss) = ss
-spTypeSizeFields (FixedArray   _ _ ss) = ss
-spTypeSizeFields (BoundedArray _ _ ss _) = ss
-spTypeSizeFields (Struct       _ _ ss) = ss
-spTypeSizeFields (Set          _ _ ss _) = ss
-spTypeSizeFields (Enum         _ _ ss _) = ss
-spTypeSizeFields (Partial      _ _ ss _ _) = ss
-spTypeSizeFields (Pad          _ _ ss) = ss
 
 mkSpecType :: M.Map Name (SpType Name) -> SC.ScType Name -> FormHash -> SpType Name
 mkSpecType m p =
@@ -100,15 +113,15 @@ mkSpecType m p =
       in \h -> Enum t h (reprSz + minMin, reprSz + maxMax) repr
     (SC.Partial t@(TPartial _ rs)) ->
       let (minMin, maxMax) = minMinMaxMax rs
-          tagRepr = minimalExpression (length rs)
-          tagReprSz = builtInSize tagRepr
-          lenRepr = minimalExpression maxMax
-          lenReprSz = builtInSize lenRepr
-          overhead = tagReprSz + lenReprSz
-      in \h -> Partial t h (overhead + minMin, overhead + maxMax) tagRepr lenRepr
+          ptagRepr = minimalExpression (length rs)
+          ptagReprSz = builtInSize ptagRepr
+          plenRepr = minimalExpression maxMax
+          plenReprSz = builtInSize plenRepr
+          overhead = ptagReprSz + plenReprSz
+      in \h -> Partial t h (overhead + minMin, overhead + maxMax) ptagRepr plenRepr
     (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (l, l)
   where
-    lookupRef r = spTypeSizeFields . fromJust $ r `M.lookup` m
+    lookupRef r = spSizes . fromJust $ r `M.lookup` m
     lookupIndexedRef (IndexedRef _ r _) = lookupRef r
     refsMinMaxes = map lookupIndexedRef
     minMinMaxMax rs = let minMaxs = refsMinMaxes rs
