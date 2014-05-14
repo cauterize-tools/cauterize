@@ -23,16 +23,16 @@ data SpecForm t = FType (SpType t)
   deriving (Show)
 
 data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
-                             , spHash :: FormHash
+                             , spHash    :: FormHash
+                             , spSizes   :: (MinSize, MaxSize) }
+              | Scalar       { unScalar :: TScalar
+                             , spHash   :: FormHash
+                             , spSizes  :: (MinSize, MaxSize) }
+              | Const        { unConst :: TConst
+                             , spHash  :: FormHash
                              , spSizes :: (MinSize, MaxSize) }
-              | Scalar       { unScalar  :: TScalar
-                             , spHash :: FormHash
-                             , spSizes :: (MinSize, MaxSize) }
-              | Const        { unConst   :: TConst
-                             , spHash :: FormHash
-                             , spSizes :: (MinSize, MaxSize) }
-              | FixedArray   { unFixed   :: TFixedArray t
-                             , spHash :: FormHash
+              | FixedArray   { unFixed :: TFixedArray t
+                             , spHash  :: FormHash
                              , spSizes :: (MinSize, MaxSize) }
               | BoundedArray { unBounded :: TBoundedArray t
                              , spHash    :: FormHash
