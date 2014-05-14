@@ -46,6 +46,15 @@ Floating point types:
   * `ieee754s`
   * `ieee754d`
 
+Void types:
+
+  * `void`
+
+The single void type is a way of indicating, in any type, that there is nothing
+to represent. This is handy in the case of enumerations and sets (discussed
+later in the document) when associated data isn't required -- the meaning is
+entirely captured by the field name.
+
 New built-in types cannot be defined in a schema.
 
 #### Scalars
@@ -152,7 +161,7 @@ This allows us to define types like the following `user` type:
 
 Enumerations are more akin to Enumerations one might find in Haskell or Rust.
 That is, they are able to express a possible value in a type, but they are also
-able to express values that can contain other values. Each instance of an
+able to express values that can contain another value. Each instance of an
 enumeration type can only ever contain one of its possible value variants at
 any given time.
 
@@ -174,11 +183,11 @@ Consider the following example for a 'request message' to some key-value
 storage service:
 
 ```scheme
-(enum request (var getKeyCount)
-              (var checkKeyExists keyName)
-              (var getKey keyName)
-              (var eraseKey keyName)
-              (var setKey keyValuePair))
+(enum request (field getKeyCount)
+              (field checkKeyExists keyName)
+              (field getKey keyName)
+              (field eraseKey keyName)
+              (field setKey keyValuePair))
 ```
 
 Noe that the `getKeyCount` variant does not contain any assocaited data while
@@ -205,17 +214,32 @@ As an example, consider the following description of a type capable of storing
 changes in some observed values in a sensor rig:
 
 ```scheme
-(set sensed (mem ambientTemp u16)
-            (mem ambientLight u16)
-            (mem airPressure u16)
-            (mem positionX u32)
-            (mem positionY u32)
-            (mem positionZ u32))
+(set sensed (field ambientTemp u16)
+            (field ambientLight u16)
+            (field airPressure u16)
+            (field positionX u32)
+            (field positionY u32)
+            (field positionZ u32))
 ```
 
 If no sensor difference is detected in a specific sensor in a given time slice,
 the value won't be included in the serialized value. This allows users to
 encode values that only have deltas in a space-efficient way.
+
+Sets can also be used as bitfields. Consider the following set definition that
+can be used to indicate which lights on a car are currently powered/lit:
+
+```scheme
+(set poweredLights (field headlights)
+                   (field taillights)
+                   (field leftblinkers)
+                   (field rightblinkers)
+                   (field breaklights))
+```
+
+This set defines 5 fields, but none of the fields have associated data. This
+allows cauterize to express the entirey of this structure in a single word at
+least 5 bits wide.
 
 #### Padding
 
@@ -259,11 +283,11 @@ Here's the same example demonstrated for Enumerations, but changed to meet the
 requirements of a Partial.
 
 ```scheme
-(partial request 1024 (var getKeyCount)
-                      (var checkKeyExists keyName)
-                      (var getKey keyName)
-                      (var eraseKey keyName)
-                      (var setKey keyValuePair))
+(partial request 1024 (field getKeyCount)
+                      (field checkKeyExists keyName)
+                      (field getKey keyName)
+                      (field eraseKey keyName)
+                      (field setKey keyValuePair))
 ```
 
 
