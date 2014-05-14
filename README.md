@@ -10,7 +10,7 @@ There are several types that represent the foundation of the Cauterize types.
 These are the funadmental types available for creating your own more complex
 types.
 
-Integral types are assumed to be little endian on the wire.
+Integral types are assumed to be little endian in their encoded form.
 
 Unsigned integer types:
 
@@ -265,39 +265,29 @@ broadcasts messages to many nodes, but not all nodes are interested in all
 messages, then Partial types allow the smaller nodes to only include packing
 and unpacking code for the portions of the partial they use.
 
-Partials use a hash of each variant's contained type as the type tag in the
-serialization stream rather than an incrementing value as is used in an
-enumeration. This makes the Parital types order-independent in their definition
-and allows only part of the partial to be implemented by any given node. This
-also includes the possibility for extension of the type in the future.
-
-Partials have only two major semantic differences from enumerations: the
-contained type on each variant is required rather than optional and the maximum
-length of any contained type must be specified.
+Partials use a tag, like enumerations, for each variant. Unlike enumerations,
+partials also include a _length_ of the encoded type. This is so that nodes
+that don't implement the whole specification can safely skip over the bytes
+used for the type _and then continue decoding any following type information_.
 
 ```scheme
-(partial [type name] [maximum contained type length in bytes] [variant list]) 
+(partial [type name] [variant list]) 
 ```
 
-Here's the same example demonstrated for Enumerations, but changed to meet the
-requirements of a Partial.
+Here's the same example demonstrated for Enumerations, but represented as a
+partial.
 
 ```scheme
-(partial request 1024 (field getKeyCount)
-                      (field checkKeyExists keyName)
-                      (field getKey keyName)
-                      (field eraseKey keyName)
-                      (field setKey keyValuePair))
+(partial request (field getKeyCount)
+                 (field checkKeyExists keyName)
+                 (field getKey keyName)
+                 (field eraseKey keyName)
+                 (field setKey keyValuePair))
 ```
-
 
 ## Specifications
 
-```scheme
-(name "cauterize")
-(version "0.1.0")
-(hash "22596363b3de40b06f981fb85d82312e8c0ed511")
-```
+TBD
 
 # TODO List
 
