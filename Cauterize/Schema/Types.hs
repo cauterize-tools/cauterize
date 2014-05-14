@@ -30,32 +30,32 @@ data Schema t = Schema Name Version [SchemaForm t]
 data SchemaForm t = FType (ScType t)
   deriving (Show)
 
-data ScType t = ScBuiltIn      TBuiltIn
-              | ScScalar       TScalar
-              | ScConst        TConst
-              | ScFixedArray   (TFixedArray t)
-              | ScBoundedArray (TBoundedArray t)
-              | ScStruct       (TStruct t)
-              | ScSet          (TSet t)
-              | ScEnum         (TEnum t)
-              | ScPartial      (TPartial t)
-              | ScPad          TPad
+data ScType t = BuiltIn      TBuiltIn
+              | Scalar       TScalar
+              | Const        TConst
+              | FixedArray   (TFixedArray t)
+              | BoundedArray (TBoundedArray t)
+              | Struct       (TStruct t)
+              | Set          (TSet t)
+              | Enum         (TEnum t)
+              | Partial      (TPartial t)
+              | Pad          TPad
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema t -> M.Map Name (ScType t)
 schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (typeName t, t)) fs
 
 typeName :: ScType t -> Name
-typeName (ScBuiltIn (TBuiltIn b)) = show b
-typeName (ScScalar (TScalar n _)) = n
-typeName (ScConst (TConst n _ _)) = n
-typeName (ScFixedArray (TFixedArray n _ _)) = n
-typeName (ScBoundedArray (TBoundedArray n _ _)) = n
-typeName (ScStruct (TStruct n _)) = n
-typeName (ScSet (TSet n _)) = n
-typeName (ScEnum (TEnum n _)) = n
-typeName (ScPartial (TPartial n _)) = n
-typeName (ScPad (TPad n _)) = n
+typeName (BuiltIn (TBuiltIn b)) = show b
+typeName (Scalar (TScalar n _)) = n
+typeName (Const (TConst n _ _)) = n
+typeName (FixedArray (TFixedArray n _ _)) = n
+typeName (BoundedArray (TBoundedArray n _ _)) = n
+typeName (Struct (TStruct n _)) = n
+typeName (Set (TSet n _)) = n
+typeName (Enum (TEnum n _)) = n
+typeName (Partial (TPartial n _)) = n
+typeName (Pad (TPad n _)) = n
 
 biSig :: BuiltIn -> Signature
 biSig b = "(" ++ show b ++ ")"
@@ -63,16 +63,16 @@ biSig b = "(" ++ show b ++ ")"
 typeSig :: M.Map Name Signature -> ScType Name -> Signature 
 typeSig sm t =
   case t of
-    (ScBuiltIn (TBuiltIn b)) -> biSig b
-    (ScScalar (TScalar n b)) -> concat ["(scalar ", n, " ", biSig b, ")"]
-    (ScConst (TConst n b i)) -> concat ["(const ", n, " ", biSig b, " ", padShowInteger i, ")"]
-    (ScFixedArray (TFixedArray n m i)) -> concat ["(fixed ", n, " ", luSig m, " ", padShowInteger i, ")"]
-    (ScBoundedArray (TBoundedArray n m i)) -> concat ["(bounded ", n, " ", luSig m, " ", padShowInteger i, ")"]
-    (ScStruct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (ScSet (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (ScEnum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (ScPartial (TPartial n rs)) -> concat ["(partial ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (ScPad (TPad n i)) -> concat ["(pad ", n, " ", padShowInteger i, ")"]
+    (BuiltIn (TBuiltIn b)) -> biSig b
+    (Scalar (TScalar n b)) -> concat ["(scalar ", n, " ", biSig b, ")"]
+    (Const (TConst n b i)) -> concat ["(const ", n, " ", biSig b, " ", padShowInteger i, ")"]
+    (FixedArray (TFixedArray n m i)) -> concat ["(fixed ", n, " ", luSig m, " ", padShowInteger i, ")"]
+    (BoundedArray (TBoundedArray n m i)) -> concat ["(bounded ", n, " ", luSig m, " ", padShowInteger i, ")"]
+    (Struct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (Set (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (Enum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (Partial (TPartial n rs)) -> concat ["(partial ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (Pad (TPad n i)) -> concat ["(pad ", n, " ", padShowInteger i, ")"]
   where
     luSig n = fromJust $ n `M.lookup` sm
 
@@ -84,16 +84,16 @@ schemaSigMap schema = resultMap
     resultMap = fmap (typeSig resultMap) tyMap
 
 referredNames :: ScType Name -> [Name]
-referredNames (ScBuiltIn t) = referencesOf t
-referredNames (ScScalar t) = referencesOf t
-referredNames (ScConst t) = referencesOf t
-referredNames (ScFixedArray t) = referencesOf t
-referredNames (ScBoundedArray t) = referencesOf t
-referredNames (ScStruct t) = referencesOf t
-referredNames (ScSet t) = referencesOf t
-referredNames (ScEnum t) = referencesOf t
-referredNames (ScPartial t) = referencesOf t
-referredNames (ScPad t) = referencesOf t
+referredNames (BuiltIn t) = referencesOf t
+referredNames (Scalar t) = referencesOf t
+referredNames (Const t) = referencesOf t
+referredNames (FixedArray t) = referencesOf t
+referredNames (BoundedArray t) = referencesOf t
+referredNames (Struct t) = referencesOf t
+referredNames (Set t) = referencesOf t
+referredNames (Enum t) = referencesOf t
+referredNames (Partial t) = referencesOf t
+referredNames (Pad t) = referencesOf t
 
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]

@@ -37,7 +37,7 @@ parseSchema = pSexp "schema" $ do
     return $ Schema qname qver (bis ++ forms)
   where
     pForms = option [] $ spaces1 >> parseForm `sepBy` spaces1 
-    bis = map (FType . ScBuiltIn . TBuiltIn) [minBound .. maxBound]
+    bis = map (FType . BuiltIn . TBuiltIn) [minBound .. maxBound]
 
 parseForm :: Parser (SchemaForm String)
 parseForm = liftM FType parseType
@@ -59,20 +59,20 @@ parseScalar :: Parser ASTType
 parseScalar = pSexp "scalar" $ do
   n <- spacedName
   b <- spacedBuiltIn
-  return $ ScScalar $ TScalar n b
+  return $ Scalar $ TScalar n b
 
 parseConst :: Parser ASTType
 parseConst = pSexp "const" $ do
   n <- spacedName
   b <- spacedBuiltIn
   i <- spacedNumber
-  return $ ScConst $ TConst n b i
+  return $ Const $ TConst n b i
 
 parseFixedArray :: Parser ASTType
-parseFixedArray = parseArr "fixed" (\n m i -> ScFixedArray $ TFixedArray n m i)
+parseFixedArray = parseArr "fixed" (\n m i -> FixedArray $ TFixedArray n m i)
 
 parseBoundedArray :: Parser ASTType
-parseBoundedArray = parseArr "bounded" (\n m i -> ScBoundedArray $ TBoundedArray n m i)
+parseBoundedArray = parseArr "bounded" (\n m i -> BoundedArray $ TBoundedArray n m i)
 
 parseArr :: String -> (Name -> Name -> Integer -> a) -> Parser a
 parseArr identStr mkArrFn = pSexp identStr $ do
@@ -94,31 +94,31 @@ parseStruct :: Parser ASTType
 parseStruct = pSexp "struct" $ do
   n <- spacedName
   rs <- parseIndexedRefs
-  return $ ScStruct $ TStruct n (tagWithIndex rs)
+  return $ Struct $ TStruct n (tagWithIndex rs)
 
 parseEnum :: Parser ASTType
 parseEnum = pSexp "enum" $ do
   n <- spacedName
   rs <- parseIndexedRefs
-  return $ ScEnum $ TEnum n (tagWithIndex rs)
+  return $ Enum $ TEnum n (tagWithIndex rs)
 
 parseSet :: Parser ASTType
 parseSet = pSexp "set" $ do
   n <- spacedName
   rs <- parseIndexedRefs 
-  return $ ScSet $ TSet n (tagWithIndex rs)
+  return $ Set $ TSet n (tagWithIndex rs)
 
 parsePad :: Parser ASTType
 parsePad = pSexp "pad" $ do
   n <- spacedName
   i <- spacedNumber
-  return $ ScPad $ TPad n i
+  return $ Pad $ TPad n i
 
 parsePartial :: Parser ASTType
 parsePartial = pSexp "partial" $ do
   n <- spacedName
   rs <- parseIndexedRefs
-  return $ ScPartial $ TPartial n (tagWithIndex rs)
+  return $ Partial $ TPartial n (tagWithIndex rs)
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]

@@ -22,16 +22,16 @@ data Spec t = Spec Name Version [SpecForm t]
 data SpecForm t = FType (SpType t)
   deriving (Show)
 
-data SpType t = SpBuiltIn      TBuiltIn          FormHash (MinSize, MaxSize)
-              | SpScalar       TScalar           FormHash (MinSize, MaxSize)
-              | SpConst        TConst            FormHash (MinSize, MaxSize)
-              | SpFixedArray   (TFixedArray t)   FormHash (MinSize, MaxSize)
-              | SpBoundedArray (TBoundedArray t) FormHash (MinSize, MaxSize) BuiltIn
-              | SpStruct       (TStruct t)       FormHash (MinSize, MaxSize)
-              | SpSet          (TSet t)          FormHash (MinSize, MaxSize) BuiltIn
-              | SpEnum         (TEnum t)         FormHash (MinSize, MaxSize) BuiltIn
-              | SpPartial      (TPartial t)      FormHash (MinSize, MaxSize) BuiltIn BuiltIn
-              | SpPad          TPad              FormHash (MinSize, MaxSize)
+data SpType t = BuiltIn      TBuiltIn          FormHash (MinSize, MaxSize)
+              | Scalar       TScalar           FormHash (MinSize, MaxSize)
+              | Const        TConst            FormHash (MinSize, MaxSize)
+              | FixedArray   (TFixedArray t)   FormHash (MinSize, MaxSize)
+              | BoundedArray (TBoundedArray t) FormHash (MinSize, MaxSize) BuiltIn
+              | Struct       (TStruct t)       FormHash (MinSize, MaxSize)
+              | Set          (TSet t)          FormHash (MinSize, MaxSize) BuiltIn
+              | Enum         (TEnum t)         FormHash (MinSize, MaxSize) BuiltIn
+              | Partial      (TPartial t)      FormHash (MinSize, MaxSize) BuiltIn BuiltIn
+              | Pad          TPad              FormHash (MinSize, MaxSize)
   deriving (Show, Ord, Eq)
 
 fromSchema :: SC.Schema Name -> Spec Name
@@ -51,62 +51,62 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v (map (FType . fromF . getT) fs)
         hash = hashScType p
 
 spTypeSizeFields :: SpType t -> (MinSize, MaxSize)
-spTypeSizeFields (SpBuiltIn      _ _ ss) = ss
-spTypeSizeFields (SpScalar       _ _ ss) = ss
-spTypeSizeFields (SpConst        _ _ ss) = ss
-spTypeSizeFields (SpFixedArray   _ _ ss) = ss
-spTypeSizeFields (SpBoundedArray _ _ ss _) = ss
-spTypeSizeFields (SpStruct       _ _ ss) = ss
-spTypeSizeFields (SpSet          _ _ ss _) = ss
-spTypeSizeFields (SpEnum         _ _ ss _) = ss
-spTypeSizeFields (SpPartial      _ _ ss _ _) = ss
-spTypeSizeFields (SpPad          _ _ ss) = ss
+spTypeSizeFields (BuiltIn      _ _ ss) = ss
+spTypeSizeFields (Scalar       _ _ ss) = ss
+spTypeSizeFields (Const        _ _ ss) = ss
+spTypeSizeFields (FixedArray   _ _ ss) = ss
+spTypeSizeFields (BoundedArray _ _ ss _) = ss
+spTypeSizeFields (Struct       _ _ ss) = ss
+spTypeSizeFields (Set          _ _ ss _) = ss
+spTypeSizeFields (Enum         _ _ ss _) = ss
+spTypeSizeFields (Partial      _ _ ss _ _) = ss
+spTypeSizeFields (Pad          _ _ ss) = ss
 
 mkSpecType :: M.Map Name (SpType Name) -> SC.ScType Name -> FormHash -> SpType Name
 mkSpecType m p =
   case p of
-    (SC.ScBuiltIn t@(TBuiltIn b)) ->
+    (SC.BuiltIn t@(TBuiltIn b)) ->
       let s = builtInSize b
-      in \h -> SpBuiltIn t h (s,s)
-    (SC.ScScalar  t@(TScalar _ b)) ->
+      in \h -> BuiltIn t h (s,s)
+    (SC.Scalar  t@(TScalar _ b)) ->
       let s = builtInSize b
-      in \h -> SpScalar t h (s,s)
-    (SC.ScConst   t@(TConst _ b _)) ->
+      in \h -> Scalar t h (s,s)
+    (SC.Const   t@(TConst _ b _)) ->
       let s = builtInSize b
-      in \h -> SpConst t h (s,s)
-    (SC.ScFixedArray t@(TFixedArray _ r i)) ->
+      in \h -> Const t h (s,s)
+    (SC.FixedArray t@(TFixedArray _ r i)) ->
       let (smin, smax) = lookupRef r
-      in \h -> SpFixedArray t h (i * smin, i * smax)
-    (SC.ScBoundedArray t@(TBoundedArray _ r i)) ->
+      in \h -> FixedArray t h (i * smin, i * smax)
+    (SC.BoundedArray t@(TBoundedArray _ r i)) ->
       let (_, smax) = lookupRef r
           repr = minimalExpression i
           reprSz = builtInSize repr
-      in \h -> SpBoundedArray t h (reprSz, reprSz + (i * smax)) repr
-    (SC.ScStruct t@(TStruct _ rs)) ->
+      in \h -> BoundedArray t h (reprSz, reprSz + (i * smax)) repr
+    (SC.Struct t@(TStruct _ rs)) ->
       let minMaxs = refsMinMaxes rs
           sumMin = sum $ map fst minMaxs
           sumMax = sum $ map snd minMaxs
-      in \h -> SpStruct t h (sumMin, sumMax)
-    (SC.ScSet t@(TSet _ rs)) ->
+      in \h -> Struct t h (sumMin, sumMax)
+    (SC.Set t@(TSet _ rs)) ->
       let minMaxs = refsMinMaxes rs
           sumMax = sum $ map snd minMaxs
           repr = minimalBitField (length rs)
           reprSz = builtInSize repr
-      in \h -> SpSet t h (reprSz, reprSz + sumMax) repr
-    (SC.ScEnum t@(TEnum _ rs)) ->
+      in \h -> Set t h (reprSz, reprSz + sumMax) repr
+    (SC.Enum t@(TEnum _ rs)) ->
       let (minMin, maxMax) = minMinMaxMax rs
           repr = minimalBitField (length rs)
           reprSz = builtInSize repr
-      in \h -> SpEnum t h (reprSz + minMin, reprSz + maxMax) repr
-    (SC.ScPartial t@(TPartial _ rs)) ->
+      in \h -> Enum t h (reprSz + minMin, reprSz + maxMax) repr
+    (SC.Partial t@(TPartial _ rs)) ->
       let (minMin, maxMax) = minMinMaxMax rs
           tagRepr = minimalExpression (length rs)
           tagReprSz = builtInSize tagRepr
           lenRepr = minimalExpression maxMax
           lenReprSz = builtInSize lenRepr
           overhead = tagReprSz + lenReprSz
-      in \h -> SpPartial t h (overhead + minMin, overhead + maxMax) tagRepr lenRepr
-    (SC.ScPad t@(TPad _ l)) -> \h -> SpPad t h (l, l)
+      in \h -> Partial t h (overhead + minMin, overhead + maxMax) tagRepr lenRepr
+    (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (l, l)
   where
     lookupRef r = spTypeSizeFields . fromJust $ r `M.lookup` m
     lookupIndexedRef (IndexedRef _ r _) = lookupRef r
