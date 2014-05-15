@@ -3,9 +3,6 @@ module Cauterize.Common.IndexedRef where
 
 import Cauterize.Common.Primitives
 
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
-
 import qualified Data.Map as M
 import Data.Maybe as M
 

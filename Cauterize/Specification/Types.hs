@@ -12,6 +12,8 @@ module Cauterize.Specification.Types
 import Cauterize.FormHash
 import Cauterize.Common.Primitives
 import Cauterize.Common.IndexedRef
+import Data.List
+import Data.Function
 import Data.Maybe
 
 import qualified Data.Map as M
@@ -22,7 +24,7 @@ import Cauterize.Common.Types
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
-data Spec t = Spec Name Version [SpecForm t]
+data Spec t = Spec Name Version FormHash [SpecForm t]
   deriving (Show)
 
 data SpecForm t = FType (SpType t)
@@ -65,14 +67,20 @@ data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
                              , spSizes :: (MinSize, MaxSize) }
   deriving (Show, Ord, Eq)
 
+-- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
-fromSchema sc@(SC.Schema n v fs) = Spec n v (map (FType . fromF . getT) fs)
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map (FType . fromF . getT) fs)
   where
     getT (SC.FType t) = t
     tyMap = SC.schemaTypeMap sc
     sigMap = SC.schemaSigMap sc
     getSig t = fromJust $ t `M.lookup` sigMap
     hashScType = hashString . getSig . SC.typeName
+
+    overallHash = let a = hashInit `hashUpdate` n `hashUpdate` v
+                      sorted = sortBy (compare `on` fst) $ M.toList sigMap
+                      hashStrs = map (show . hashString . snd) sorted
+                  in hashFinalize $ foldl hashUpdate a hashStrs
 
     specMap = fmap fromF tyMap
 
@@ -143,9 +151,9 @@ pShow :: (Show a) => a -> Doc
 pShow = text . show 
 
 instance Pretty (Spec String) where
-  pretty (Spec n v fs) = parens $ hang ps 1 pfs
+  pretty (Spec n v h fs) = parens $ hang ps 1 pfs
     where
-      ps = text "schema" <+> text n <+> text v
+      ps = text "schema" <+> text n <+> text v <+> pShow h
       pfs = vcat $ map pretty fs
 
 instance Pretty (SpecForm String) where
