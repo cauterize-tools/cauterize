@@ -1,10 +1,10 @@
 module Main where
 
 import Cauterize.Options
-import Cauterize.Schema.Parser
 import Cauterize.Common.Primitives
-import Cauterize.Schema.Types
-import Cauterize.Specification
+
+import Cauterize.Schema as Sc
+import Cauterize.Specification as Sp
 
 import qualified Data.Map as M
 
@@ -14,13 +14,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
     render (Left s) = print s
     render (Right s) = 
       case checkSchema s of
-        [] -> do
-            putStrLn $ prettyPrint s
-            putStrLn ""
-            
-            putStrLn "Specification"
-            print $ fromSchema s
-            putStrLn ""
+        [] -> putStrLn $ Sp.prettyPrint $ fromSchema s
         es -> print es
 
 sigLines :: M.Map Name Signature -> String

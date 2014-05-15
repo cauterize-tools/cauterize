@@ -19,6 +19,3 @@ refSig sm (IndexedRef n m _) = concat ["(field ", n, " ", luSig m, ")"]
 
 refRef :: IndexedRef t -> t
 refRef (IndexedRef _ n _) = n
-
-instance Pretty (IndexedRef String) where
-  pretty (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m

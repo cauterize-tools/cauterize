@@ -180,8 +180,11 @@ instance Pretty (ScType String) where
   pretty (Partial (TPartial n fs)) = prettyFielded "partial" n fs
   pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
 
-prettyFielded :: Pretty a => String -> String -> [a] -> Doc
+prettyIndexedRef :: IndexedRef String -> Doc
+prettyIndexedRef (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
+
+prettyFielded :: String -> String -> [IndexedRef String] -> Doc
 prettyFielded t n fs = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n
-    pfs = vcat $ map pretty fs
+    pfs = vcat $ map prettyIndexedRef fs
