@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Cauterize.Schema.Types
   ( Cycle
   , Schema(..)
@@ -8,6 +9,8 @@ module Cauterize.Schema.Types
   , schemaSigMap
   , checkSchema
   , typeName
+
+  , prettyPrint
   ) where
 
 import Cauterize.Common.Primitives
@@ -21,6 +24,9 @@ import Data.Graph
 
 import qualified Data.Set as L
 import qualified Data.Map as M
+
+import Text.PrettyPrint
+import Text.PrettyPrint.Class
 
 type Cycle = [Name]
 
@@ -144,3 +150,38 @@ padShowInteger v = let v' = abs v
                    in if v < 0
                         then '-':v''
                         else '+':v''
+
+-- Instances
+
+prettyPrint :: Schema String -> String
+prettyPrint = show . pretty
+
+pShow :: (Show a) => a -> Doc
+pShow = text . show 
+
+instance Pretty (Schema String) where
+  pretty (Schema n v fs) = parens $ hang ps 1 pfs
+    where
+      ps = text "schema" <+> text n <+> text v
+      pfs = vcat $ map pretty fs
+
+instance Pretty (SchemaForm String) where
+  pretty (FType t) = pretty t
+
+instance Pretty (ScType String) where
+  pretty (BuiltIn _) = empty
+  pretty (Scalar (TScalar n b)) = parens $ text "scalar" <+> text n <+> pShow b
+  pretty (Const (TConst n b i)) = parens $ text "const" <+> text n <+> pShow b <+> integer i
+  pretty (FixedArray (TFixedArray n m s)) = parens $ text "fixed" <+> text n <+> text m <+> integer s
+  pretty (BoundedArray (TBoundedArray n m s)) = parens $ text "bounded" <+> text n <+> text m <+> integer s
+  pretty (Struct (TStruct n fs)) = prettyFielded "struct" n fs
+  pretty (Set (TSet n fs)) = prettyFielded "set" n fs
+  pretty (Enum (TEnum n fs)) = prettyFielded "enum" n fs
+  pretty (Partial (TPartial n fs)) = prettyFielded "partial" n fs
+  pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
+
+prettyFielded :: Pretty a => String -> String -> [a] -> Doc
+prettyFielded t n fs = parens $ hang pt 1 pfs
+  where
+    pt = text t <+> text n
+    pfs = vcat $ map pretty fs

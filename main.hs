@@ -15,8 +15,7 @@ main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
     render (Right s) = 
       case checkSchema s of
         [] -> do
-            putStrLn "Schema"
-            print s
+            putStrLn $ prettyPrint s
             putStrLn ""
             
             putStrLn "Specification"
