@@ -1,10 +1,9 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, RecordWildCards #-}
 module Cauterize.Specification.Types
   ( Spec(..)
   , SpecForm(..)
   , SpType(..)
   , fromSchema
-
 
   , prettyPrint
   ) where
@@ -17,9 +16,12 @@ import Data.Function
 import Data.Maybe
 
 import qualified Data.Map as M
+import qualified Data.List as L
+import qualified Data.Set as S
 import qualified Cauterize.Schema.Types as SC
 
 import Cauterize.Common.Types
+import Cauterize.Common.References
 
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
@@ -27,7 +29,7 @@ import Text.PrettyPrint.Class
 data Spec t = Spec Name Version FormHash [SpecForm t]
   deriving (Show)
 
-data SpecForm t = FType (SpType t)
+data SpecForm t = FType { unFType :: SpType t }
   deriving (Show)
 
 data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
@@ -67,10 +69,28 @@ data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
                              , spSizes :: (MinSize, MaxSize) }
   deriving (Show, Ord, Eq)
 
+pruneBuiltIns :: [SpType String] -> [SpType String]
+pruneBuiltIns fs = refBis ++ topLevel
+  where
+    (bis, topLevel) = L.partition isBuiltIn fs
+
+    biNames = map (\(BuiltIn (TBuiltIn b) _ _) -> show b) bis
+    biMap = M.fromList $ zip biNames bis
+
+    rsSet = S.fromList $ concatMap referencesOf topLevel
+    biSet = S.fromList biNames
+
+    refBiNames = S.toList $ rsSet `S.intersection` biSet
+    refBis = map snd $ M.toList $ M.filterWithKey (\k _ -> k `elem` refBiNames) biMap
+    
+    isBuiltIn (BuiltIn {..}) = True
+    isBuiltIn _ = False
+
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map (FType . fromF . getT) fs)
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map FType $ pruneBuiltIns $ map unFType fs')
   where
+    fs' = map (FType . fromF . getT) fs
     getT (SC.FType t) = t
     tyMap = SC.schemaTypeMap sc
     sigMap = SC.schemaSigMap sc
@@ -143,6 +163,17 @@ mkSpecType m p =
                           maMa = maximum $ map snd minMaxs
                       in (miMi, maMa)
 
+instance References (SpType String) where
+  referencesOf (BuiltIn {..}) = []
+  referencesOf (Scalar s _ _) = referencesOf s
+  referencesOf (Const  c _ _) = referencesOf c
+  referencesOf (FixedArray f _ _) = referencesOf f
+  referencesOf (BoundedArray b _ _ r) = nub $ show r : referencesOf b
+  referencesOf (Struct s _ _) = referencesOf s
+  referencesOf (Set s _ _ r) = nub $ show r : referencesOf s
+  referencesOf (Enum e _ _ r) = nub $ show r : referencesOf e
+  referencesOf (Partial p _ _ r l) = nub $ show r : show l : referencesOf p
+  referencesOf (Pad {..}) = []
 
 prettyPrint :: Spec String -> String
 prettyPrint = show . pretty

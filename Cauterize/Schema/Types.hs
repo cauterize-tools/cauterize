@@ -9,6 +9,7 @@ module Cauterize.Schema.Types
   , schemaSigMap
   , checkSchema
   , typeName
+  , referredNames
 
   , prettyPrint
   ) where
@@ -33,7 +34,7 @@ type Cycle = [Name]
 data Schema t = Schema Name Version [SchemaForm t]
   deriving (Show)
 
-data SchemaForm t = FType (ScType t)
+data SchemaForm t = FType { unFormType :: ScType t }
   deriving (Show)
 
 data ScType t = BuiltIn      TBuiltIn
