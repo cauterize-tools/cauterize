@@ -1,5 +1,28 @@
 # Cauterize
 
+## Alternatives to Cauterize
+
+* Binary JSON (BSON)
+* Protocol Buffers
+* Message Pack
+* Concise Binary Object Representation (CBOR)
+* Abstract Syntax Notation One (ASN.1)
+* Apache Thrift
+* Apache Avro
+* BERT-RPC
+
+## Primary Goals
+
+* Unambiguous
+* Fixed-upper-bound memory usage
+* Fixed-upper-bound execution time
+* Idioms native to target languages
+* Precise specifications
+* Suitable for small systems and networks
+* Simplicity
+* Early detection of protocol drift
+* Structural protocol versioning
+
 ## Schemas
 
 ### Types
