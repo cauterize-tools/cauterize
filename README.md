@@ -2,14 +2,15 @@
 
 ## Alternatives to Cauterize
 
-* Binary JSON (BSON)
-* Protocol Buffers
-* Message Pack
-* Concise Binary Object Representation (CBOR)
+* Cap'n Proto
 * Abstract Syntax Notation One (ASN.1)
+* Concise Binary Object Representation (CBOR)
 * Apache Thrift
 * Apache Avro
 * BERT-RPC
+* Protocol Buffers
+* Message Pack
+* Binary JSON (BSON)
 
 ## Primary Goals
 
