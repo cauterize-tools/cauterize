@@ -195,7 +195,7 @@ pDQText = doubleQuotes . text
 instance Pretty (Spec String) where
   pretty (Spec n v h fs) = parens $ hang ps 1 pfs
     where
-      ps = text "schema" <+> pDQText n <+> pDQText v <+> pShow h
+      ps = text "specification" <+> pDQText n <+> pDQText v <+> pShow h
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields
