@@ -69,6 +69,7 @@ data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
                              , spSizes :: (MinSize, MaxSize) }
   deriving (Show, Ord, Eq)
 
+spTypeName :: SpType a -> Name
 spTypeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
 spTypeName (Scalar { unScalar = (TScalar n _)}) = n
 spTypeName (Const { unConst = (TConst n _ _)}) = n
@@ -193,10 +194,13 @@ prettyPrint = show . pretty
 pShow :: (Show a) => a -> Doc
 pShow = text . show 
 
+pDQText :: String -> Doc
+pDQText = doubleQuotes . text
+
 instance Pretty (Spec String) where
   pretty (Spec n v h fs) = parens $ hang ps 1 pfs
     where
-      ps = text "schema" <+> text n <+> text v <+> pShow h
+      ps = text "schema" <+> pDQText n <+> pDQText v <+> pShow h
       pfs = vcat $ map pretty fs
 
 instance Pretty (SpecForm String) where
