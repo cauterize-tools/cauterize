@@ -69,6 +69,17 @@ data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
                              , spSizes :: (MinSize, MaxSize) }
   deriving (Show, Ord, Eq)
 
+spTypeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
+spTypeName (Scalar { unScalar = (TScalar n _)}) = n
+spTypeName (Const { unConst = (TConst n _ _)}) = n
+spTypeName (FixedArray { unFixed = (TFixedArray n _ _)}) = n
+spTypeName (BoundedArray { unBounded = (TBoundedArray n _ _)}) = n
+spTypeName (Struct { unStruct = (TStruct n _)}) = n
+spTypeName (Set { unSet = (TSet n _)}) = n
+spTypeName (Enum { unEnum = (TEnum n _)}) = n
+spTypeName (Partial { unPartial = (TPartial n _)}) = n
+spTypeName (Pad { unPad = (TPad n _)}) = n
+
 pruneBuiltIns :: [SpType String] -> [SpType String]
 pruneBuiltIns fs = refBis ++ topLevel
   where
@@ -88,9 +99,11 @@ pruneBuiltIns fs = refBis ++ topLevel
 
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map FType $ pruneBuiltIns $ map unFType fs')
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map FType fs')
   where
-    fs' = map (FType . fromF . getT) fs
+    fs' = pruneBuiltIns $ map (fromF . getT) fs
+    keepNames = S.fromList $ map spTypeName fs'
+
     getT (SC.FType t) = t
     tyMap = SC.schemaTypeMap sc
     sigMap = SC.schemaSigMap sc
@@ -99,12 +112,11 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map FType $ pruneBuiltI
 
     overallHash = let a = hashInit `hashUpdate` n `hashUpdate` v
                       sorted = sortBy (compare `on` fst) $ M.toList sigMap
-                      hashStrs = map (show . hashString . snd) sorted
+                      filtered = filter (\(x,_) -> x `S.member` keepNames) sorted
+                      hashStrs = map (show . hashString . snd) filtered
                   in hashFinalize $ foldl hashUpdate a hashStrs
 
     specMap = fmap fromF tyMap
-
-    fromF :: SC.ScType Name -> SpType Name
     fromF p = mkSpecType specMap p hash
       where
         hash = hashScType p
