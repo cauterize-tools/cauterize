@@ -11,6 +11,7 @@
 * Protocol Buffers
 * Message Pack
 * Binary JSON (BSON)
+* Fressian (Datomic)
 
 ## Primary Goals
 
