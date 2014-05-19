@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances, RecordWildCards #-}
 module Cauterize.Specification.Types
   ( Spec(..)
-  , SpecForm(..)
   , SpType(..)
   , fromSchema
 
@@ -26,10 +25,7 @@ import Cauterize.Common.References
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
-data Spec t = Spec Name Version FormHash [SpecForm t]
-  deriving (Show)
-
-data SpecForm t = FType { unFType :: SpType t }
+data Spec t = Spec Name Version FormHash [SpType t]
   deriving (Show)
 
 data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
@@ -100,12 +96,11 @@ pruneBuiltIns fs = refBis ++ topLevel
 
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (map FType fs')
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash fs'
   where
-    fs' = pruneBuiltIns $ map (fromF . getT) fs
+    fs' = pruneBuiltIns $ map fromF fs
     keepNames = S.fromList $ map spTypeName fs'
 
-    getT (SC.FType t) = t
     tyMap = SC.schemaTypeMap sc
     sigMap = SC.schemaSigMap sc
     getSig t = fromJust $ t `M.lookup` sigMap
@@ -202,9 +197,6 @@ instance Pretty (Spec String) where
     where
       ps = text "schema" <+> pDQText n <+> pDQText v <+> pShow h
       pfs = vcat $ map pretty fs
-
-instance Pretty (SpecForm String) where
-  pretty (FType t) = pretty t
 
 -- When printing spec types, the following is the general order of fields
 --  (type name hash [references] [representations] [lengths])

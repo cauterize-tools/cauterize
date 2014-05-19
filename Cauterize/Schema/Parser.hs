@@ -33,14 +33,11 @@ parseSchema :: Parser ASTSchema
 parseSchema = pSexp "schema" $ do
     qname <- spacedQuoted
     qver <- spacedQuoted
-    forms <- pForms
+    forms <- pTypes
     return $ Schema qname qver (bis ++ forms)
   where
-    pForms = option [] $ spaces1 >> parseForm `sepBy` spaces1 
-    bis = map (FType . BuiltIn . TBuiltIn) [minBound .. maxBound]
-
-parseForm :: Parser (SchemaForm String)
-parseForm = liftM FType parseType
+    pTypes = option [] $ spaces1 >> parseType `sepBy` spaces1 
+    bis = map (BuiltIn . TBuiltIn) [minBound .. maxBound]
 
 parseType :: Parser ASTType
 parseType = choice $ map try

@@ -2,7 +2,6 @@
 module Cauterize.Schema.Types
   ( Cycle
   , Schema(..)
-  , SchemaForm(..)
   , ScType(..)
 
   , schemaTypeMap
@@ -31,10 +30,7 @@ import Text.PrettyPrint.Class
 
 type Cycle = [Name]
 
-data Schema t = Schema Name Version [SchemaForm t]
-  deriving (Show)
-
-data SchemaForm t = FType { unFormType :: ScType t }
+data Schema t = Schema Name Version [ScType t]
   deriving (Show)
 
 data ScType t = BuiltIn      TBuiltIn
@@ -50,7 +46,7 @@ data ScType t = BuiltIn      TBuiltIn
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema t -> M.Map Name (ScType t)
-schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\(FType t) -> (typeName t, t)) fs
+schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\t -> (typeName t, t)) fs
 
 typeName :: ScType t -> Name
 typeName (BuiltIn (TBuiltIn b)) = show b
@@ -110,9 +106,8 @@ data SchemaErrors = DuplicateNames [Name]
 -- |If checkSchema returns [], then the Schema should be safe to operate on
 -- with any of the methods provided in the Cauterize.Schema module.
 checkSchema :: Schema Name -> [SchemaErrors]
-checkSchema s@(Schema _ _ fs) = catMaybes [duplicateNames, cycles, nonExistent]
+checkSchema s@(Schema _ _ ts) = catMaybes [duplicateNames, cycles, nonExistent]
   where
-    ts = map (\(FType t) -> t) fs
     tns  = map typeName ts
     duplicateNames = case duplicates tns of
                         [] -> Nothing
@@ -165,9 +160,6 @@ instance Pretty (Schema String) where
     where
       ps = text "schema" <+> text n <+> text v
       pfs = vcat $ map pretty fs
-
-instance Pretty (SchemaForm String) where
-  pretty (FType t) = pretty t
 
 instance Pretty (ScType String) where
   pretty (BuiltIn _) = empty
