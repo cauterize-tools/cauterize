@@ -20,7 +20,7 @@ executable ref-caut
   main-is:             main.hs
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.6 && <4.7,
+  build-depends:       base >=4.6 && <4.8,
                        parsec ==3.1.*,
                        pretty ==1.1.*,
                        pretty-class ==0.1.*,
