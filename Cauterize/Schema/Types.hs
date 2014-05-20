@@ -158,7 +158,7 @@ pShow = text . show
 instance Pretty (Schema String) where
   pretty (Schema n v fs) = parens $ hang ps 1 pfs
     where
-      ps = text "schema" <+> text n <+> text v
+      ps = text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v
       pfs = vcat $ map pretty fs
 
 instance Pretty (ScType String) where
@@ -174,6 +174,7 @@ instance Pretty (ScType String) where
   pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
 
 prettyIndexedRef :: IndexedRef String -> Doc
+prettyIndexedRef (IndexedRef n "void" _) = parens $ text "field" <+> text n
 prettyIndexedRef (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
 
 prettyFielded :: String -> String -> [IndexedRef String] -> Doc
