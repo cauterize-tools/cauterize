@@ -2,48 +2,34 @@
 module Cauterize.Schema.Arbitrary
  ( genTypeRuns
  , arbSchema
+ , ValidSchema(unValidSchema)
  ) where
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 import Control.Monad
 import Data.Word
-import Data.List
 
 import Cauterize.Common.IndexedRef
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
-sequences :: [a] -> [[a]]
-sequences ls = ls' ++ [i ++ [a] | i <- sequences ls, a <- ls]
-  where
-    ls' = map (:[]) ls
-
-schemaNames :: [Name]
-schemaNames = take 100 genNames
-
-genNames :: [Name]
-genNames = let syms = ["a","e","i","o","u","y"]
-           in map concat $ sequences syms
-
-newtype ValidSchema = ValidSchema (Schema Name)
+newtype ValidSchema = ValidSchema { unValidSchema :: Schema Name }
   deriving (Show)
 
-maxFields, maxRunTypes :: (Num a) => a
-maxFields = 10
-maxRunTypes = 10
+instance Arbitrary ValidSchema where
+  arbitrary = liftM ValidSchema arbSchema
 
-bis :: [BuiltIn]
-bis = [minBound..maxBound]
-
-arbBi :: Gen BuiltIn
-arbBi = elements bis
+maxFields, maxRunTypes, maxRuns :: (Num a) => a
+maxRuns = 30
+maxRunTypes = 3
+maxFields = 3
 
 arbSchema :: Gen (Schema Name)
 arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
   where
-    rs = genTypeRuns maxRunTypes
+    rs = genTypeRuns maxRuns
 
 genTypeRuns :: Word -> Gen [ScType Name]
 genTypeRuns runs = go runs genNames (map show bis)
@@ -57,16 +43,12 @@ genTypeRuns runs = go runs genNames (map show bis)
       return $ ts ++ rs
 
 genTypes :: [Name] -> [Name] -> Gen [ScType Name]
-genTypes names' existingTypes = go names' existingTypes
-  where
-    go :: [Name] -> [Name] -> Gen [ScType Name]
-    go [] _ = return []
-    go (thisName:restNames) ex = do
-      let arbs' = sequence arbs ex
-      let arbs'' = sequence arbs' thisName
-      t <- oneof arbs''
-      r <- go restNames ex
-      return $ t:r
+genTypes [] _ = return []
+genTypes (thisName:restNames) ex = do
+  let arbs' = sequence (sequence arbs ex) thisName
+  t <- oneof arbs'
+  r <- genTypes restNames ex
+  return $ t:r
 
 arbs :: [[Name] -> Name -> Gen (ScType Name)]
 arbs = [ arbScalar
@@ -119,3 +101,21 @@ arbFielded ts n cstr = do
 
 arbIRef :: [Name] -> Name -> Gen (Integer -> IndexedRef Name)
 arbIRef ts n = liftM (IndexedRef n) $ elements ts
+
+sequences :: [a] -> [[a]]
+sequences ls = ls' ++ [i ++ [a] | i <- sequences ls, a <- ls]
+  where
+    ls' = map (:[]) ls
+
+schemaNames :: [Name]
+schemaNames = take 100 genNames
+
+genNames :: [Name]
+genNames = let syms = ["a","e","i","o","u","y"]
+           in map concat $ sequences syms
+
+bis :: [BuiltIn]
+bis = [minBound..maxBound]
+
+arbBi :: Gen BuiltIn
+arbBi = elements bis
