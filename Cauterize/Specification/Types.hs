@@ -25,7 +25,7 @@ import Cauterize.Common.References
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
-data Spec t = Spec Name Version FormHash [SpType t]
+data Spec t = Spec Name Version FormHash (MinSize, MaxSize) [SpType t]
   deriving (Show)
 
 data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
@@ -96,8 +96,9 @@ pruneBuiltIns fs = refBis ++ topLevel
 
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash fs'
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (minimum minSizes, maximum maxSizes) fs'
   where
+    (minSizes, maxSizes) = unzip $ map spSizes fs'
     fs' = pruneBuiltIns $ map fromF fs
     keepNames = S.fromList $ map spTypeName fs'
 
@@ -193,9 +194,9 @@ pDQText :: String -> Doc
 pDQText = doubleQuotes . text
 
 instance Pretty (Spec String) where
-  pretty (Spec n v h fs) = parens $ hang ps 1 pfs
+  pretty (Spec n v h (minS, maxS) fs) = parens $ hang ps 1 pfs
     where
-      ps = text "specification" <+> pDQText n <+> pDQText v <+> pShow h
+      ps = text "specification" <+> pDQText n <+> pDQText v <+> integer minS <+> integer maxS <+> pShow h
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields
