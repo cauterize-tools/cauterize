@@ -35,7 +35,7 @@ arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
     rs = genTypeRuns maxRuns
 
 genTypeRuns :: Word -> Gen [ScType Name]
-genTypeRuns runs = go runs genNames (map show bis)
+genTypeRuns runs = liftM (biTys ++) $ go runs genNames (map show bis)
   where
     go 0 _ _ = return []
     go runs' ns ex = do
@@ -122,6 +122,9 @@ genNames = let syms = ["a","e","i","o","u","y"]
 
 bis :: [BuiltIn]
 bis = [minBound..maxBound]
+
+biTys :: [ScType Name]
+biTys = map (BuiltIn . TBuiltIn) bis
 
 arbBi :: Gen BuiltIn
 arbBi = elements bis
