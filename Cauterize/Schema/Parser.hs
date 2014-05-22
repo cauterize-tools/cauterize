@@ -9,7 +9,7 @@ import Control.Monad
 import Text.Parsec
 import Text.Parsec.String
 
-import Cauterize.Schema.Utils
+import Cauterize.Common.ParserUtils
 import Cauterize.Schema.Types
 
 import Cauterize.Common.Primitives
