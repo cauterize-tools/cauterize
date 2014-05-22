@@ -22,9 +22,12 @@ instance Arbitrary ValidSchema where
   arbitrary = liftM ValidSchema arbSchema
 
 maxFields, maxRunTypes, maxRuns :: (Num a) => a
-maxRuns = 30
+maxRuns = 100
 maxRunTypes = 3
-maxFields = 3
+maxFields = 5
+
+constRange :: (Num a, Enum a) => [a]
+constRange = [1..10]
 
 arbSchema :: Gen (Schema Name)
 arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
@@ -62,17 +65,20 @@ arbs = [ arbScalar
        , arbPad
        ]
 
+arbArraySize :: Gen Integer
+arbArraySize = liftM fromIntegral (arbitrary :: Gen Word32)
+
 arbScalar :: [Name] -> Name -> Gen (ScType Name)
 arbScalar _ n = liftM (Scalar . TScalar n) arbBi
 
 arbConst :: [Name] -> Name -> Gen (ScType Name)
-arbConst _ n = liftM2 (\b i -> Const $ TConst n b i) arbBi (elements [1..10])
+arbConst _ n = liftM2 (\b i -> Const $ TConst n b i) arbBi (elements constRange)
 
 arbFixed :: [Name] -> Name -> Gen (ScType Name)
-arbFixed ts n = liftM2 (\t s -> FixedArray $ TFixedArray n t s) (elements ts) (elements [1..64])
+arbFixed ts n = liftM2 (\t s -> FixedArray $ TFixedArray n t s) (elements ts) arbArraySize
 
 arbBounded :: [Name] -> Name -> Gen (ScType Name)
-arbBounded ts n = liftM2 (\t s -> BoundedArray $ TBoundedArray n t s) (elements ts) (elements [1..64])
+arbBounded ts n = liftM2 (\t s -> BoundedArray $ TBoundedArray n t s) (elements ts) arbArraySize
 
 arbStruct :: [Name] -> Name -> Gen (ScType Name)
 arbStruct ts n = arbFielded ts n (\n' fs -> Struct $ TStruct n' fs)
