@@ -3,21 +3,24 @@ module Main where
 import Cauterize.Schema.Arbitrary
 import Cauterize.Schema.Types
 import Cauterize.Specification.Types
-import Cauterize.Specification.Parser
+
+import qualified Cauterize.Specification.Parser as SP
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 
 import Text.PrettyPrint.Class
 
+import Control.Monad
+
 main :: IO ()
 main = parsePrettyParseIsId
 
 parsePrettyParseIsId :: IO ()
 parsePrettyParseIsId = do
-  (Right s) <- parseFile "rando_spec.scm"
+  s <- liftM (fromSchema . unValidSchema) $ generate (arbitrary :: Gen ValidSchema)
   let s' = pretty s
-  let (Right s'') = parseString "" $ show s'
+  let (Right s'') = SP.parseString "" $ show s'
   print $ s == s''
 
 printArbSpec :: IO ()
