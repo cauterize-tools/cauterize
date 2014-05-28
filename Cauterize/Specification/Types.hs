@@ -26,7 +26,7 @@ import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
 data Spec t = Spec Name Version FormHash (MinSize, MaxSize) [SpType t]
-  deriving (Show)
+  deriving (Show, Eq)
 
 data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
                              , spHash    :: FormHash

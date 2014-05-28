@@ -30,12 +30,16 @@ parseString path str =
               Right s -> Right s
 
 parseSchema :: Parser ASTSchema
-parseSchema = pSexp "schema" $ do
-    qname <- spacedQuoted
-    qver <- spacedQuoted
-    forms <- pTypes
-    return $ Schema qname qver (bis ++ forms)
+parseSchema = do
+  s <- pSchema
+  spacedEof
+  return s
   where
+    pSchema = pSexp "schema" $ do
+      qname <- spacedQuoted
+      qver <- spacedQuoted
+      forms <- pTypes
+      return $ Schema qname qver (bis ++ forms)
     pTypes = option [] $ spaces1 >> parseType `sepBy` spaces1 
     bis = map (BuiltIn . TBuiltIn) [minBound .. maxBound]
 
@@ -119,12 +123,3 @@ parsePartial = pSexp "partial" $ do
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]
-
-parseBuiltInName :: Parser BuiltIn
-parseBuiltInName = liftM read $ choice names
-  where
-    names = map (try . string . show) bis
-    bis = [minBound .. maxBound] :: [BuiltIn]
-
-spacedBuiltIn :: Parser BuiltIn
-spacedBuiltIn = spaces1 >> parseBuiltInName

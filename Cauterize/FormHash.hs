@@ -1,5 +1,5 @@
 module Cauterize.FormHash
-  ( FormHash(hashToByteString)
+  ( FormHash(..)
   , HashContext
 
   , hashInit

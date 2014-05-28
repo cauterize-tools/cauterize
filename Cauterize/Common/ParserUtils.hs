@@ -1,15 +1,27 @@
-module Cauterize.Schema.Utils
+module Cauterize.Common.ParserUtils
   ( pSexp
   , spacedQuoted
   , spaces1
   , spacedName
   , spacedNumber
+  , spacedEof
+  , spacedFormHash
+  , spacedBuiltIn
   ) where
 
 import Text.Parsec
 import Text.Parsec.String
 
+import Cauterize.FormHash
+
 import Control.Monad
+
+import Data.Word
+import Numeric
+
+import qualified Data.ByteString as BS
+
+import Cauterize.Common.Primitives
 
 parens :: Parser a -> Parser a
 parens a = do
@@ -44,6 +56,9 @@ validNumber = do
               Just '-' -> -1 * num
               _ -> num
 
+parseFormHash :: Parser FormHash
+parseFormHash = liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['A'..'F'] ++ ['0'..'9'])
+
 spacedName :: Parser String
 spacedName = spaces1 >> validName
 
@@ -53,5 +68,27 @@ spacedNumber = spaces1 >> validNumber
 spacedQuoted :: Parser String
 spacedQuoted = spaces1 >> quoted
 
+spacedFormHash :: Parser FormHash
+spacedFormHash = spaces1 >> parseFormHash
+
 pSexp :: String -> Parser a -> Parser a
 pSexp n p = parens $ string n >> p
+
+spacedEof :: Parser ()
+spacedEof = spaces >> eof
+
+hexStrToWord8s :: String -> [Word8]
+hexStrToWord8s (a:b:rs) = let w = (fst . head) $ readHex [a,b]
+                              rs' = hexStrToWord8s rs
+                          in w:rs'
+hexStrToWord8s [] = []
+hexStrToWord8s _ = error "Must have even number of characters"
+
+parseBuiltInName :: Parser BuiltIn
+parseBuiltInName = liftM read $ choice names
+  where
+    names = map (try . string . show) bis
+    bis = [minBound .. maxBound] :: [BuiltIn]
+
+spacedBuiltIn :: Parser BuiltIn
+spacedBuiltIn = spaces1 >> parseBuiltInName
