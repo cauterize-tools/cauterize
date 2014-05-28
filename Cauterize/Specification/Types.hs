@@ -2,6 +2,9 @@
 module Cauterize.Specification.Types
   ( Spec(..)
   , SpType(..)
+  , Sized(..)
+  , FixedSize(..)
+  , RangeSize(..)
   , fromSchema
 
   , prettyPrint
@@ -25,45 +28,114 @@ import Cauterize.Common.References
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
-data Spec t = Spec Name Version FormHash (MinSize, MaxSize) [SpType t]
+data FixedSize = FixedSize { unFixedSize :: Integer }
+  deriving (Show, Ord, Eq)
+data RangeSize = RangeSize { rangeSizeMin :: Integer, rangeSizeMax :: Integer }
+  deriving (Show, Ord, Eq)
+
+mkRangeSize :: Integer -> Integer -> RangeSize
+mkRangeSize mi ma = if mi > ma
+                      then error $ "Bad range: " ++ show mi ++ " -> " ++ show ma ++ "."
+                      else RangeSize mi ma
+
+class Sized a where
+  minSize :: a -> Integer
+  maxSize :: a -> Integer
+
+  minimumOfSizes :: [a] -> Integer
+  minimumOfSizes = minimum . map minSize
+
+  maximumOfSizes :: [a] -> Integer
+  maximumOfSizes = maximum . map maxSize
+
+  rangeFitting :: [a] -> RangeSize
+  rangeFitting ss = mkRangeSize (minimumOfSizes ss) (maximumOfSizes ss)
+
+  sumOfMinimums :: [a] -> Integer
+  sumOfMinimums = sum . map minSize
+
+  sumOfMaximums :: [a] -> Integer
+  sumOfMaximums = sum . map minSize
+
+instance Sized FixedSize where
+  minSize (FixedSize i) = i
+  maxSize (FixedSize i) = i
+
+instance Sized RangeSize where
+  minSize (RangeSize i _) = i
+  maxSize (RangeSize _ i) = i
+
+data Spec t = Spec Name Version FormHash RangeSize [SpType t]
   deriving (Show, Eq)
 
-data SpType t = BuiltIn      { unBuiltIn :: TBuiltIn
-                             , spHash    :: FormHash
-                             , spSizes   :: (MinSize, MaxSize) }
-              | Scalar       { unScalar :: TScalar
-                             , spHash   :: FormHash
-                             , spSizes  :: (MinSize, MaxSize) }
-              | Const        { unConst :: TConst
-                             , spHash  :: FormHash
-                             , spSizes :: (MinSize, MaxSize) }
-              | FixedArray   { unFixed :: TFixedArray t
-                             , spHash  :: FormHash
-                             , spSizes :: (MinSize, MaxSize) }
-              | BoundedArray { unBounded :: TBoundedArray t
-                             , spHash    :: FormHash
-                             , spSizes   :: (MinSize, MaxSize)
+data SpType t = BuiltIn      { unBuiltIn   :: TBuiltIn
+                             , spHash      :: FormHash
+                             , spFixedSize :: FixedSize }
+
+              | Scalar       { unScalar     :: TScalar
+                             , spHash       :: FormHash
+                             , spFixedSize  :: FixedSize }
+
+              | Const        { unConst     :: TConst
+                             , spHash      :: FormHash
+                             , spFixedSize :: FixedSize }
+
+              | FixedArray   { unFixed     :: TFixedArray t
+                             , spHash      :: FormHash
+                             , spRangeSize :: RangeSize }
+
+              | BoundedArray { unBounded   :: TBoundedArray t
+                             , spHash      :: FormHash
+                             , spRangeSize :: RangeSize
                              , lenRepr   :: BuiltIn }
-              | Struct       { unStruct :: TStruct t
-                             , spHash   :: FormHash
-                             , spSizes  :: (MinSize, MaxSize) }
-              | Set          { unSet     :: TSet t
-                             , spHash    :: FormHash
-                             , spSizes   :: (MinSize, MaxSize)
-                             , flagsRepr :: BuiltIn }
-              | Enum         { unEnum  :: TEnum t
-                             , spHash  :: FormHash
-                             , spSizes :: (MinSize, MaxSize)
-                             , tagRepr :: BuiltIn }
-              | Partial      { unPartial :: TPartial t
-                             , spHash    :: FormHash
-                             , spSizes   :: (MinSize, MaxSize)
-                             , tagRepr   :: BuiltIn
-                             , lenRepr   :: BuiltIn }
-              | Pad          { unPad   :: TPad
-                             , spHash  :: FormHash
-                             , spSizes :: (MinSize, MaxSize) }
+
+              | Struct       { unStruct    :: TStruct t
+                             , spHash      :: FormHash
+                             , spRangeSize :: RangeSize }
+
+              | Set          { unSet       :: TSet t
+                             , spHash      :: FormHash
+                             , spRangeSize :: RangeSize
+                             , flagsRepr   :: BuiltIn }
+
+              | Enum         { unEnum      :: TEnum t
+                             , spHash      :: FormHash
+                             , spRangeSize :: RangeSize
+                             , tagRepr     :: BuiltIn }
+
+              | Partial      { unPartial   :: TPartial t
+                             , spHash      :: FormHash
+                             , spRangeSize :: RangeSize
+                             , tagRepr     :: BuiltIn
+                             , lenRepr     :: BuiltIn }
+
+              | Pad          { unPad       :: TPad
+                             , spHash      :: FormHash
+                             , spFixedSize :: FixedSize }
   deriving (Show, Ord, Eq)
+
+instance Sized (SpType b) where
+  minSize (BuiltIn { spFixedSize = s}) = minSize s
+  minSize (Scalar { spFixedSize = s}) = minSize s
+  minSize (Const { spFixedSize = s}) = minSize s
+  minSize (FixedArray { spRangeSize = s}) = minSize s
+  minSize (BoundedArray { spRangeSize = s}) = minSize s
+  minSize (Struct { spRangeSize = s}) = minSize s
+  minSize (Set { spRangeSize = s}) = minSize s
+  minSize (Enum { spRangeSize = s}) = minSize s
+  minSize (Partial { spRangeSize = s}) = minSize s
+  minSize (Pad { spFixedSize = s}) = minSize s
+
+  maxSize (BuiltIn { spFixedSize = s}) = maxSize s
+  maxSize (Scalar { spFixedSize = s}) = maxSize s
+  maxSize (Const { spFixedSize = s}) = maxSize s
+  maxSize (FixedArray { spRangeSize = s}) = maxSize s
+  maxSize (BoundedArray { spRangeSize = s}) = maxSize s
+  maxSize (Struct { spRangeSize = s}) = maxSize s
+  maxSize (Set { spRangeSize = s}) = maxSize s
+  maxSize (Enum { spRangeSize = s}) = maxSize s
+  maxSize (Partial { spRangeSize = s}) = maxSize s
+  maxSize (Pad { spFixedSize = s}) = maxSize s
 
 spTypeName :: SpType a -> Name
 spTypeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
@@ -96,9 +168,8 @@ pruneBuiltIns fs = refBis ++ topLevel
 
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (minimum minSizes, maximum maxSizes) fs'
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
   where
-    (minSizes, maxSizes) = unzip $ map spSizes fs'
     fs' = pruneBuiltIns $ map fromF fs
     keepNames = S.fromList $ map spTypeName fs'
 
@@ -123,54 +194,54 @@ mkSpecType m p =
   case p of
     (SC.BuiltIn t@(TBuiltIn b)) ->
       let s = builtInSize b
-      in \h -> BuiltIn t h (s,s)
+      in \h -> BuiltIn t h (FixedSize s)
     (SC.Scalar  t@(TScalar _ b)) ->
       let s = builtInSize b
-      in \h -> Scalar t h (s,s)
+      in \h -> Scalar t h (FixedSize s)
     (SC.Const   t@(TConst _ b _)) ->
       let s = builtInSize b
-      in \h -> Const t h (s,s)
+      in \h -> Const t h (FixedSize s)
     (SC.FixedArray t@(TFixedArray _ r i)) ->
-      let (smin, smax) = lookupRef r
-      in \h -> FixedArray t h (i * smin, i * smax)
+      let ref = lookupRef r
+      in \h -> FixedArray t h (mkRangeSize (i * minSize ref) (i * maxSize ref))
     (SC.BoundedArray t@(TBoundedArray _ r i)) ->
-      let (_, smax) = lookupRef r
+      let ref = lookupRef r
           repr = minimalExpression i
           reprSz = builtInSize repr
-      in \h -> BoundedArray t h (reprSz, reprSz + (i * smax)) repr
+      in \h -> BoundedArray t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr
     (SC.Struct t@(TStruct _ rs)) ->
-      let minMaxs = refsMinMaxes rs
-          sumMin = sum $ map fst minMaxs
-          sumMax = sum $ map snd minMaxs
-      in \h -> Struct t h (sumMin, sumMax)
+      let refs = lookupRefs rs
+          sumMin = sumOfMinimums refs
+          sumMax = sumOfMaximums refs
+      in \h -> Struct t h (mkRangeSize sumMin sumMax)
     (SC.Set t@(TSet _ rs)) ->
-      let minMaxs = refsMinMaxes rs
-          sumMax = sum $ map snd minMaxs
+      let refs = lookupRefs rs
+          sumMax = sumOfMaximums refs
           repr = minimalBitField (length rs)
           reprSz = builtInSize repr
-      in \h -> Set t h (reprSz, reprSz + sumMax) repr
+      in \h -> Set t h (mkRangeSize reprSz (reprSz + sumMax)) repr
     (SC.Enum t@(TEnum _ rs)) ->
-      let (minMin, maxMax) = minMinMaxMax rs
+      let refs = lookupRefs rs
+          minMin = minimumOfSizes refs
+          maxMax = maximumOfSizes refs
           repr = minimalBitField (length rs)
           reprSz = builtInSize repr
-      in \h -> Enum t h (reprSz + minMin, reprSz + maxMax) repr
+      in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr
     (SC.Partial t@(TPartial _ rs)) ->
-      let (minMin, maxMax) = minMinMaxMax rs
+      let refs = lookupRefs rs
+          minMin = minimumOfSizes refs
+          maxMax = maximumOfSizes refs
           ptagRepr = minimalExpression (length rs)
           ptagReprSz = builtInSize ptagRepr
           plenRepr = minimalExpression maxMax
           plenReprSz = builtInSize plenRepr
           overhead = ptagReprSz + plenReprSz
-      in \h -> Partial t h (overhead + minMin, overhead + maxMax) ptagRepr plenRepr
-    (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (l, l)
+      in \h -> Partial t h (mkRangeSize (overhead + minMin) (overhead + maxMax)) ptagRepr plenRepr
+    (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (FixedSize l)
   where
-    lookupRef r = spSizes . fromJust $ r `M.lookup` m
+    lookupRef r = fromJust $ r `M.lookup` m
     lookupIndexedRef (IndexedRef _ r _) = lookupRef r
-    refsMinMaxes = map lookupIndexedRef
-    minMinMaxMax rs = let minMaxs = refsMinMaxes rs
-                          miMi = minimum $ map fst minMaxs
-                          maMa = maximum $ map snd minMaxs
-                      in (miMi, maMa)
+    lookupRefs = map lookupIndexedRef
 
 instance References (SpType String) where
   referencesOf (BuiltIn {..}) = []
@@ -194,7 +265,7 @@ pDQText :: String -> Doc
 pDQText = doubleQuotes . text
 
 instance Pretty (Spec String) where
-  pretty (Spec n v h (minS, maxS) fs) = parens $ hang ps 1 pfs
+  pretty (Spec n v h (RangeSize minS maxS) fs) = parens $ hang ps 1 pfs
     where
       ps = text "specification" <+> pDQText n <+> pDQText v <+> integer minS <+> integer maxS <+> pShow h
       pfs = vcat $ map pretty fs
@@ -202,32 +273,32 @@ instance Pretty (Spec String) where
 -- When printing spec types, the following is the general order of fields
 --  (type name hash [references] [representations] [lengths])
 instance Pretty (SpType String) where
-  pretty (BuiltIn (TBuiltIn b) h (sz,_)) = parens $ pt <+> pa
+  pretty (BuiltIn (TBuiltIn b) h (FixedSize sz)) = parens $ pt <+> pa
     where
       pt = text "builtin" <+> pShow b <+> pShow h
       pa = integer sz
-  pretty (Scalar (TScalar n b) h (sz,_)) = parens $ pt $+$ nest 1 pa
+  pretty (Scalar (TScalar n b) h (FixedSize sz)) = parens $ pt $+$ nest 1 pa
     where
       pt = text "scalar" <+> text n <+> pShow h
       pa = pShow b <+> integer sz
-  pretty (Const (TConst n b i) h (sz,_)) = parens $ pt $+$ nest 1 pa
+  pretty (Const (TConst n b i) h (FixedSize sz)) = parens $ pt $+$ nest 1 pa
     where
       pt = text "const" <+> text n <+> pShow h
       pa = integer i <+> pShow b <+> integer sz
-  pretty (FixedArray (TFixedArray n m i) h (smin, smax)) = parens $ pt $+$ nest 1 pa
+  pretty (FixedArray (TFixedArray n m i) h (RangeSize smin smax)) = parens $ pt $+$ nest 1 pa
     where
       pt = text "fixed" <+> text n <+> pShow h
       pa = text m <+> integer i <+> integer smin <+> integer smax
-  pretty (BoundedArray (TBoundedArray n m i) h (smin, smax) bi) = parens $ pt $+$ nest 1 pa
+  pretty (BoundedArray (TBoundedArray n m i) h (RangeSize smin smax) bi) = parens $ pt $+$ nest 1 pa
     where
       pt = text "bounded" <+> text n <+> pShow h
       pa = text m <+> integer i <+> pShow bi <+> integer smin <+> integer smax
-  pretty (Struct (TStruct n rs) h (smin, smax)) = prettyFieldedB0 "struct" n rs smin smax h
-  pretty (Set (TSet n rs) h (smin, smax) bi) = prettyFieldedB1 "set" n rs smin smax bi h
-  pretty (Enum (TEnum n rs) h (smin, smax) bi) = prettyFieldedB1 "enum" n rs smin smax bi h
-  pretty (Partial (TPartial n rs) h (smin, smax) bi ln) = prettyFieldedB2 "partial" n rs smin smax bi ln h
+  pretty (Struct (TStruct n rs) h (RangeSize smin smax)) = prettyFieldedB0 "struct" n rs smin smax h
+  pretty (Set (TSet n rs) h (RangeSize smin smax) bi) = prettyFieldedB1 "set" n rs smin smax bi h
+  pretty (Enum (TEnum n rs) h (RangeSize smin smax) bi) = prettyFieldedB1 "enum" n rs smin smax bi h
+  pretty (Partial (TPartial n rs) h (RangeSize smin smax) bi ln) = prettyFieldedB2 "partial" n rs smin smax bi ln h
   -- when printing/parsing padding, the length of the padding is always the min/max
-  pretty (Pad (TPad n l) h (_, _)) = parens pt
+  pretty (Pad (TPad n l) h _) = parens pt
     where
       pt = text "pad" <+> text n <+> pShow h <+> integer l
 

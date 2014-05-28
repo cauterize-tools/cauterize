@@ -39,7 +39,7 @@ parseSpec = do
       qmax <- spacedNumber
       qhash <- spacedFormHash
       types <- pTypes
-      return $ Spec qname qver qhash (qmin,qmax) types
+      return $ Spec qname qver qhash (RangeSize qmin qmax) types
     pTypes :: Parser [ASTType]
     pTypes = option [] $ do
       spaces1
@@ -64,7 +64,7 @@ parseBuiltin = pSexp "builtin" $ do
   bi <- liftM TBuiltIn spacedBuiltIn
   hs <- spacedFormHash
   sz <- spacedNumber
-  return $ BuiltIn bi hs (sz, sz)
+  return $ BuiltIn bi hs (FixedSize sz)
 
 parseScalar :: Parser ASTType
 parseScalar = pSexp "scalar" $ do
@@ -72,7 +72,7 @@ parseScalar = pSexp "scalar" $ do
   hs <- spacedFormHash
   bi <- spacedBuiltIn
   sz <- spacedNumber
-  return $ Scalar (TScalar n bi) hs (sz, sz)
+  return $ Scalar (TScalar n bi) hs (FixedSize sz)
 
 parseConst :: Parser ASTType
 parseConst = pSexp "const" $ do
@@ -81,7 +81,7 @@ parseConst = pSexp "const" $ do
   v <- spacedNumber
   bi <- spacedBuiltIn
   sz <- spacedNumber
-  return $ Const (TConst n bi v) hs (sz, sz)
+  return $ Const (TConst n bi v) hs (FixedSize sz)
 
 parseFixedArray :: Parser ASTType
 parseFixedArray = pSexp "fixed" $ do
@@ -91,7 +91,7 @@ parseFixedArray = pSexp "fixed" $ do
   len <- spacedNumber
   szMin <- spacedNumber
   szMax <- spacedNumber
-  return $ FixedArray (TFixedArray n t len) hs (szMin, szMax)
+  return $ FixedArray (TFixedArray n t len) hs (RangeSize szMin szMax)
 
 parseBoundedArray :: Parser ASTType
 parseBoundedArray = pSexp "bounded" $ do
@@ -102,7 +102,7 @@ parseBoundedArray = pSexp "bounded" $ do
   repr <- spacedBuiltIn
   szMin <- spacedNumber
   szMax <- spacedNumber
-  return $ BoundedArray (TBoundedArray n t len) hs (szMin, szMax) repr
+  return $ BoundedArray (TBoundedArray n t len) hs (RangeSize szMin szMax) repr
 
 parseStruct :: Parser ASTType
 parseStruct = pSexp "struct" $ do
@@ -111,7 +111,7 @@ parseStruct = pSexp "struct" $ do
   szMax <- spacedNumber
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Struct (TStruct n fs) hs (szMin, szMax)
+  return $ Struct (TStruct n fs) hs (RangeSize szMin szMax)
 
 parseSet :: Parser ASTType
 parseSet = pSexp "set" $ do
@@ -121,7 +121,7 @@ parseSet = pSexp "set" $ do
   repr <- spacedBuiltIn
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Set (TSet n fs) hs (szMin, szMax) repr
+  return $ Set (TSet n fs) hs (RangeSize szMin szMax) repr
 
 parseEnum :: Parser ASTType
 parseEnum = pSexp "enum" $ do
@@ -131,7 +131,7 @@ parseEnum = pSexp "enum" $ do
   repr <- spacedBuiltIn
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Enum (TEnum n fs) hs (szMin, szMax) repr
+  return $ Enum (TEnum n fs) hs (RangeSize szMin szMax) repr
 
 parsePartial :: Parser ASTType
 parsePartial = pSexp "partial" $ do
@@ -142,14 +142,14 @@ parsePartial = pSexp "partial" $ do
   pLenRepr <- spacedBuiltIn
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Partial (TPartial n fs) hs (szMin, szMax) pTagRepr pLenRepr
+  return $ Partial (TPartial n fs) hs (RangeSize szMin szMax) pTagRepr pLenRepr
 
 parsePad :: Parser ASTType
 parsePad = pSexp "pad" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- spacedNumber
-  return $ Pad (TPad n sz) hs (sz,sz)
+  return $ Pad (TPad n sz) hs (FixedSize sz)
 
 parseIndexedRefs :: Parser [IndexedRef Name]
 parseIndexedRefs = option [] $ do
