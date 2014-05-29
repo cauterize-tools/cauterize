@@ -14,6 +14,9 @@ import qualified Data.ByteString.Char8 as BC
 import Data.Char
 import Numeric
 
+import Text.PrettyPrint
+import Text.PrettyPrint.Class
+
 data FormHash = FormHash { hashToByteString :: B.ByteString }
   deriving (Eq, Ord)
 
@@ -38,3 +41,7 @@ instance Show FormHash where
                     [x,y] -> [toUpper x, toUpper y]
                     [x]   -> ['0', toUpper x]
                     _     -> error "This should be impossible."
+
+instance Pretty FormHash where
+  pretty f = parens $ text "sha1" <+> (text . show $ f)
+

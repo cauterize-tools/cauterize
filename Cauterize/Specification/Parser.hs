@@ -35,11 +35,10 @@ parseSpec = do
     pSpec = pSexp "specification" $ do
       qname <- spacedQuoted
       qver <- spacedQuoted
-      qmin <- spacedNumber
-      qmax <- spacedNumber
+      sz <- parseRangeSize
       qhash <- spacedFormHash
       types <- pTypes
-      return $ Spec qname qver qhash (RangeSize qmin qmax) types
+      return $ Spec qname qver qhash sz types
     pTypes :: Parser [ASTType]
     pTypes = option [] $ do
       spaces1
@@ -63,16 +62,16 @@ parseBuiltin :: Parser ASTType
 parseBuiltin = pSexp "builtin" $ do
   bi <- liftM TBuiltIn spacedBuiltIn
   hs <- spacedFormHash
-  sz <- spacedNumber
-  return $ BuiltIn bi hs (FixedSize sz)
+  sz <- parseFixedSize
+  return $ BuiltIn bi hs sz
 
 parseScalar :: Parser ASTType
 parseScalar = pSexp "scalar" $ do
   n <- spacedName
   hs <- spacedFormHash
   bi <- spacedBuiltIn
-  sz <- spacedNumber
-  return $ Scalar (TScalar n bi) hs (FixedSize sz)
+  sz <- parseFixedSize
+  return $ Scalar (TScalar n bi) hs sz
 
 parseConst :: Parser ASTType
 parseConst = pSexp "const" $ do
@@ -80,8 +79,8 @@ parseConst = pSexp "const" $ do
   hs <- spacedFormHash
   v <- spacedNumber
   bi <- spacedBuiltIn
-  sz <- spacedNumber
-  return $ Const (TConst n bi v) hs (FixedSize sz)
+  sz <- parseFixedSize
+  return $ Const (TConst n bi v) hs sz
 
 parseFixedArray :: Parser ASTType
 parseFixedArray = pSexp "fixed" $ do
@@ -89,9 +88,8 @@ parseFixedArray = pSexp "fixed" $ do
   hs <- spacedFormHash
   t <- spacedName
   len <- spacedNumber
-  szMin <- spacedNumber
-  szMax <- spacedNumber
-  return $ FixedArray (TFixedArray n t len) hs (RangeSize szMin szMax)
+  sz <- parseRangeSize
+  return $ FixedArray (TFixedArray n t len) hs sz
 
 parseBoundedArray :: Parser ASTType
 parseBoundedArray = pSexp "bounded" $ do
@@ -100,61 +98,62 @@ parseBoundedArray = pSexp "bounded" $ do
   t <- spacedName
   len <- spacedNumber
   repr <- spacedBuiltIn
-  szMin <- spacedNumber
-  szMax <- spacedNumber
-  return $ BoundedArray (TBoundedArray n t len) hs (RangeSize szMin szMax) repr
+  sz <- parseRangeSize
+  return $ BoundedArray (TBoundedArray n t len) hs sz repr
 
 parseStruct :: Parser ASTType
 parseStruct = pSexp "struct" $ do
   n <- spacedName
-  szMin <- spacedNumber
-  szMax <- spacedNumber
+  sz <- parseRangeSize
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Struct (TStruct n fs) hs (RangeSize szMin szMax)
+  return $ Struct (TStruct n fs) hs sz
 
 parseSet :: Parser ASTType
 parseSet = pSexp "set" $ do
   n <- spacedName
-  szMin <- spacedNumber
-  szMax <- spacedNumber
+  sz <- parseRangeSize
   repr <- spacedBuiltIn
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Set (TSet n fs) hs (RangeSize szMin szMax) repr
+  return $ Set (TSet n fs) hs sz repr
 
 parseEnum :: Parser ASTType
 parseEnum = pSexp "enum" $ do
   n <- spacedName
-  szMin <- spacedNumber
-  szMax <- spacedNumber
+  sz <- parseRangeSize
   repr <- spacedBuiltIn
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Enum (TEnum n fs) hs (RangeSize szMin szMax) repr
+  return $ Enum (TEnum n fs) hs sz repr
 
 parsePartial :: Parser ASTType
 parsePartial = pSexp "partial" $ do
   n <- spacedName
-  szMin <- spacedNumber
-  szMax <- spacedNumber
+  sz <- parseRangeSize
   pTagRepr <- spacedBuiltIn
   pLenRepr <- spacedBuiltIn
   hs <- spacedFormHash
   fs <- parseIndexedRefs
-  return $ Partial (TPartial n fs) hs (RangeSize szMin szMax) pTagRepr pLenRepr
+  return $ Partial (TPartial n fs) hs sz pTagRepr pLenRepr
 
 parsePad :: Parser ASTType
 parsePad = pSexp "pad" $ do
   n <- spacedName
   hs <- spacedFormHash
-  sz <- spacedNumber
-  return $ Pad (TPad n sz) hs (FixedSize sz)
+  sz <- parseFixedSize
+  return $ Pad (TPad n (unFixedSize sz)) hs sz
 
 parseIndexedRefs :: Parser [IndexedRef Name]
 parseIndexedRefs = option [] $ do
       spaces1
       parseIndexedRef `sepBy` spaces1
+
+parseFixedSize :: Parser FixedSize
+parseFixedSize = (>>) spaces1 $ pSexp "fixed-size" $ liftM FixedSize spacedNumber
+
+parseRangeSize :: Parser RangeSize
+parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumber spacedNumber
 
 parseIndexedRef :: Parser (IndexedRef Name)
 parseIndexedRef = pSexp "field" $ do

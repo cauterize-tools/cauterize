@@ -65,6 +65,12 @@ instance Sized RangeSize where
   minSize (RangeSize i _) = i
   maxSize (RangeSize _ i) = i
 
+instance Pretty FixedSize where
+  pretty (FixedSize s) = parens $ text "fixed-size" <+> integer s
+
+instance Pretty RangeSize where
+  pretty (RangeSize mi ma) = parens $ text "range-size" <+> integer mi <+> integer ma
+
 data Spec t = Spec Name Version FormHash RangeSize [SpType t]
   deriving (Show, Eq)
 
@@ -265,42 +271,42 @@ pDQText :: String -> Doc
 pDQText = doubleQuotes . text
 
 instance Pretty (Spec String) where
-  pretty (Spec n v h (RangeSize minS maxS) fs) = parens $ hang ps 1 pfs
+  pretty (Spec n v h sz fs) = parens $ hang ps 1 pfs
     where
-      ps = text "specification" <+> pDQText n <+> pDQText v <+> integer minS <+> integer maxS <+> pShow h
+      ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty sz <+> pretty h
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields
 --  (type name hash [references] [representations] [lengths])
 instance Pretty (SpType String) where
-  pretty (BuiltIn (TBuiltIn b) h (FixedSize sz)) = parens $ pt <+> pa
+  pretty (BuiltIn (TBuiltIn b) h sz) = parens $ pt <+> pa
     where
-      pt = text "builtin" <+> pShow b <+> pShow h
-      pa = integer sz
-  pretty (Scalar (TScalar n b) h (FixedSize sz)) = parens $ pt $+$ nest 1 pa
+      pt = text "builtin" <+> pShow b <+> pretty h
+      pa = pretty sz
+  pretty (Scalar (TScalar n b) h sz) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "scalar" <+> text n <+> pShow h
-      pa = pShow b <+> integer sz
-  pretty (Const (TConst n b i) h (FixedSize sz)) = parens $ pt $+$ nest 1 pa
+      pt = text "scalar" <+> text n <+> pretty h
+      pa = pShow b <+> pretty sz
+  pretty (Const (TConst n b i) h sz) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "const" <+> text n <+> pShow h
-      pa = integer i <+> pShow b <+> integer sz
-  pretty (FixedArray (TFixedArray n m i) h (RangeSize smin smax)) = parens $ pt $+$ nest 1 pa
+      pt = text "const" <+> text n <+> pretty h
+      pa = integer i <+> pShow b <+> pretty sz
+  pretty (FixedArray (TFixedArray n m i) h sz) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "fixed" <+> text n <+> pShow h
-      pa = text m <+> integer i <+> integer smin <+> integer smax
-  pretty (BoundedArray (TBoundedArray n m i) h (RangeSize smin smax) bi) = parens $ pt $+$ nest 1 pa
+      pt = text "fixed" <+> text n <+> pretty h
+      pa = text m <+> integer i <+> pretty sz
+  pretty (BoundedArray (TBoundedArray n m i) h sz bi) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "bounded" <+> text n <+> pShow h
-      pa = text m <+> integer i <+> pShow bi <+> integer smin <+> integer smax
-  pretty (Struct (TStruct n rs) h (RangeSize smin smax)) = prettyFieldedB0 "struct" n rs smin smax h
-  pretty (Set (TSet n rs) h (RangeSize smin smax) bi) = prettyFieldedB1 "set" n rs smin smax bi h
-  pretty (Enum (TEnum n rs) h (RangeSize smin smax) bi) = prettyFieldedB1 "enum" n rs smin smax bi h
-  pretty (Partial (TPartial n rs) h (RangeSize smin smax) bi ln) = prettyFieldedB2 "partial" n rs smin smax bi ln h
+      pt = text "bounded" <+> text n <+> pretty h
+      pa = text m <+> integer i <+> pShow bi <+> pretty sz
+  pretty (Struct (TStruct n rs) h sz) = prettyFieldedB0 "struct" n rs sz h
+  pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
+  pretty (Enum (TEnum n rs) h sz bi) = prettyFieldedB1 "enum" n rs sz bi h
+  pretty (Partial (TPartial n rs) h sz bi ln) = prettyFieldedB2 "partial" n rs sz bi ln h
   -- when printing/parsing padding, the length of the padding is always the min/max
-  pretty (Pad (TPad n l) h _) = parens pt
+  pretty (Pad (TPad n _) h sz) = parens pt
     where
-      pt = text "pad" <+> text n <+> pShow h <+> integer l
+      pt = text "pad" <+> text n <+> pretty h <+> pretty sz
 
 -- For fields, the representation is always:
 --  (field [name] [target] [index])  
@@ -309,20 +315,20 @@ prettyIndexedRef (IndexedRef n m i) = parens $ text "field" <+> text n <+> text 
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.
-prettyFieldedB0 :: String -> String -> [IndexedRef String] -> MinSize -> MaxSize -> FormHash -> Doc
-prettyFieldedB0 t n fs smin smax hash = parens $ hang pt 1 pfs
+prettyFieldedB0 :: String -> String -> [IndexedRef String] -> RangeSize -> FormHash -> Doc
+prettyFieldedB0 t n fs sz hash = parens $ hang pt 1 pfs
   where
-    pt = text t <+> text n <+> integer smin <+> integer smax <+> pShow hash
+    pt = text t <+> text n <+> pretty sz <+> pretty hash
     pfs = vcat $ map prettyIndexedRef fs
 
-prettyFieldedB1 :: String -> String -> [IndexedRef String] -> MinSize -> MaxSize -> BuiltIn -> FormHash -> Doc
-prettyFieldedB1 t n fs smin smax repr hash = parens $ hang pt 1 pfs
+prettyFieldedB1 :: String -> String -> [IndexedRef String] -> RangeSize -> BuiltIn -> FormHash -> Doc
+prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
   where
-    pt = text t <+> text n <+> integer smin <+> integer smax <+> pShow repr <+> pShow hash
+    pt = text t <+> text n <+> pretty sz <+> pShow repr <+> pretty hash
     pfs = vcat $ map prettyIndexedRef fs
 
-prettyFieldedB2 :: String -> String -> [IndexedRef String] -> MinSize -> MaxSize -> BuiltIn -> BuiltIn -> FormHash -> Doc
-prettyFieldedB2 t n fs smin smax repr1 repr2 hash = parens $ hang pt 1 pfs
+prettyFieldedB2 :: String -> String -> [IndexedRef String] -> RangeSize -> BuiltIn -> BuiltIn -> FormHash -> Doc
+prettyFieldedB2 t n fs sz repr1 repr2 hash = parens $ hang pt 1 pfs
   where
-    pt = text t <+> text n <+> integer smin <+> integer smax <+> pShow repr1 <+> pShow repr2 <+> pShow hash
+    pt = text t <+> text n <+> pretty sz <+> pShow repr1 <+> pShow repr2 <+> pretty hash
     pfs = vcat $ map prettyIndexedRef fs

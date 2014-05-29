@@ -20,8 +20,10 @@ parsePrettyParseIsId :: IO ()
 parsePrettyParseIsId = do
   s <- liftM (fromSchema . unValidSchema) $ generate (arbitrary :: Gen ValidSchema)
   let s' = pretty s
-  let (Right s'') = SP.parseString "" $ show s'
-  print $ s == s''
+
+  case SP.parseString "" $ show s' of
+    (Right s'') -> print $ s == s''
+    (Left e) -> print e >> print s'
 
 printArbSpec :: IO ()
 printArbSpec = do

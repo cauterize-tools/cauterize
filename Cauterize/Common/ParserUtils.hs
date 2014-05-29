@@ -57,7 +57,9 @@ validNumber = do
               _ -> num
 
 parseFormHash :: Parser FormHash
-parseFormHash = liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['A'..'F'] ++ ['0'..'9'])
+parseFormHash = pSexp "sha1" $ do
+  spaces1
+  liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['A'..'F'] ++ ['0'..'9'])
 
 spacedName :: Parser String
 spacedName = spaces1 >> validName
