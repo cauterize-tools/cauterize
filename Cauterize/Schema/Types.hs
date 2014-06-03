@@ -71,10 +71,10 @@ typeSig sm t =
     (Const (TConst n b i)) -> concat ["(const ", n, " ", biSig b, " ", padShowInteger i, ")"]
     (FixedArray (TFixedArray n m i)) -> concat ["(fixed ", n, " ", luSig m, " ", padShowInteger i, ")"]
     (BoundedArray (TBoundedArray n m i)) -> concat ["(bounded ", n, " ", luSig m, " ", padShowInteger i, ")"]
-    (Struct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (Set (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (Enum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) rs, ")"]
-    (Partial (TPartial n rs)) -> concat ["(partial ", n, " ", unwords $ map (refSig sm) rs, ")"]
+    (Struct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
+    (Set (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
+    (Enum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
+    (Partial (TPartial n rs)) -> concat ["(partial ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
     (Pad (TPad n i)) -> concat ["(pad ", n, " ", padShowInteger i, ")"]
   where
     luSig n = fromJust $ n `M.lookup` sm
@@ -173,12 +173,8 @@ instance Pretty (ScType String) where
   pretty (Partial (TPartial n fs)) = prettyFielded "partial" n fs
   pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
 
-prettyIndexedRef :: IndexedRef String -> Doc
-prettyIndexedRef (IndexedRef n "void" _) = parens $ text "field" <+> text n
-prettyIndexedRef (IndexedRef n m _) = parens $ text "field" <+> text n <+> text m
-
-prettyFielded :: String -> String -> [IndexedRef String] -> Doc
+prettyFielded :: String -> Name -> Fields Name -> Doc
 prettyFielded t n fs = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n
-    pfs = vcat $ map prettyIndexedRef fs
+    pfs = schemaPrettyFields fs

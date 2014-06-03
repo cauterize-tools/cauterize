@@ -245,7 +245,7 @@ mkSpecType m p =
     (SC.Set t@(TSet _ rs)) ->
       let refs = lookupRefs rs
           sumMax = sumOfMaximums refs
-          repr = minimalBitField (length rs)
+          repr = minimalBitField (fieldsLength rs)
           repr' = FlagsRepr repr
           reprSz = builtInSize repr
       in \h -> Set t h (mkRangeSize reprSz (reprSz + sumMax)) repr'
@@ -253,7 +253,7 @@ mkSpecType m p =
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
           maxMax = maximumOfSizes refs
-          repr = minimalBitField (length rs)
+          repr = minimalBitField (fieldsLength rs)
           repr' = TagRepr repr
           reprSz = builtInSize repr
       in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
@@ -261,7 +261,7 @@ mkSpecType m p =
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
           maxMax = maximumOfSizes refs
-          ptagRepr = minimalExpression (length rs)
+          ptagRepr = minimalExpression (fieldsLength rs)
           ptagRepr' = TagRepr ptagRepr
           ptagReprSz = builtInSize ptagRepr
           plenRepr = minimalExpression maxMax
@@ -273,7 +273,7 @@ mkSpecType m p =
   where
     lookupRef r = fromJust $ r `M.lookup` m
     lookupIndexedRef (IndexedRef _ r _) = lookupRef r
-    lookupRefs = map lookupIndexedRef
+    lookupRefs = map lookupIndexedRef . unFields
 
 instance References (SpType String) where
   referencesOf (BuiltIn {..}) = []
@@ -334,27 +334,22 @@ instance Pretty (SpType String) where
     where
       pt = text "pad" <+> text n <+> pretty h <+> pretty sz
 
--- For fields, the representation is always:
---  (field [name] [target] [index])  
-prettyIndexedRef :: IndexedRef String -> Doc
-prettyIndexedRef (IndexedRef n m i) = parens $ text "field" <+> text n <+> text m <+> integer i
-
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.
-prettyFieldedB0 :: (Pretty sz) => String -> String -> [IndexedRef String] -> sz -> FormHash -> Doc
+prettyFieldedB0 :: (Pretty sz) => String -> String -> Fields Name -> sz -> FormHash -> Doc
 prettyFieldedB0 t n fs sz hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
-    pfs = vcat $ pretty sz : map prettyIndexedRef fs
+    pfs = pretty sz $$ specPrettyFields fs
 
-prettyFieldedB1 :: (Pretty sz, Pretty bi) => String -> String -> [IndexedRef String] -> sz -> bi -> FormHash -> Doc
+prettyFieldedB1 :: (Pretty sz, Pretty bi) => String -> String -> Fields Name -> sz -> bi -> FormHash -> Doc
 prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
-    pfs = vcat $ pretty sz : pretty repr : map prettyIndexedRef fs
+    pfs = pretty sz $$ pretty repr $$ specPrettyFields fs
 
-prettyFieldedB2 :: (Pretty sz, Pretty bi1, Pretty bi2) => String -> String -> [IndexedRef String] -> sz -> bi1 -> bi2 -> FormHash -> Doc
+prettyFieldedB2 :: (Pretty sz, Pretty bi1, Pretty bi2) => String -> String -> Fields Name -> sz -> bi1 -> bi2 -> FormHash -> Doc
 prettyFieldedB2 t n fs sz repr1 repr2 hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
-    pfs = vcat $ pretty sz : pretty repr1 : pretty repr2 : map prettyIndexedRef fs
+    pfs = pretty sz $$ pretty repr1 $$ pretty repr2 $$ specPrettyFields fs

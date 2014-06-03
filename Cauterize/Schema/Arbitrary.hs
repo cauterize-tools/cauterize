@@ -22,7 +22,7 @@ instance Arbitrary ValidSchema where
   arbitrary = liftM ValidSchema arbSchema
 
 maxFields, maxRunTypes, maxRuns :: (Num a) => a
-maxRuns = 100
+maxRuns = 5
 maxRunTypes = 3
 maxFields = 5
 
@@ -95,7 +95,7 @@ arbPartial ts n = arbFielded ts n (\n' fs -> Partial $ TPartial n' fs)
 arbPad :: [Name] -> Name -> Gen (ScType Name)
 arbPad _ n = liftM (Pad . TPad n) (elements [1..8])
 
-arbFielded :: [Name] -> Name -> (Name -> [IndexedRef Name] -> a) -> Gen a
+arbFielded :: [Name] -> Name -> (Name -> Fields Name -> a) -> Gen a
 arbFielded ts n cstr = do
   fieldCount <- elements [1..maxFields] :: Gen Integer
   let fieldNames = take (fromIntegral fieldCount) genNames
@@ -103,7 +103,7 @@ arbFielded ts n cstr = do
   fieldFs <- mapM arbIRef' fieldNames
   let fieldFs' = zipWith ($) fieldFs [0..(fieldCount - 1)]
 
-  return $ cstr n fieldFs'
+  return $ cstr n (Fields fieldFs')
 
 arbIRef :: [Name] -> Name -> Gen (Integer -> IndexedRef Name)
 arbIRef ts n = liftM (IndexedRef n) $ elements ts

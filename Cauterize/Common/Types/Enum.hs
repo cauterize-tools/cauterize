@@ -7,8 +7,8 @@ import Cauterize.Common.References
 
 import Data.List
 
-data TEnum t = TEnum Name [IndexedRef t]
+data TEnum t = TEnum Name (Fields t)
   deriving (Show, Ord, Eq)
 
 instance References (TEnum Name) where
-  referencesOf (TEnum _ rs) = nub $ map refRef rs
+  referencesOf (TEnum _ (Fields rs)) = nub $ map refRef rs

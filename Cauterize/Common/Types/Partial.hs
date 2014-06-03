@@ -7,8 +7,8 @@ import Cauterize.Common.References
 
 import Data.List
 
-data TPartial t = TPartial Name [IndexedRef t]
+data TPartial t = TPartial Name (Fields t)
   deriving (Show, Ord, Eq)
 
 instance References (TPartial Name) where
-  referencesOf (TPartial _ rs) = nub $ map refRef rs
+  referencesOf (TPartial _ (Fields rs)) = nub $ map refRef rs

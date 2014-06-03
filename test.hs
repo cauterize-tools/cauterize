@@ -1,10 +1,8 @@
 module Main where
 
 import Cauterize.Schema.Arbitrary
-import Cauterize.Schema.Types
-import Cauterize.Specification.Types
-
-import qualified Cauterize.Specification.Parser as SP
+import qualified Cauterize.Schema as SC
+import qualified Cauterize.Specification as SP
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
@@ -16,12 +14,25 @@ import Control.Monad
 main :: IO ()
 main = parsePrettyParseIsId
 
+parseExample :: IO ()
+parseExample = do
+  r <- SC.parseFile "examples/atomicObjectBathroomMonitor.scm"
+
+  case r of
+    (Left e) -> print e
+    (Right v) -> do
+      let r' = SC.prettyPrint v
+      case SC.checkSchema v of
+        [] -> putStrLn $ SP.prettyPrint $ SP.fromSchema v
+        es -> print es
+
 parsePrettyParseIsId :: IO ()
 parsePrettyParseIsId = do
-  s <- liftM (fromSchema . unValidSchema) $ generate (arbitrary :: Gen ValidSchema)
+  s <- liftM (SP.fromSchema . unValidSchema) $ generate (arbitrary :: Gen ValidSchema)
   let s' = pretty s
+  let r = SP.parseString "" $ show s'
 
-  case SP.parseString "" $ show s' of
+  case r of
     (Right s'') -> print $ s == s''
     (Left e) -> print e >> print s'
 
@@ -29,6 +40,6 @@ printArbSpec :: IO ()
 printArbSpec = do
   s <- generate (arbitrary :: Gen ValidSchema)
   let s' = unValidSchema s
-  case checkSchema s' of
-    [] -> print . pretty $ fromSchema s'
+  case SC.checkSchema s' of
+    [] -> print . pretty $ SP.fromSchema s'
     es -> print es

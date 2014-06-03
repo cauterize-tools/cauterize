@@ -7,8 +7,8 @@ import Cauterize.Common.References
 
 import Data.List
 
-data TStruct t = TStruct Name [IndexedRef t]
+data TStruct t = TStruct Name (Fields t)
   deriving (Show, Ord, Eq)
 
 instance References (TStruct Name) where
-  referencesOf (TStruct _ rs) = nub $ map refRef rs
+  referencesOf (TStruct _ (Fields rs)) = nub $ map refRef rs

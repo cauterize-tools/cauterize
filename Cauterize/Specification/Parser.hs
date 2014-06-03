@@ -106,7 +106,7 @@ parseStruct = pSexp "struct" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseRangeSize
-  fs <- parseIndexedRefs
+  fs <- spaces1 >> parseFields
   return $ Struct (TStruct n fs) hs sz
 
 parseSet :: Parser ASTType
@@ -115,7 +115,7 @@ parseSet = pSexp "set" $ do
   hs <- spacedFormHash
   sz <- parseRangeSize
   repr <- spaces1 >> parseFlagsRepr
-  fs <- parseIndexedRefs
+  fs <- spaces1 >> parseFields
   return $ Set (TSet n fs) hs sz repr
 
 parseEnum :: Parser ASTType
@@ -124,7 +124,7 @@ parseEnum = pSexp "enum" $ do
   hs <- spacedFormHash
   sz <- parseRangeSize
   repr <- spaces1 >> parseTagRepr
-  fs <- parseIndexedRefs
+  fs <- spaces1 >> parseFields
   return $ Enum (TEnum n fs) hs sz repr
 
 parsePartial :: Parser ASTType
@@ -134,7 +134,7 @@ parsePartial = pSexp "partial" $ do
   sz <- parseRangeSize
   pTagRepr <- spaces1 >> parseTagRepr
   pLenRepr <- spaces1 >> parseLengthRepr
-  fs <- parseIndexedRefs
+  fs <- spaces1 >> parseFields
   return $ Partial (TPartial n fs) hs sz pTagRepr pLenRepr
 
 parsePad :: Parser ASTType
@@ -170,3 +170,6 @@ parseTagRepr = pSexp "tag-repr" $ liftM TagRepr spacedBuiltIn
   
 parseFlagsRepr :: Parser FlagsRepr
 parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr spacedBuiltIn
+
+parseFields :: Parser (Fields Name)
+parseFields = pSexp "fields" $ liftM Fields parseIndexedRefs

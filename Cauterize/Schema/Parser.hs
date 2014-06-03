@@ -94,32 +94,35 @@ parseIndexedRefs = many $ spaces1 >> parseIndexedRef
 parseStruct :: Parser ASTType
 parseStruct = pSexp "struct" $ do
   n <- spacedName
-  rs <- parseIndexedRefs
-  return $ Struct $ TStruct n (tagWithIndex rs)
+  fs <- spaces1 >> parseFields
+  return $ Struct $ TStruct n fs
 
 parseEnum :: Parser ASTType
 parseEnum = pSexp "enum" $ do
   n <- spacedName
-  rs <- parseIndexedRefs
-  return $ Enum $ TEnum n (tagWithIndex rs)
+  fs <- spaces1 >> parseFields
+  return $ Enum $ TEnum n fs
 
 parseSet :: Parser ASTType
 parseSet = pSexp "set" $ do
   n <- spacedName
-  rs <- parseIndexedRefs 
-  return $ Set $ TSet n (tagWithIndex rs)
+  fs <- spaces1 >> parseFields 
+  return $ Set $ TSet n fs
 
 parsePad :: Parser ASTType
 parsePad = pSexp "pad" $ do
   n <- spacedName
-  i <- spacedNumber
+  i <- spaces1 >> spacedNumber
   return $ Pad $ TPad n i
 
 parsePartial :: Parser ASTType
 parsePartial = pSexp "partial" $ do
   n <- spacedName
-  rs <- parseIndexedRefs
-  return $ Partial $ TPartial n (tagWithIndex rs)
+  fs <- spaces1 >> parseFields
+  return $ Partial $ TPartial n fs
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]
+
+parseFields :: Parser (Fields Name)
+parseFields = pSexp "fields" $ liftM (Fields . tagWithIndex) parseIndexedRefs
