@@ -35,8 +35,8 @@ parseSpec = do
     pSpec = pSexp "specification" $ do
       qname <- spacedQuoted
       qver <- spacedQuoted
-      sz <- parseRangeSize
       qhash <- spacedFormHash
+      sz <- parseRangeSize
       types <- pTypes
       return $ Spec qname qver qhash sz types
     pTypes :: Parser [ASTType]
@@ -69,71 +69,71 @@ parseScalar :: Parser ASTType
 parseScalar = pSexp "scalar" $ do
   n <- spacedName
   hs <- spacedFormHash
-  bi <- spacedBuiltIn
   sz <- parseFixedSize
+  bi <- spacedBuiltIn
   return $ Scalar (TScalar n bi) hs sz
 
 parseConst :: Parser ASTType
 parseConst = pSexp "const" $ do
   n <- spacedName
   hs <- spacedFormHash
-  v <- spacedNumber
-  bi <- spacedBuiltIn
   sz <- parseFixedSize
+  bi <- spacedBuiltIn
+  v <- spacedNumber
   return $ Const (TConst n bi v) hs sz
 
 parseFixedArray :: Parser ASTType
 parseFixedArray = pSexp "fixed" $ do
   n <- spacedName
   hs <- spacedFormHash
-  t <- spacedName
-  len <- spacedNumber
   sz <- parseRangeSize
+  len <- spacedNumber
+  t <- spacedName
   return $ FixedArray (TFixedArray n t len) hs sz
 
 parseBoundedArray :: Parser ASTType
 parseBoundedArray = pSexp "bounded" $ do
   n <- spacedName
   hs <- spacedFormHash
-  t <- spacedName
-  len <- spacedNumber
-  repr <- spacedBuiltIn
   sz <- parseRangeSize
+  repr <- spaces1 >> parseLengthRepr
+  len <- spacedNumber
+  t <- spacedName
   return $ BoundedArray (TBoundedArray n t len) hs sz repr
 
 parseStruct :: Parser ASTType
 parseStruct = pSexp "struct" $ do
   n <- spacedName
-  sz <- parseRangeSize
   hs <- spacedFormHash
+  sz <- parseRangeSize
   fs <- parseIndexedRefs
   return $ Struct (TStruct n fs) hs sz
 
 parseSet :: Parser ASTType
 parseSet = pSexp "set" $ do
   n <- spacedName
-  sz <- parseRangeSize
-  repr <- spacedBuiltIn
   hs <- spacedFormHash
+  sz <- parseRangeSize
+  repr <- spaces1 >> parseFlagsRepr
   fs <- parseIndexedRefs
   return $ Set (TSet n fs) hs sz repr
 
 parseEnum :: Parser ASTType
 parseEnum = pSexp "enum" $ do
   n <- spacedName
-  sz <- parseRangeSize
-  repr <- spacedBuiltIn
   hs <- spacedFormHash
+  sz <- parseRangeSize
+  repr <- spaces1 >> parseTagRepr
   fs <- parseIndexedRefs
   return $ Enum (TEnum n fs) hs sz repr
 
 parsePartial :: Parser ASTType
 parsePartial = pSexp "partial" $ do
   n <- spacedName
-  sz <- parseRangeSize
-  pTagRepr <- spacedBuiltIn
-  pLenRepr <- spacedBuiltIn
   hs <- spacedFormHash
+  sz <- parseRangeSize
+  pTagRepr <- spaces1 >> parseTagRepr
+  pLenRepr <- spaces1 >> parseLengthRepr
   fs <- parseIndexedRefs
   return $ Partial (TPartial n fs) hs sz pTagRepr pLenRepr
 
@@ -162,3 +162,11 @@ parseIndexedRef = pSexp "field" $ do
   ix <- spacedNumber
   return $ IndexedRef n t ix
   
+parseLengthRepr :: Parser LengthRepr
+parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr spacedBuiltIn
+  
+parseTagRepr :: Parser TagRepr
+parseTagRepr = pSexp "tag-repr" $ liftM TagRepr spacedBuiltIn
+  
+parseFlagsRepr :: Parser FlagsRepr
+parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr spacedBuiltIn

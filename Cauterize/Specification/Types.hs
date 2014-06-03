@@ -3,10 +3,15 @@ module Cauterize.Specification.Types
   ( Spec(..)
   , SpType(..)
   , Sized(..)
+
   , FixedSize(..)
   , RangeSize(..)
-  , fromSchema
 
+  , LengthRepr(..)
+  , TagRepr(..)
+  , FlagsRepr(..)
+
+  , fromSchema
   , prettyPrint
   ) where
 
@@ -31,6 +36,13 @@ import Text.PrettyPrint.Class
 data FixedSize = FixedSize { unFixedSize :: Integer }
   deriving (Show, Ord, Eq)
 data RangeSize = RangeSize { rangeSizeMin :: Integer, rangeSizeMax :: Integer }
+  deriving (Show, Ord, Eq)
+
+data LengthRepr = LengthRepr { unLengthRepr :: BuiltIn }
+  deriving (Show, Ord, Eq)
+data TagRepr = TagRepr { unTagRepr :: BuiltIn }
+  deriving (Show, Ord, Eq)
+data FlagsRepr = FlagsRepr { unFlagsRepr :: BuiltIn }
   deriving (Show, Ord, Eq)
 
 mkRangeSize :: Integer -> Integer -> RangeSize
@@ -71,6 +83,15 @@ instance Pretty FixedSize where
 instance Pretty RangeSize where
   pretty (RangeSize mi ma) = parens $ text "range-size" <+> integer mi <+> integer ma
 
+instance Pretty LengthRepr where
+  pretty (LengthRepr bi) = parens $ text "length-repr" <+> pShow bi
+
+instance Pretty TagRepr where
+  pretty (TagRepr bi) = parens $ text "tag-repr" <+> pShow bi
+
+instance Pretty FlagsRepr where
+  pretty (FlagsRepr bi) = parens $ text "flags-repr" <+> pShow bi
+
 data Spec t = Spec Name Version FormHash RangeSize [SpType t]
   deriving (Show, Eq)
 
@@ -93,7 +114,7 @@ data SpType t = BuiltIn      { unBuiltIn   :: TBuiltIn
               | BoundedArray { unBounded   :: TBoundedArray t
                              , spHash      :: FormHash
                              , spRangeSize :: RangeSize
-                             , lenRepr   :: BuiltIn }
+                             , lenRepr     :: LengthRepr }
 
               | Struct       { unStruct    :: TStruct t
                              , spHash      :: FormHash
@@ -102,18 +123,18 @@ data SpType t = BuiltIn      { unBuiltIn   :: TBuiltIn
               | Set          { unSet       :: TSet t
                              , spHash      :: FormHash
                              , spRangeSize :: RangeSize
-                             , flagsRepr   :: BuiltIn }
+                             , flagsRepr   :: FlagsRepr }
 
               | Enum         { unEnum      :: TEnum t
                              , spHash      :: FormHash
                              , spRangeSize :: RangeSize
-                             , tagRepr     :: BuiltIn }
+                             , tagRepr     :: TagRepr }
 
               | Partial      { unPartial   :: TPartial t
                              , spHash      :: FormHash
                              , spRangeSize :: RangeSize
-                             , tagRepr     :: BuiltIn
-                             , lenRepr     :: BuiltIn }
+                             , tagRepr     :: TagRepr
+                             , lenRepr     :: LengthRepr }
 
               | Pad          { unPad       :: TPad
                              , spHash      :: FormHash
@@ -213,8 +234,9 @@ mkSpecType m p =
     (SC.BoundedArray t@(TBoundedArray _ r i)) ->
       let ref = lookupRef r
           repr = minimalExpression i
+          repr' = LengthRepr repr
           reprSz = builtInSize repr
-      in \h -> BoundedArray t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr
+      in \h -> BoundedArray t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr'
     (SC.Struct t@(TStruct _ rs)) ->
       let refs = lookupRefs rs
           sumMin = sumOfMinimums refs
@@ -224,25 +246,29 @@ mkSpecType m p =
       let refs = lookupRefs rs
           sumMax = sumOfMaximums refs
           repr = minimalBitField (length rs)
+          repr' = FlagsRepr repr
           reprSz = builtInSize repr
-      in \h -> Set t h (mkRangeSize reprSz (reprSz + sumMax)) repr
+      in \h -> Set t h (mkRangeSize reprSz (reprSz + sumMax)) repr'
     (SC.Enum t@(TEnum _ rs)) ->
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
           maxMax = maximumOfSizes refs
           repr = minimalBitField (length rs)
+          repr' = TagRepr repr
           reprSz = builtInSize repr
-      in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr
+      in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
     (SC.Partial t@(TPartial _ rs)) ->
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
           maxMax = maximumOfSizes refs
           ptagRepr = minimalExpression (length rs)
+          ptagRepr' = TagRepr ptagRepr
           ptagReprSz = builtInSize ptagRepr
           plenRepr = minimalExpression maxMax
+          plenRepr' = LengthRepr plenRepr
           plenReprSz = builtInSize plenRepr
           overhead = ptagReprSz + plenReprSz
-      in \h -> Partial t h (mkRangeSize (overhead + minMin) (overhead + maxMax)) ptagRepr plenRepr
+      in \h -> Partial t h (mkRangeSize (overhead + minMin) (overhead + maxMax)) ptagRepr' plenRepr'
     (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (FixedSize l)
   where
     lookupRef r = fromJust $ r `M.lookup` m
@@ -273,7 +299,7 @@ pDQText = doubleQuotes . text
 instance Pretty (Spec String) where
   pretty (Spec n v h sz fs) = parens $ hang ps 1 pfs
     where
-      ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty sz <+> pretty h
+      ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty h <+> pretty sz
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields
@@ -286,19 +312,19 @@ instance Pretty (SpType String) where
   pretty (Scalar (TScalar n b) h sz) = parens $ pt $+$ nest 1 pa
     where
       pt = text "scalar" <+> text n <+> pretty h
-      pa = pShow b <+> pretty sz
+      pa = pretty sz $$ pShow b
   pretty (Const (TConst n b i) h sz) = parens $ pt $+$ nest 1 pa
     where
       pt = text "const" <+> text n <+> pretty h
-      pa = integer i <+> pShow b <+> pretty sz
+      pa = pretty sz $$ pShow b $$ integer i
   pretty (FixedArray (TFixedArray n m i) h sz) = parens $ pt $+$ nest 1 pa
     where
       pt = text "fixed" <+> text n <+> pretty h
-      pa = text m <+> integer i <+> pretty sz
+      pa = pretty sz $$ integer i $$ text m
   pretty (BoundedArray (TBoundedArray n m i) h sz bi) = parens $ pt $+$ nest 1 pa
     where
       pt = text "bounded" <+> text n <+> pretty h
-      pa = text m <+> integer i <+> pShow bi <+> pretty sz
+      pa = pretty sz $$ pretty bi $$ integer i $$ text m
   pretty (Struct (TStruct n rs) h sz) = prettyFieldedB0 "struct" n rs sz h
   pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
   pretty (Enum (TEnum n rs) h sz bi) = prettyFieldedB1 "enum" n rs sz bi h
@@ -315,20 +341,20 @@ prettyIndexedRef (IndexedRef n m i) = parens $ text "field" <+> text n <+> text 
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.
-prettyFieldedB0 :: String -> String -> [IndexedRef String] -> RangeSize -> FormHash -> Doc
+prettyFieldedB0 :: (Pretty sz) => String -> String -> [IndexedRef String] -> sz -> FormHash -> Doc
 prettyFieldedB0 t n fs sz hash = parens $ hang pt 1 pfs
   where
-    pt = text t <+> text n <+> pretty sz <+> pretty hash
-    pfs = vcat $ map prettyIndexedRef fs
+    pt = text t <+> text n <+> pretty hash
+    pfs = vcat $ pretty sz : map prettyIndexedRef fs
 
-prettyFieldedB1 :: String -> String -> [IndexedRef String] -> RangeSize -> BuiltIn -> FormHash -> Doc
+prettyFieldedB1 :: (Pretty sz, Pretty bi) => String -> String -> [IndexedRef String] -> sz -> bi -> FormHash -> Doc
 prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
   where
-    pt = text t <+> text n <+> pretty sz <+> pShow repr <+> pretty hash
-    pfs = vcat $ map prettyIndexedRef fs
+    pt = text t <+> text n <+> pretty hash
+    pfs = vcat $ pretty sz : pretty repr : map prettyIndexedRef fs
 
-prettyFieldedB2 :: String -> String -> [IndexedRef String] -> RangeSize -> BuiltIn -> BuiltIn -> FormHash -> Doc
+prettyFieldedB2 :: (Pretty sz, Pretty bi1, Pretty bi2) => String -> String -> [IndexedRef String] -> sz -> bi1 -> bi2 -> FormHash -> Doc
 prettyFieldedB2 t n fs sz repr1 repr2 hash = parens $ hang pt 1 pfs
   where
-    pt = text t <+> text n <+> pretty sz <+> pShow repr1 <+> pShow repr2 <+> pretty hash
-    pfs = vcat $ map prettyIndexedRef fs
+    pt = text t <+> text n <+> pretty hash
+    pfs = vcat $ pretty sz : pretty repr1 : pretty repr2 : map prettyIndexedRef fs
