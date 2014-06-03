@@ -9,7 +9,7 @@ import Cauterize.Specification as Sp
 import qualified Data.Map as M
 
 main :: IO ()
-main = runWithOptions $ \opts -> parseFile (inputFile opts) >>= render
+main = runWithOptions $ \opts -> Sc.parseFile (inputFile opts) >>= render
   where
     render (Left s) = print s
     render (Right s) = 
