@@ -6,25 +6,32 @@
         (bounded somebounded number 64)
         (pad p8 8)
         (struct astruct
-                (field z somebounded)
-                (field a s8)
-                (field padding p8)
-                (field b smallconst)
-                (field d bstruct))
+                (fields
+                  (field z somebounded)
+                  (field a s8)
+                  (field padding p8)
+                  (field b smallconst)
+                  (field d bstruct)))
         (struct bstruct
-                (field a s8)
-                (field d cstruct))
+                (fields
+                  (field a s8)
+                  (field d cstruct)))
         (struct cstruct
-                (field a s8)
-                (field b s8))
+                (fields
+                  (field a s8)
+                  (field b s8)))
         (enum anenum
-              (field a)
-              (field b)
-              (field c s8)
-              (field d number))
+              (fields
+                (field a)
+                (field b)
+                (field c s8)
+                (field d number)))
         (set aset
-             (field a number)
-             (field b s8)
-             (field c anenum))
-        (partial req (field a s32)
-                     (field b s32)))
+                (fields
+                  (field a number)
+                  (field b s8)
+                  (field c anenum)))
+        (partial req
+                 (fields
+                   (field a s32)
+                   (field b s32))))

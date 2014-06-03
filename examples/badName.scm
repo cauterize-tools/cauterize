@@ -1,2 +1,2 @@
 (schema "aName" "0.0.1"
-        (enum a (field a u500)))
+        (enum a (fields (field a u500))))

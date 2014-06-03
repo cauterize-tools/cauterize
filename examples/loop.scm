@@ -1,9 +1,9 @@
 (schema "aName" "0.0.1"
         (struct a
-                (field a b))
+                (fields (field a b)))
         (struct b
-                (field a a))
+                (fields (field a a)))
         (struct c
-                (field a d))
+                (fields (field a d)))
         (struct d
-                (field a c)))
+                (fields (field a c))))
