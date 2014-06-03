@@ -112,7 +112,7 @@ parseSet = pSexp "set" $ do
 parsePad :: Parser ASTType
 parsePad = pSexp "pad" $ do
   n <- spacedName
-  i <- spaces1 >> spacedNumber
+  i <- spacedNumber
   return $ Pad $ TPad n i
 
 parsePartial :: Parser ASTType
