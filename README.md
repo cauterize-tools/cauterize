@@ -165,22 +165,17 @@ more complex structures that are only meaningful with multiple values.
 The description of a Structure follows the following pattern:
 
 ```scheme
-(struct [type name] [list of fields])
-```
-
-where `[list of fields]` is a space-separated list of the following:
-
-```scheme
-(field [field name] [field type])
+(struct [type name] [field list])
 ```
 
 This allows us to define types like the following `user` type:
 
 ```scheme
-(struct user (field name string64)
-             (field yearOfBirth u16)
-             (field monthOfBirth u8)
-             (field dayOfBirth u8))
+(struct user (fields
+               (field name string64)
+               (field yearOfBirth u16)
+               (field monthOfBirth u8)
+               (field dayOfBirth u8)))
 ```
 
 #### Enumerations
@@ -196,24 +191,18 @@ associates a type tag together with a union type. The type tag needs to be
 checked at runtime to determine which type variant is currently instantiated.
 
 ```scheme
-(enum [type name] [variant list])
+(enum [type name] [field list])
 ```
-
-where `[variant list]` is a space-separated list of the following:
-
-```scheme
-(var [type name] [[optional contained type]])
-```
-
 Consider the following example for a 'request message' to some key-value
 storage service:
 
 ```scheme
-(enum request (field getKeyCount)
-              (field checkKeyExists keyName)
-              (field getKey keyName)
-              (field eraseKey keyName)
-              (field setKey keyValuePair))
+(enum request (fields
+                (field getKeyCount)
+                (field checkKeyExists keyName)
+                (field getKey keyName)
+                (field eraseKey keyName)
+                (field setKey keyValuePair)))
 ```
 
 Noe that the `getKeyCount` variant does not contain any assocaited data while
@@ -227,25 +216,19 @@ possible members. The presense of encoded members is stored as a bitfield
 encoded before any contained data.
 
 ```scheme
-(set [type name] [list of fields])
+(set [type name] [field list])
 ```
-
-where `[list of fields]` is a space-separated list of the following:
-
-```scheme
-(mem [field name] [field type])
-```
-
 As an example, consider the following description of a type capable of storing
 changes in some observed values in a sensor rig:
 
 ```scheme
-(set sensed (field ambientTemp u16)
-            (field ambientLight u16)
-            (field airPressure u16)
-            (field positionX u32)
-            (field positionY u32)
-            (field positionZ u32))
+(set sensed (fields
+              (field ambientTemp u16)
+              (field ambientLight u16)
+              (field airPressure u16)
+              (field positionX u32)
+              (field positionY u32)
+              (field positionZ u32)))
 ```
 
 If no sensor difference is detected in a specific sensor in a given time slice,
@@ -256,11 +239,12 @@ Sets can also be used as bitfields. Consider the following set definition that
 can be used to indicate which lights on a car are currently powered/lit:
 
 ```scheme
-(set poweredLights (field headlights)
-                   (field taillights)
-                   (field leftblinkers)
-                   (field rightblinkers)
-                   (field breaklights))
+(set poweredLights (fields
+                     (field headlights)
+                     (field taillights)
+                     (field leftblinkers)
+                     (field rightblinkers)
+                     (field breaklights)))
 ```
 
 This set defines 5 fields, but none of the fields have associated data. This
@@ -297,19 +281,37 @@ that don't implement the whole specification can safely skip over the bytes
 used for the type _and then continue decoding any following type information_.
 
 ```scheme
-(partial [type name] [variant list]) 
+(partial [type name] [field list])
 ```
 
 Here's the same example demonstrated for Enumerations, but represented as a
 partial.
 
 ```scheme
-(partial request (field getKeyCount)
-                 (field checkKeyExists keyName)
-                 (field getKey keyName)
-                 (field eraseKey keyName)
-                 (field setKey keyValuePair))
+(partial request (fields
+                   (field getKeyCount)
+                   (field checkKeyExists keyName)
+                   (field getKey keyName)
+                   (field eraseKey keyName)
+                   (field setKey keyValuePair)))
 ```
+
+### Field Lists
+
+Field lists are used to designate a set of (name/type) pairs. These pairs are
+used in any of the types that are created out of other types. This includes:
+structs, enums, sets, and partials.
+
+They are defined like this:
+
+```scheme
+(fields
+  (field [field name] [optional target type])
+  (field ...))
+```
+
+If the target type is not specified in the schema, it will be inferred to be
+`void`.
 
 ## Specifications
 
