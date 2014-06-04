@@ -12,6 +12,7 @@
 * Message Pack
 * Binary JSON (BSON)
 * Fressian (Datomic)
+* Extensible Binary Meta Language (EBML)
 
 ## Primary Goals
 
