@@ -15,7 +15,7 @@ build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
 
-data-dir:            caut2c_templates
+data-dir:            caut2c11_templates
 
 executable ref-caut
   ghc-options:         -Wall -O2
@@ -55,9 +55,9 @@ executable test
   -- hs-source-dirs:      
   default-language:    Haskell2010
 
-executable caut2c
+executable caut2c11
   ghc-options:         -Wall -O2
-  main-is:             caut2c.hs
+  main-is:             caut2c11.hs
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
