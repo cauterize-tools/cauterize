@@ -13,6 +13,7 @@
 * Binary JSON (BSON)
 * Fressian (Datomic)
 * Extensible Binary Meta Language (EBML)
+* extprot (https://github.com/mfp/extprot)
 
 ## Primary Goals
 
