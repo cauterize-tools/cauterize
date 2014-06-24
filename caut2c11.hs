@@ -1,21 +1,59 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
-import Paths_cauterize
-
 import qualified Data.Text.Lazy.IO as TL
 import Text.Hastache
 import Text.Hastache.Context
-
 import Data.Data 
+import Control.Monad
+import Test.QuickCheck.Arbitrary
+import Test.QuickCheck.Gen
+import Options.Applicative
+
+import Paths_cauterize
+
+import Cauterize.Schema as SC
+import Cauterize.Specification as SP
+import Cauterize.Schema.Arbitrary
+
+data Caut2C11Opts = Caut2C11Opts
+  { inputFile :: String
+  , outputDirectory :: String
+  } deriving (Show)
+
+optParser :: Parser Caut2C11Opts
+optParser = Caut2C11Opts
+  <$> strOption
+    ( long "input"
+   <> metavar "FILE_PATH"
+   <> help "Input Cauterize schema file."
+    )
+  <*> strOption
+    ( long "output"
+   <> metavar "DIRECTORY_PATH"
+   <> help "Output Cauterize directory."
+    )
+
+options :: ParserInfo Caut2C11Opts
+options = info (optParser <**> helper)
+            ( fullDesc
+           <> progDesc "Process Cauterize schema files."
+            )
+
+runWithOptions :: (Caut2C11Opts -> IO ()) -> IO ()
+runWithOptions fn = execParser options >>= fn
 
 main :: IO ()
-main = do
+main = runWithOptions caut2c11
+
+caut2c11 :: Caut2C11Opts -> IO ()
+caut2c11 opts = do
   hfile <- getDataFileName "libroot.tmpl.h"
   cfile <- getDataFileName "libroot.tmpl.c"
-  enumTmpl <- getDataFileName "types/enum.tmpl.h"
 
-  let context = mkGenericContext $ info
+  s <- liftM unValidSchema $ generate (arbitrary :: Gen ValidSchema)
+
+  let context = mkGenericContext templInfo
   
   putStrLn hfile
   hres <- hastacheFile muConfig hfile context
@@ -25,8 +63,8 @@ main = do
   cres <- hastacheFile muConfig cfile context
   TL.putStrLn cres
 
-info :: Info
-info = Info
+templInfo :: Info
+templInfo = Info
   { libname = "special"
   , types = Types
     { enumTypes =
