@@ -13,6 +13,8 @@
 * Binary JSON (BSON)
 * Fressian (Datomic)
 * Extensible Binary Meta Language (EBML)
+* [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
+* [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
 
 ## Primary Goals
 
