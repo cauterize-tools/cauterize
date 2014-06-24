@@ -16,7 +16,6 @@
 * [extprot](https://github.com/mfp/extprot)
 * [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
 * [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
->>>>>>> 3926417650bf2236fe5f387d8f251268c5ccbdf6
 
 ## Primary Goals
 
