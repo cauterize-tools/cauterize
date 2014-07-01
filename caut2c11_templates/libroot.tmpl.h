@@ -1,37 +1,45 @@
-#ifndef _CAUTERIZE_CAUT2C_{{libname}}
-#define _CAUTERIZE_CAUT2C_{{libname}}
+#ifndef _CAUTERIZE_CAUT2C11_{{templName}}
+#define _CAUTERIZE_CAUT2C11_{{templName}}
 
-/* Compile-time constant information. */
-{{preprocessor}}
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-/* Forward delcarations for types. */
-{{forwardDecls}}
+/*
+ * Name: {{templName}}
+ * Version: {{templVersion}}
+ */
 
-/* Type delcarations. */
-{{#types}}
-{{#enumTypes}}
-enum {{enumName}}_tag {
-  {{#enumFields}}
-  {{fieldName}} = {{fieldIndex}},
-  {{/enumFields}}
-}
+#define NAME_{{templName}} "{{templName}}"
+#define VERSION_{{templName}} "{{templVersion}}"
+#define MIN_SIZE_{{templName}} ({{templSize.rangeSizeMin}})
+#define MIN_SIZE_{{templName}} ({{templSize.rangeSizeMax}})
+#define SCHEMA_HASH_{{templName}} {{templHash}}
+/*
+ * Type Constants
+ */
+{{#templTypes}}
+{{#tyInfConsts}}
+{{.}}
+{{/tyInfConsts}}
+{{/templTypes}}
 
-struct {{enumName}} {
-  enum {{enumName}}_tag tag;
-  union {
-    {{#enumFields}}
-    {{fieldRef}} {{fieldName}};
-    {{/enumFields}}
-  };
-}
+/*
+ * Forward Type Declarations
+ */
+{{#templTypes}}
+{{#tyInfFwdDecls}}
+{{.}}
+{{/tyInfFwdDecls}}
+{{/templTypes}}
 
-{{/enumTypes}}
-{{/types}}
+/*
+ * Type Declarations
+ */
+{{#templTypes}}
+{{#tyInfDecls}}
+{{.}}
+{{/tyInfDecls}}
+{{/templTypes}}
 
-/* Prototypes for packing functions. */
-{{packPrototypes}}
-
-/* Prototypes for unpacking functions. */
-{{unpackPrototypes}}
-
-#endif /* _CAUTERIZE_CAUT2C_{{libname}} */
+#endif /* _CAUTERIZE_CAUT2C11_{{templName}} */

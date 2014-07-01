@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Cauterize.FormHash
   ( FormHash(..)
   , HashContext
@@ -6,19 +7,24 @@ module Cauterize.FormHash
   , hashUpdate
   , hashString
   , hashFinalize
+
+  , hashToBytes
   ) where
 
 import qualified Crypto.Hash.SHA1 as C
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Data.Char
+import Data.Data
+import Data.Word
 import Numeric
 
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
+-- TODO Update FormHash to store bytes as a list.
 data FormHash = FormHash { hashToByteString :: B.ByteString }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Data, Typeable)
 
 type HashContext = C.Ctx
 
@@ -33,6 +39,9 @@ hashString = hashFinalize . hashUpdate hashInit
 
 hashFinalize :: HashContext -> FormHash
 hashFinalize = FormHash . C.finalize
+
+hashToBytes :: FormHash -> [Word8]
+hashToBytes (FormHash h) = B.unpack h
 
 instance Show FormHash where
   show (FormHash bs) = concatMap showByte $ B.unpack bs

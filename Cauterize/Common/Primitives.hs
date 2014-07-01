@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Cauterize.Common.Primitives
   ( BuiltIn(..)
   , Name
@@ -12,6 +13,8 @@ module Cauterize.Common.Primitives
   , builtInSize
   ) where
 
+import Data.Data
+
 type Name = String
 type Signature = String
 type Version = String
@@ -24,7 +27,7 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIieee754s | BIieee754d
              | BIbool
              | BIvoid
-  deriving (Enum, Bounded, Ord, Eq)
+  deriving (Enum, Bounded, Ord, Eq, Data, Typeable)
 
 -- | Returns the smallest BuiltIn that is capable of representing the provided
 -- value.
