@@ -159,6 +159,34 @@ typeInfo o =
         , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ arrMaxLenReprStr ++ " len; " ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"]
         , tyInfDecl = "struct " ++ tyName
         }
+    SP.Struct {} ->
+      baseInf
+        { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+        , tyInfDeclBodies = ["!! STRUCT DECL !!"]
+        , tyInfDecl = "struct " ++ tyName
+        }
+    SP.Set {} ->
+      baseInf
+        { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+        , tyInfDeclBodies = ["!! SET DECL !!"]
+        , tyInfDecl = "struct " ++ tyName
+        }
+    SP.Enum {} ->
+      baseInf
+        { tyInfFwdDecls = [ "enum " ++ tyName ++ ";"]
+        , tyInfDeclBodies = ["!! ENUM DECL !!"]
+        , tyInfDecl = "enum " ++ tyName
+        }
+    SP.Partial {} ->
+      baseInf
+        { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+        , tyInfDeclBodies = ["!! SET DECL !!"]
+        , tyInfDecl = "struct " ++ tyName
+        }
+    SP.Pad {} ->
+      baseInf
+        { tyInfFwdDecls = [ "/* Padding for " ++ tyName ++ " can't ever be instantiated. */"]
+        }
     _ ->
       baseInf
         { tyInfConsts = []
@@ -181,8 +209,6 @@ data TemplInfo = TemplInfo
   , templTypes :: [TypeInfo]
   } deriving (Data, Typeable)
 
-defaultTypeInfo :: TypeInfo
-defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] [] "!decl!"
 data TypeInfo = TypeInfo
   { tyInfName :: Name
   , tyInfHash :: String
@@ -191,7 +217,12 @@ data TypeInfo = TypeInfo
   , tyInfFwdDecls :: [String]
   , tyInfDeclBodies :: [String]
   , tyInfDecl :: String
+  , tyInfPacker :: String
+  , tyInfUnpacker :: String
   } deriving (Data, Typeable)
+
+defaultTypeInfo :: TypeInfo
+defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] [] "" "" ""
 
 data ConstInf = ConstInf
   { constInfName :: String

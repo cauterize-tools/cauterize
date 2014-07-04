@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <cauterize.h>
+
 /*
  * Name: {{templName}}
  * Version: {{templVersion}}
@@ -48,8 +50,10 @@ const uint8_t TYPE_HASH_{{templName}}_{{tyInfName}}[] = {{tyInfHash}};
 {{.}}
 {{/tyInfDeclBodies}}
 
+{{#tyInfDecl}}
 enum caut_status pack_{{tyInfName}}(struct caut_iter * iter, {{tyInfDecl}} * obj);
 enum caut_status unpack_{{tyInfName}}(struct caut_iter * iter, {{tyInfDecl}} * obj);
+{{/tyInfDecl}}
 
 {{/templTypes}}
 
