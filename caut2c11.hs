@@ -143,20 +143,20 @@ typeInfo o =
         , tyInfDecl = tyName ++ "_t"
         }
     SP.FixedArray t _ _ ->
-      let arrSizeStr = show . fixedArrSize $ t
+      let arrLenStr = show . fixedArrLen $ t
       in baseInf
-        { tyInfConsts = [ ConstInf "SIZE" arrSizeStr]
+        { tyInfConsts = [ ConstInf "LENGTH" arrLenStr]
         , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ fixedArrRef t ++ " elems[" ++ arrSizeStr ++ "]; };"]
+        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ fixedArrRef t ++ " elems[" ++ arrLenStr ++ "]; };"]
         , tyInfDecl = "struct " ++ tyName
         }
     SP.BoundedArray t _ _ lr ->
-      let arrMaxSizeStr = show . boundedArrMaxSize $ t
-          arrMaxSizeReprStr = show . unLengthRepr $ lr 
+      let arrMaxLenStr = show . boundedArrMaxLen $ t
+          arrMaxLenReprStr = show . unLengthRepr $ lr 
       in baseInf
-        { tyInfConsts = [ ConstInf "MAX_SIZE" arrMaxSizeStr]
+        { tyInfConsts = [ ConstInf "MAX_LENGTH" arrMaxLenStr]
         , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ arrMaxSizeReprStr ++ " len; " ++ boundedArrRef t ++ " elems[" ++ arrMaxSizeStr ++ "]; };"]
+        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ arrMaxLenReprStr ++ " len; " ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"]
         , tyInfDecl = "struct " ++ tyName
         }
     _ ->
@@ -198,18 +198,5 @@ data ConstInf = ConstInf
   , constInfValue :: String
   } deriving (Data, Typeable)
 
-{-
-data EnumInfo = EnumInfo
-  { enumName :: String
-  , enumFields :: [Field]
-  } deriving (Data, Typeable)
-
-data Field = Field
-  { fieldName :: String
-  , fieldRef :: String
-  , fieldIndex :: Integer
-  } deriving (Data, Typeable)
--}
-
--- muConfig :: MonadIO m => MuConfig m
+muConfig :: MuConfig IO
 muConfig = defaultConfig { muEscapeFunc = emptyEscape }

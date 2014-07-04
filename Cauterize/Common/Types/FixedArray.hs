@@ -7,7 +7,7 @@ import Data.Data
 
 data TFixedArray t = TFixedArray { fixedArrName :: Name,
                                    fixedArrRef :: t,
-                                   fixedArrSize :: Integer }
+                                   fixedArrLen :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References (TFixedArray Name) where

@@ -7,7 +7,7 @@ import Data.Data
 
 data TBoundedArray t = TBoundedArray { boundedArrName :: Name
                                      , boundedArrRef :: t
-                                     , boundedArrMaxSize :: Integer
+                                     , boundedArrMaxLen :: Integer
                                      }
   deriving (Show, Ord, Eq, Data, Typeable)
 
