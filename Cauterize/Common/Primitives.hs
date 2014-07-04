@@ -5,9 +5,6 @@ module Cauterize.Common.Primitives
   , Signature
   , Version
 
-  , MinSize
-  , MaxSize
-
   , minimalExpression
   , minimalBitField
   , builtInSize
@@ -18,9 +15,6 @@ import Data.Data
 type Name = String
 type Signature = String
 type Version = String
-
-type MinSize = Integer
-type MaxSize = Integer
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64

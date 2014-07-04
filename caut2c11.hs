@@ -73,8 +73,13 @@ caut2c11 opts = do
       cres <- hastacheFile muConfig cfile context
       TL.putStrLn cres
 
+replaceWith :: (Eq a) => [a] -> a -> a -> [a]
+replaceWith xs srch repl = map replFn xs
+  where
+    replFn x = if x == srch then repl else x
+
 specNameToCName :: Name -> Name
-specNameToCName = ("lib"++)
+specNameToCName n = "lib" ++ replaceWith n ' ' '_'
 
 specVerToCVer :: Version -> String
 specVerToCVer = id
@@ -112,31 +117,60 @@ builtInToTyDef BIs32 = "typedef int32_t s32;"
 builtInToTyDef BIs64 = "typedef int64_t s64;"
 builtInToTyDef BIieee754s = "typedef float ieee754s;"
 builtInToTyDef BIieee754d = "typedef double ieee754d;"
-builtInToTyDef BIbool = "/* The builtin Boolean relies on stdbool.h */"
+builtInToTyDef BIbool = "/* The builtin Boolean relies on 'bool' from stdbool.h */"
 builtInToTyDef BIvoid = "/* The builtin Void type is unexpressable in C */"
 
 typeInfo :: SP.SpType Name -> TypeInfo
-typeInfo o@(SP.BuiltIn t h s) =
-  TypeInfo { tyInfName = tyName
-           , tyInfConsts = [ "#define MIN_SIZE_" ++ tyName ++ " (" ++ (show . minSize $ o) ++ ")"
-                           , "#define MAX_SIZE_" ++ tyName ++ " (" ++ (show . maxSize $ o) ++ ")"
-                           ]
-           , tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
-           , tyInfDecls = []
-           , tyInfPackProto = "caut_status_t pack_" ++ tyName ++ "(caut_iter_t * it, " ++ show (unTBuiltIn t)
-           , tyInfUnpackProto = "unpack_" ++ tyName
-           }
+typeInfo o =
+  case o of
+    SP.BuiltIn t _ _ ->
+      baseInf
+        { tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
+        , tyInfDeclBodies = ["!! BUILTIN DECL !!"]
+        , tyInfDecl = tyName
+        }
+    SP.Scalar t _ _ ->
+      baseInf
+        { tyInfFwdDecls = [ "typedef " ++ (show . scalarRepr $ t) ++ " " ++ tyName ++ "_t;"]
+        , tyInfDeclBodies = ["!! SCALAR DECL !!"]
+        , tyInfDecl = tyName ++ "_t"
+        }
+    SP.Const t _ _ ->
+      baseInf
+        { tyInfConsts = [ ConstInf "VALUE" (show . constValue . unConst $ o)]
+        , tyInfFwdDecls = [ "typedef " ++ (show . constRepr $ t) ++ " " ++ tyName ++ "_t;"]
+        , tyInfDeclBodies = ["!! SCALAR DECL !!"]
+        , tyInfDecl = tyName ++ "_t"
+        }
+    SP.FixedArray t _ _ ->
+      let arrSizeStr = show . fixedArrSize $ t
+      in baseInf
+        { tyInfConsts = [ ConstInf "SIZE" arrSizeStr]
+        , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ fixedArrRef t ++ " elems[" ++ arrSizeStr ++ "]; };"]
+        , tyInfDecl = "struct " ++ tyName
+        }
+    SP.BoundedArray t _ _ lr ->
+      let arrMaxSizeStr = show . boundedArrMaxSize $ t
+          arrMaxSizeReprStr = show . unLengthRepr $ lr 
+      in baseInf
+        { tyInfConsts = [ ConstInf "MAX_SIZE" arrMaxSizeStr]
+        , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ arrMaxSizeReprStr ++ " len; " ++ boundedArrRef t ++ " elems[" ++ arrMaxSizeStr ++ "]; };"]
+        , tyInfDecl = "struct " ++ tyName
+        }
+    _ ->
+      baseInf
+        { tyInfConsts = []
+        , tyInfFwdDecls = ["SOME " ++ tyName ++ ";"]
+        , tyInfDeclBodies = []
+        }
   where
     tyName = SP.typeName o
-typeInfo t = TypeInfo { tyInfName = tyName
-                      , tyInfConsts = []
-                      , tyInfFwdDecls = ["some " ++ tyName ++ ";"]
-                      , tyInfDecls = []
-                      , tyInfPackProto = "pack_" ++ tyName
-                      , tyInfUnpackProto = "unpack_" ++ tyName
-                      }
-  where
-    tyName = SP.typeName t
+    baseInf = defaultTypeInfo { tyInfName = tyName
+                              , tyInfHash = bytesToCArray $ hashToBytes $ SP.spHash o
+                              , tyInfSize = RangeSize (minSize o) (maxSize o)
+                              }
 
 data TemplInfo = TemplInfo
   { templName :: String
@@ -147,15 +181,24 @@ data TemplInfo = TemplInfo
   , templTypes :: [TypeInfo]
   } deriving (Data, Typeable)
 
+defaultTypeInfo :: TypeInfo
+defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] [] "!decl!"
 data TypeInfo = TypeInfo
   { tyInfName :: Name
-  , tyInfConsts :: [String]
+  , tyInfHash :: String
+  , tyInfSize :: RangeSize
+  , tyInfConsts :: [ConstInf]
   , tyInfFwdDecls :: [String]
-  , tyInfDecls :: [String]
-  , tyInfPackProto :: String
-  , tyInfUnpackProto :: String
+  , tyInfDeclBodies :: [String]
+  , tyInfDecl :: String
   } deriving (Data, Typeable)
 
+data ConstInf = ConstInf
+  { constInfName :: String
+  , constInfValue :: String
+  } deriving (Data, Typeable)
+
+{-
 data EnumInfo = EnumInfo
   { enumName :: String
   , enumFields :: [Field]
@@ -166,6 +209,7 @@ data Field = Field
   , fieldRef :: String
   , fieldIndex :: Integer
   } deriving (Data, Typeable)
+-}
 
 -- muConfig :: MonadIO m => MuConfig m
 muConfig = defaultConfig { muEscapeFunc = emptyEscape }

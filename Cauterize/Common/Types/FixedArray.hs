@@ -5,7 +5,9 @@ import Cauterize.Common.Primitives
 import Cauterize.Common.References
 import Data.Data
 
-data TFixedArray t = TFixedArray Name t Integer
+data TFixedArray t = TFixedArray { fixedArrName :: Name,
+                                   fixedArrRef :: t,
+                                   fixedArrSize :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References (TFixedArray Name) where

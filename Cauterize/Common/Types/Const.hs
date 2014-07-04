@@ -5,7 +5,9 @@ import Cauterize.Common.Primitives
 import Cauterize.Common.References
 import Data.Data
 
-data TConst = TConst Name BuiltIn Integer
+data TConst = TConst { constName :: Name
+                     , constRepr :: BuiltIn
+                     , constValue :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TConst where
