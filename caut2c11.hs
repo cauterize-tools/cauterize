@@ -1,10 +1,11 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 module Main where
 
 import qualified Data.Text.Lazy.IO as TL
 import Text.Hastache
 import Text.Hastache.Context
 import Data.Data 
+import qualified Data.Text.Lazy as T
 import Data.Word 
 import Data.List 
 import Data.Char 
@@ -63,7 +64,8 @@ caut2c11 opts = do
   case s of
     Left e -> print e
     Right s' -> do
-      let context = mkGenericContext $ infoFromSpec s'
+      s'' <- infoFromSpec s'
+      let context = mkGenericContext s''
       
       putStrLn hfile
       hres <- hastacheFile muConfig hfile context
@@ -94,15 +96,17 @@ bytesToCArray bs = "{" ++ strBytes ++ "}"
                       [b1] -> "0x0" ++ [toUpper b1]
                       _ -> error "This should be impossible."
 
-infoFromSpec :: SP.Spec Name -> TemplInfo
-infoFromSpec sp =
-  TemplInfo { templName = specNameToCName $ SP.specName sp
-            , templVersion = specVerToCVer $ SP.specVersion sp
-            , templHash = bytesToCArray hashBytes
-            , templHashSize = length hashBytes
-            , templSize = SP.specSize sp
-            , templTypes = map typeInfo $ SP.specTypes sp
-            }
+infoFromSpec :: SP.Spec Name -> IO TemplInfo
+infoFromSpec sp = do
+  tts <- mapM typeInfo $ SP.specTypes sp
+  return
+    TemplInfo { templName = specNameToCName $ SP.specName sp
+              , templVersion = specVerToCVer $ SP.specVersion sp
+              , templHash = bytesToCArray hashBytes
+              , templHashSize = length hashBytes
+              , templSize = SP.specSize sp
+              , templTypes = tts
+              }
   where
     hashBytes = hashToBytes $ SP.specHash sp
 
@@ -120,80 +124,107 @@ builtInToTyDef BIieee754d = "typedef double ieee754d;"
 builtInToTyDef BIbool = "/* The builtin Boolean relies on 'bool' from stdbool.h */"
 builtInToTyDef BIvoid = "/* The builtin Void type is unexpressable in C */"
 
-typeInfo :: SP.SpType Name -> TypeInfo
-typeInfo o =
-  case o of
-    SP.BuiltIn t _ _ ->
-      baseInf
-        { tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
-        , tyInfDeclBodies = ["!! BUILTIN DECL !!"]
-        , tyInfDecl = tyName
-        }
-    SP.Scalar t _ _ ->
-      baseInf
-        { tyInfFwdDecls = [ "typedef " ++ (show . scalarRepr $ t) ++ " " ++ tyName ++ "_t;"]
-        , tyInfDeclBodies = ["!! SCALAR DECL !!"]
-        , tyInfDecl = tyName ++ "_t"
-        }
-    SP.Const t _ _ ->
-      baseInf
-        { tyInfConsts = [ ConstInf "VALUE" (show . constValue . unConst $ o)]
-        , tyInfFwdDecls = [ "typedef " ++ (show . constRepr $ t) ++ " " ++ tyName ++ "_t;"]
-        , tyInfDeclBodies = ["!! SCALAR DECL !!"]
-        , tyInfDecl = tyName ++ "_t"
-        }
-    SP.FixedArray t _ _ ->
-      let arrLenStr = show . fixedArrLen $ t
-      in baseInf
-        { tyInfConsts = [ ConstInf "LENGTH" arrLenStr]
-        , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ fixedArrRef t ++ " elems[" ++ arrLenStr ++ "]; };"]
-        , tyInfDecl = "struct " ++ tyName
-        }
-    SP.BoundedArray t _ _ lr ->
-      let arrMaxLenStr = show . boundedArrMaxLen $ t
-          arrMaxLenReprStr = show . unLengthRepr $ lr 
-      in baseInf
-        { tyInfConsts = [ ConstInf "MAX_LENGTH" arrMaxLenStr]
-        , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["struct " ++ tyName ++ " { " ++ arrMaxLenReprStr ++ " len; " ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"]
-        , tyInfDecl = "struct " ++ tyName
-        }
-    SP.Struct {} ->
-      baseInf
-        { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["!! STRUCT DECL !!"]
-        , tyInfDecl = "struct " ++ tyName
-        }
-    SP.Set {} ->
-      baseInf
-        { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["!! SET DECL !!"]
-        , tyInfDecl = "struct " ++ tyName
-        }
-    SP.Enum {} ->
-      baseInf
-        { tyInfFwdDecls = [ "enum " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["!! ENUM DECL !!"]
-        , tyInfDecl = "enum " ++ tyName
-        }
-    SP.Partial {} ->
-      baseInf
-        { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-        , tyInfDeclBodies = ["!! SET DECL !!"]
-        , tyInfDecl = "struct " ++ tyName
-        }
-    SP.Pad {} ->
-      baseInf
-        { tyInfFwdDecls = [ "/* Padding for " ++ tyName ++ " can't ever be instantiated. */"]
-        }
-    _ ->
-      baseInf
-        { tyInfConsts = []
-        , tyInfFwdDecls = ["SOME " ++ tyName ++ ";"]
-        , tyInfDeclBodies = []
-        }
+typeBody :: Data a => FilePath -> a -> IO T.Text
+typeBody fname ctx = do
+  fpath <- getDataFileName fname
+  hastacheFile muConfig fpath ctx'
   where
+    ctx' = mkGenericContext ctx
+
+typeBodyTempl :: SP.SpType Name -> FilePath
+typeBodyTempl i =
+  case i of
+    SP.BuiltIn {} -> "types/builtin_body.tmpl.c" 
+    SP.Scalar {} -> "types/scalar_body.tmpl.c" 
+    SP.Const {} -> "types/const_body.tmpl.c" 
+    SP.FixedArray {} -> "types/fixed_body.tmpl.c" 
+    SP.BoundedArray {} -> "types/bounded_body.tmpl.c" 
+    SP.Struct {} -> "types/struct_body.tmpl.c" 
+    SP.Set {} -> "types/set_body.tmpl.c" 
+    SP.Enum {} -> "types/enum_body.tmpl.c" 
+    SP.Partial {} -> "types/partial_body.tmpl.c" 
+    SP.Pad {} -> "types/pad_body.tmpl.c" 
+
+typeInfo :: SP.SpType Name -> IO TypeInfo
+typeInfo o = o'
+  where
+    typeBody' ctx = liftM T.unpack $ typeBody (typeBodyTempl o) ctx
+    o' = case o of
+      SP.BuiltIn t _ _ -> do
+        b <- typeBody' ()
+        return baseInf
+          { tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
+          , tyInfDecl = tyName
+          , tyInfDeclBody = b
+          }
+      SP.Scalar t _ _ -> do
+        b <- typeBody' ()
+        return baseInf
+          { tyInfFwdDecls = [ "typedef " ++ (show . scalarRepr $ t) ++ " " ++ tyName ++ "_t;"]
+          , tyInfDecl = tyName ++ "_t"
+          , tyInfDeclBody = b
+          }
+      SP.Const t _ _ -> do
+        b <- typeBody' ()
+        return baseInf
+          { tyInfConsts = [ ConstInf "VALUE" (show . constValue . unConst $ o)]
+          , tyInfFwdDecls = [ "typedef " ++ (show . constRepr $ t) ++ " " ++ tyName ++ "_t;"]
+          , tyInfDecl = tyName ++ "_t"
+          }
+      SP.FixedArray t _ _ -> do
+        b <- typeBody' FixedArrayInfo { faName = tyName, faLength = fixedArrLen t }
+        return $ let arrLenStr = show . fixedArrLen $ t
+                 in baseInf
+                   { tyInfConsts = [ ConstInf "LENGTH" arrLenStr]
+                   , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+                   , tyInfDeclBody = "struct " ++ tyName ++ " { " ++ fixedArrRef t ++ " elems[" ++ arrLenStr ++ "]; };"
+                   , tyInfDecl = "struct " ++ tyName
+                   }
+      SP.BoundedArray t _ _ lr ->
+        let arrMaxLenStr = show . boundedArrMaxLen $ t
+            arrMaxLenReprStr = show . unLengthRepr $ lr 
+        in baseInf
+          { tyInfConsts = [ ConstInf "MAX_LENGTH" arrMaxLenStr]
+          , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+          , tyInfDeclBody = "struct " ++ tyName ++ " { "
+                                 ++ arrMaxLenReprStr ++ " len; "
+                                 ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"
+          , tyInfDecl = "struct " ++ tyName
+          }
+      SP.Struct {} ->
+        baseInf
+          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+          , tyInfDeclBody = "!! STRUCT DECL !!"
+          , tyInfDecl = "struct " ++ tyName
+          }
+      SP.Set {} ->
+        baseInf
+          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+          , tyInfDeclBody = "!! SET DECL !!"
+          , tyInfDecl = "struct " ++ tyName
+          }
+      SP.Enum {} ->
+        baseInf
+          { tyInfFwdDecls = [ "enum " ++ tyName ++ ";"]
+          , tyInfDeclBody = "!! ENUM DECL !!"
+          , tyInfDecl = "enum " ++ tyName
+          }
+      SP.Partial {} ->
+        baseInf
+          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+          , tyInfDeclBody = "!! SET DECL !!"
+          , tyInfDecl = "struct " ++ tyName
+          }
+      SP.Pad {} ->
+        baseInf
+          { tyInfFwdDecls = [ "/* Padding for " ++ tyName ++ " can't ever be instantiated. */"]
+          }
+      _ ->
+        baseInf
+          { tyInfConsts = []
+          , tyInfFwdDecls = ["SOME " ++ tyName ++ ";"]
+          , tyInfDeclBody = []
+          }
     tyName = SP.typeName o
     baseInf = defaultTypeInfo { tyInfName = tyName
                               , tyInfHash = bytesToCArray $ hashToBytes $ SP.spHash o
@@ -215,14 +246,19 @@ data TypeInfo = TypeInfo
   , tyInfSize :: RangeSize
   , tyInfConsts :: [ConstInf]
   , tyInfFwdDecls :: [String]
-  , tyInfDeclBodies :: [String]
+  , tyInfDeclBody :: String
   , tyInfDecl :: String
   , tyInfPacker :: String
   , tyInfUnpacker :: String
   } deriving (Data, Typeable)
 
+data FixedArrayInfo = FixedArrayInfo
+  { faName :: Name
+  , faLength :: Integer
+  } deriving (Data, Typeable)
+
 defaultTypeInfo :: TypeInfo
-defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] [] "" "" ""
+defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] "" "" "" ""
 
 data ConstInf = ConstInf
   { constInfName :: String

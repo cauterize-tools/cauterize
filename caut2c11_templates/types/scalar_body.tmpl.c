@@ -1,0 +1,1 @@
+/* Scalar types have no type body declaration. */

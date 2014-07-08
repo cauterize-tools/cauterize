@@ -46,13 +46,11 @@ const uint8_t TYPE_HASH_{{templName}}_{{tyInfName}}[] = {{tyInfHash}};
 
 {{#templTypes}}
 /* Type: {{tyInfName}} */
-{{#tyInfDeclBodies}}
-{{.}}
-{{/tyInfDeclBodies}}
+{{tyInfDeclBody}}
 
 {{#tyInfDecl}}
-enum caut_status pack_{{tyInfName}}(struct caut_iter * iter, {{tyInfDecl}} * obj);
-enum caut_status unpack_{{tyInfName}}(struct caut_iter * iter, {{tyInfDecl}} * obj);
+enum caut_status pack_{{tyInfName}}(struct caut_pack_iter * iter, {{tyInfDecl}} const * const obj);
+enum caut_status unpack_{{tyInfName}}(struct caut_unpack_iter * iter, {{tyInfDecl}} * obj);
 {{/tyInfDecl}}
 
 {{/templTypes}}
