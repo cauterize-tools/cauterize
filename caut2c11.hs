@@ -9,6 +9,9 @@ import qualified Data.Text.Lazy as T
 import Data.Word 
 import Data.List 
 import Data.Char 
+import Data.Maybe 
+import qualified Data.Traversable as TR
+import qualified Data.Map as M
 import Control.Monad
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
@@ -17,8 +20,7 @@ import Numeric
 
 import Paths_cauterize
 
-import Cauterize.Schema as SC
-import Cauterize.FormHash as SC
+import Cauterize.FormHash
 import Cauterize.Specification as SP
 import Cauterize.Schema.Arbitrary
 import Cauterize.Common.Primitives
@@ -98,7 +100,7 @@ bytesToCArray bs = "{" ++ strBytes ++ "}"
 
 infoFromSpec :: SP.Spec Name -> IO TemplInfo
 infoFromSpec sp = do
-  tts <- mapM typeInfo $ SP.specTypes sp
+  tts <- mapM (typeInfoBody m) mTypes
   return
     TemplInfo { templName = specNameToCName $ SP.specName sp
               , templVersion = specVerToCVer $ SP.specVersion sp
@@ -109,6 +111,9 @@ infoFromSpec sp = do
               }
   where
     hashBytes = hashToBytes $ SP.specHash sp
+    specTyMap = M.fromList $ map (\t -> (SP.typeName t, t)) $ SP.specTypes sp
+    m = fmap typeInfo specTyMap
+    mTypes = map snd $ M.toList m
 
 builtInToTyDef :: BuiltIn -> String
 builtInToTyDef BIu8 = "typedef uint8_t u8;"
@@ -145,74 +150,97 @@ typeBodyTempl i =
     SP.Partial {} -> "types/partial_body.tmpl.c" 
     SP.Pad {} -> "types/pad_body.tmpl.c" 
 
-typeInfo :: SP.SpType Name -> IO TypeInfo
-typeInfo o = o'
+typeInfoBody :: M.Map Name TypeInfo -> TypeInfo -> IO TypeInfo
+typeInfoBody m i = do
+  b <- case tyInfType i of
+          SP.FixedArray {} -> 
+            let a = SP.unFixed $ tyInfType i
+                r = fixedArrRef a
+                ri = fromJust $ M.lookup r m -- This *should* never fail.
+            in typeBody' FixedArrayInfo { faName = tyInfName i
+                                        , faLength = (fixedArrLen . SP.unFixed) $ tyInfType i
+                                        , faRefTypeDecl = tyInfDecl ri
+                                        }
+          SP.BoundedArray {} -> 
+            let t = tyInfType i
+                a = SP.unBounded t
+                r = boundedArrRef a
+                ri = fromJust $ M.lookup r m -- This *should* never fail.
+                alr = lenRepr t
+            in typeBody' BoundedArrayInfo { baName = tyInfName i
+                                          , baLength = (boundedArrMaxLen . SP.unBounded) $ tyInfType i
+                                          , baRefTypeDecl = tyInfDecl ri
+                                          , baLengthRepr = show $ unLengthRepr alr
+                                          }
+          _ -> return "!!! A DECL BODY !!!"
+  return i { tyInfDeclBody = b }
   where
-    typeBody' ctx = liftM T.unpack $ typeBody (typeBodyTempl o) ctx
+    typeBody' ctx = liftM T.unpack $ typeBody (tyInfTemplName i) ctx
+
+typeInfo :: SP.SpType Name -> TypeInfo
+typeInfo o = o' { tyInfDeclBody = "!! UNIMPLEMENTED BODY !!"
+                , tyInfTemplName = typeBodyTempl o
+                , tyInfType = o
+                }
+  where
+    -- typeBody' ctx = liftM T.unpack $ typeBody (typeBodyTempl o) ctx
     o' = case o of
-      SP.BuiltIn t _ _ -> do
-        b <- typeBody' ()
-        return baseInf
+      SP.BuiltIn t _ _ ->
+        baseInf
           { tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
           , tyInfDecl = tyName
-          , tyInfDeclBody = b
           }
-      SP.Scalar t _ _ -> do
-        b <- typeBody' ()
-        return baseInf
+      SP.Scalar t _ _ ->
+        baseInf
           { tyInfFwdDecls = [ "typedef " ++ (show . scalarRepr $ t) ++ " " ++ tyName ++ "_t;"]
           , tyInfDecl = tyName ++ "_t"
-          , tyInfDeclBody = b
           }
-      SP.Const t _ _ -> do
-        b <- typeBody' ()
-        return baseInf
+      SP.Const t _ _ ->
+        baseInf
           { tyInfConsts = [ ConstInf "VALUE" (show . constValue . unConst $ o)]
           , tyInfFwdDecls = [ "typedef " ++ (show . constRepr $ t) ++ " " ++ tyName ++ "_t;"]
           , tyInfDecl = tyName ++ "_t"
           }
-      SP.FixedArray t _ _ -> do
-        b <- typeBody' FixedArrayInfo { faName = tyName, faLength = fixedArrLen t }
-        return $ let arrLenStr = show . fixedArrLen $ t
-                 in baseInf
-                   { tyInfConsts = [ ConstInf "LENGTH" arrLenStr]
-                   , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-                   , tyInfDeclBody = "struct " ++ tyName ++ " { " ++ fixedArrRef t ++ " elems[" ++ arrLenStr ++ "]; };"
-                   , tyInfDecl = "struct " ++ tyName
-                   }
+      SP.FixedArray t _ _ ->
+        let arrLenStr = show . fixedArrLen $ t
+        in baseInf
+           { tyInfConsts = [ ConstInf "LENGTH" arrLenStr]
+           , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+           , tyInfDecl = "struct " ++ tyName
+           }
       SP.BoundedArray t _ _ lr ->
         let arrMaxLenStr = show . boundedArrMaxLen $ t
             arrMaxLenReprStr = show . unLengthRepr $ lr 
         in baseInf
           { tyInfConsts = [ ConstInf "MAX_LENGTH" arrMaxLenStr]
           , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDeclBody = "struct " ++ tyName ++ " { "
-                                 ++ arrMaxLenReprStr ++ " len; "
-                                 ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"
+          -- , tyInfDeclBody = "struct " ++ tyName ++ " { "
+          --                        ++ arrMaxLenReprStr ++ " len; "
+          --                        ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Struct {} ->
         baseInf
           { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDeclBody = "!! STRUCT DECL !!"
+          -- , tyInfDeclBody = "!! STRUCT DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Set {} ->
         baseInf
           { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDeclBody = "!! SET DECL !!"
+          -- , tyInfDeclBody = "!! SET DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Enum {} ->
         baseInf
           { tyInfFwdDecls = [ "enum " ++ tyName ++ ";"]
-          , tyInfDeclBody = "!! ENUM DECL !!"
+          -- , tyInfDeclBody = "!! ENUM DECL !!"
           , tyInfDecl = "enum " ++ tyName
           }
       SP.Partial {} ->
         baseInf
           { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDeclBody = "!! SET DECL !!"
+          -- , tyInfDeclBody = "!! SET DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Pad {} ->
@@ -250,15 +278,25 @@ data TypeInfo = TypeInfo
   , tyInfDecl :: String
   , tyInfPacker :: String
   , tyInfUnpacker :: String
+  , tyInfTemplName :: String
+  , tyInfType :: SP.SpType Name
   } deriving (Data, Typeable)
 
 data FixedArrayInfo = FixedArrayInfo
   { faName :: Name
   , faLength :: Integer
+  , faRefTypeDecl :: String
+  } deriving (Data, Typeable)
+
+data BoundedArrayInfo = BoundedArrayInfo
+  { baName :: Name
+  , baLength :: Integer
+  , baRefTypeDecl :: String
+  , baLengthRepr :: String
   } deriving (Data, Typeable)
 
 defaultTypeInfo :: TypeInfo
-defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] "" "" "" ""
+defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] "" "" "" "" "" (error "No defined type.")
 
 data ConstInf = ConstInf
   { constInfName :: String

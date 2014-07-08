@@ -1,2 +1,3 @@
-struct {{tyInfName}} {
+struct {{faName}} {
+  {{faRefTypeDecl}} elems[{{faLength}}];
 }
