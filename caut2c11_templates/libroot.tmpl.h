@@ -15,7 +15,7 @@
 #define NAME_{{templName}} "{{templName}}"
 #define VERSION_{{templName}} "{{templVersion}}"
 #define MIN_SIZE_{{templName}} ({{templSize.rangeSizeMin}})
-#define MIN_SIZE_{{templName}} ({{templSize.rangeSizeMax}})
+#define MAX_SIZE_{{templName}} ({{templSize.rangeSizeMax}})
 
 uint8_t const SCHEMA_HASH_{{templName}}[] = {{templHash}}
 
