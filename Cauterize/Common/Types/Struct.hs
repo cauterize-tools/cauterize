@@ -8,7 +8,7 @@ import Cauterize.Common.References
 import Data.List
 import Data.Data
 
-data TStruct t = TStruct Name (Fields t)
+data TStruct t = TStruct { structName :: Name, structFields :: Fields t }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References (TStruct Name) where

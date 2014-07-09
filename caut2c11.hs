@@ -25,6 +25,7 @@ import Cauterize.Specification as SP
 import Cauterize.Schema.Arbitrary
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
+import Cauterize.Common.IndexedRef
 
 data Caut2C11Opts = Caut2C11Opts
   { inputFile :: String
@@ -153,33 +154,62 @@ typeBodyTempl i =
 typeInfoBody :: M.Map Name TypeInfo -> TypeInfo -> IO TypeInfo
 typeInfoBody m i = do
   b <- case tyInfType i of
-          SP.FixedArray {} -> 
-            let a = SP.unFixed $ tyInfType i
-                r = fixedArrRef a
+          SP.BuiltIn {} -> typeBody' ()
+          SP.Scalar {} -> typeBody' ()
+          SP.Const {} -> typeBody' ()
+          SP.FixedArray a _ _ -> 
+            let r = fixedArrRef a
                 ri = fromJust $ M.lookup r m -- This *should* never fail.
             in typeBody' FixedArrayInfo { faName = tyInfName i
                                         , faLength = (fixedArrLen . SP.unFixed) $ tyInfType i
                                         , faRefTypeDecl = tyInfDecl ri
                                         }
-          SP.BoundedArray {} -> 
-            let t = tyInfType i
-                a = SP.unBounded t
-                r = boundedArrRef a
+          SP.BoundedArray a _ _ alr -> 
+            let r = boundedArrRef a
                 ri = fromJust $ M.lookup r m -- This *should* never fail.
-                alr = lenRepr t
             in typeBody' BoundedArrayInfo { baName = tyInfName i
                                           , baLength = (boundedArrMaxLen . SP.unBounded) $ tyInfType i
                                           , baRefTypeDecl = tyInfDecl ri
                                           , baLengthRepr = show $ unLengthRepr alr
                                           }
-          _ -> return "!!! A DECL BODY !!!"
+          SP.Struct s _ _ ->
+            let sfs = map fromField $ unFields . structFields $ s
+            in typeBody' StructInfo { sName = tyInfName i
+                                    , sFields = sfs
+                                    }
+          SP.Set s _ _ fr ->
+            let sfs = map fromField $ unFields . setFields $ s
+            in typeBody' SetInfo { tName = tyInfName i
+                                 , tFields = sfs
+                                 , tFlagRepr = show . unFlagsRepr $ fr
+                                 }
+          SP.Enum e _ _ tr ->
+            let sfs = map fromField $ unFields . enumFields $ e
+            in typeBody' EnumInfo { eName = tyInfName i
+                                  , eFields = sfs
+                                  , eTagRepr = show . unTagRepr $ tr
+                                  }
+          SP.Partial e _ _ tr lr ->
+            let sfs = map fromField $ unFields . partialFields $ e
+            in typeBody' PartialInfo { pName = tyInfName i
+                                     , pFields = sfs
+                                     , pTagRepr = show . unTagRepr $ tr
+                                     , pLengthRepr = show . unLengthRepr $ lr
+                                     }
+          SP.Pad {} -> typeBody' ()
+          _ -> return "!!! TODO: A DECL BODY !!!"
   return i { tyInfDeclBody = b }
   where
     typeBody' ctx = liftM T.unpack $ typeBody (tyInfTemplName i) ctx
+    fromField (IndexedRef n r ix) = let r' = fromJust $ M.lookup r m -- This *should* never fail.
+                                        r'' = tyInfDecl r'
+                                    in if "void" == r''
+                                          then FieldInfo n "" ix
+                                          else FieldInfo n r'' ix
+
 
 typeInfo :: SP.SpType Name -> TypeInfo
-typeInfo o = o' { tyInfDeclBody = "!! UNIMPLEMENTED BODY !!"
-                , tyInfTemplName = typeBodyTempl o
+typeInfo o = o' { tyInfTemplName = typeBodyTempl o
                 , tyInfType = o
                 }
   where
@@ -188,7 +218,9 @@ typeInfo o = o' { tyInfDeclBody = "!! UNIMPLEMENTED BODY !!"
       SP.BuiltIn t _ _ ->
         baseInf
           { tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
-          , tyInfDecl = tyName
+          , tyInfDecl = case tyName of
+                          "void" -> ""
+                          n -> n
           }
       SP.Scalar t _ _ ->
         baseInf
@@ -208,15 +240,11 @@ typeInfo o = o' { tyInfDeclBody = "!! UNIMPLEMENTED BODY !!"
            , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
            , tyInfDecl = "struct " ++ tyName
            }
-      SP.BoundedArray t _ _ lr ->
+      SP.BoundedArray t _ _ _ ->
         let arrMaxLenStr = show . boundedArrMaxLen $ t
-            arrMaxLenReprStr = show . unLengthRepr $ lr 
         in baseInf
           { tyInfConsts = [ ConstInf "MAX_LENGTH" arrMaxLenStr]
           , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          -- , tyInfDeclBody = "struct " ++ tyName ++ " { "
-          --                        ++ arrMaxLenReprStr ++ " len; "
-          --                        ++ boundedArrRef t ++ " elems[" ++ arrMaxLenStr ++ "]; };"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Struct {} ->
@@ -243,9 +271,10 @@ typeInfo o = o' { tyInfDeclBody = "!! UNIMPLEMENTED BODY !!"
           -- , tyInfDeclBody = "!! SET DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
-      SP.Pad {} ->
+      SP.Pad t _ _ ->
         baseInf
-          { tyInfFwdDecls = [ "/* Padding for " ++ tyName ++ " can't ever be instantiated. */"]
+          { tyInfFwdDecls = [ "typedef u8 " ++ tyName ++ "_t [" ++ (show . padLength $ t) ++ "]" ]
+          , tyInfDecl = tyName ++ "_t"
           }
       _ ->
         baseInf
@@ -278,9 +307,26 @@ data TypeInfo = TypeInfo
   , tyInfDecl :: String
   , tyInfPacker :: String
   , tyInfUnpacker :: String
+  , tyInfLengthCheck :: String
   , tyInfTemplName :: String
   , tyInfType :: SP.SpType Name
   } deriving (Data, Typeable)
+
+defaultTypeInfo :: TypeInfo
+defaultTypeInfo = TypeInfo
+  { tyInfName = error "No name set."
+  , tyInfHash = error "No hash set."
+  , tyInfSize = error "No size set."
+  , tyInfConsts = []
+  , tyInfFwdDecls = []
+  , tyInfDeclBody = error "No declaration body set."
+  , tyInfDecl = error "No declaration set."
+  , tyInfPacker = error "No packer declared."
+  , tyInfUnpacker = error "No unpacker declared."
+  , tyInfLengthCheck = error "No length checker declared."
+  , tyInfTemplName = ""
+  , tyInfType = error "No type set."
+  }
 
 data FixedArrayInfo = FixedArrayInfo
   { faName :: Name
@@ -295,8 +341,35 @@ data BoundedArrayInfo = BoundedArrayInfo
   , baLengthRepr :: String
   } deriving (Data, Typeable)
 
-defaultTypeInfo :: TypeInfo
-defaultTypeInfo = TypeInfo "!name!" "!hash!" (RangeSize 0 0) [] [] "" "" "" "" "" (error "No defined type.")
+data StructInfo = StructInfo
+  { sName :: Name
+  , sFields :: [FieldInfo]
+  } deriving (Data, Typeable)
+
+data SetInfo = SetInfo
+  { tName :: Name
+  , tFields :: [FieldInfo]
+  , tFlagRepr :: String
+  } deriving (Data, Typeable)
+
+data EnumInfo = EnumInfo
+  { eName :: Name
+  , eFields :: [FieldInfo]
+  , eTagRepr :: String
+  } deriving (Data, Typeable)
+
+data PartialInfo = PartialInfo
+  { pName :: Name
+  , pFields :: [FieldInfo]
+  , pTagRepr :: String
+  , pLengthRepr :: String
+  } deriving (Data, Typeable)
+
+data FieldInfo = FieldInfo
+  { fName :: Name
+  , fRefDecl :: String
+  , fIndex :: Integer
+  }  deriving (Data, Typeable)
 
 data ConstInf = ConstInf
   { constInfName :: String

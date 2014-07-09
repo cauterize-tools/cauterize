@@ -8,7 +8,7 @@ import Cauterize.Common.References
 import Data.List
 import Data.Data
 
-data TEnum t = TEnum Name (Fields t)
+data TEnum t = TEnum { enumName :: Name, enumFields :: Fields t }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References (TEnum Name) where

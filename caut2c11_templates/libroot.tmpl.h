@@ -45,12 +45,14 @@ const uint8_t TYPE_HASH_{{templName}}_{{tyInfName}}[] = {{tyInfHash}};
  */
 
 {{#templTypes}}
-/* Type: {{tyInfName}} */
 {{tyInfDeclBody}}
-
 {{#tyInfDecl}}
 enum caut_status pack_{{tyInfName}}(struct caut_pack_iter * iter, {{tyInfDecl}} const * const obj);
 enum caut_status unpack_{{tyInfName}}(struct caut_unpack_iter * iter, {{tyInfDecl}} * obj);
+size_t packed_size_{{tyInfName}}({{tyInfDecl}} const * const obj);
+{{/tyInfDecl}}
+{{^tyInfDecl}}
+/* No packer, unpacker, or size checkers are defined for the type {{tyInfName}}. */
 {{/tyInfDecl}}
 
 {{/templTypes}}

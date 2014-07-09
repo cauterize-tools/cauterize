@@ -8,7 +8,7 @@ import Cauterize.Common.References
 import Data.List
 import Data.Data
 
-data TPartial t = TPartial Name (Fields t)
+data TPartial t = TPartial { partialName :: Name, partialFields :: Fields t }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References (TPartial Name) where

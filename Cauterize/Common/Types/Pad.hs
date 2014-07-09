@@ -5,7 +5,7 @@ import Cauterize.Common.Primitives
 import Cauterize.Common.References
 import Data.Data
 
-data TPad = TPad Name Integer
+data TPad = TPad { padName :: Name, padLength :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TPad where

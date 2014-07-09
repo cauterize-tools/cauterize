@@ -15,7 +15,10 @@ data Fields r = Fields { unFields :: [IndexedRef r] }
 fieldsLength :: Fields r -> Int
 fieldsLength (Fields fs) = length fs
 
-data IndexedRef r = IndexedRef Name r Integer
+data IndexedRef r = IndexedRef { fieldName :: Name
+                               , fieldRef :: r
+                               , fieldIndex :: Integer
+                               }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 refSig :: M.Map Name Signature -> IndexedRef Name -> Signature

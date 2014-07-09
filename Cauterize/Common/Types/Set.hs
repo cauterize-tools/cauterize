@@ -8,7 +8,7 @@ import Cauterize.Common.References
 import Data.List
 import Data.Data
 
-data TSet t = TSet Name (Fields t)
+data TSet t = TSet { setName :: Name, setFields :: Fields t }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References (TSet Name) where
