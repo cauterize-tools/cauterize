@@ -254,8 +254,8 @@ typeInfo o = o' { tyInfTemplName = typeBodyTempl o
           }
       SP.Enum {} ->
         baseInf
-          { tyInfFwdDecls = [ "enum " ++ tyName ++ ";"]
-          , tyInfDecl = "enum " ++ tyName
+          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
+          , tyInfDecl = "struct " ++ tyName
           }
       SP.Partial {} ->
         baseInf
