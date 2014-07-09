@@ -10,11 +10,8 @@ import Data.Word
 import Data.List 
 import Data.Char 
 import Data.Maybe 
-import qualified Data.Traversable as TR
 import qualified Data.Map as M
 import Control.Monad
-import Test.QuickCheck.Arbitrary
-import Test.QuickCheck.Gen
 import Options.Applicative
 import Numeric
 
@@ -22,7 +19,6 @@ import Paths_cauterize
 
 import Cauterize.FormHash
 import Cauterize.Specification as SP
-import Cauterize.Schema.Arbitrary
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
 import Cauterize.Common.IndexedRef
@@ -154,52 +150,52 @@ typeBodyTempl i =
 typeInfoBody :: M.Map Name TypeInfo -> TypeInfo -> IO TypeInfo
 typeInfoBody m i = do
   b <- case tyInfType i of
-          SP.BuiltIn {} -> typeBody' ()
-          SP.Scalar {} -> typeBody' ()
-          SP.Const {} -> typeBody' ()
+          SP.BuiltIn {} -> typeBody' BuiltInInfo { biName = tyName }
+          SP.Scalar {} -> typeBody' ScalarInfo { scName = tyName }
+          SP.Const {} -> typeBody' ConstInfo { cName = tyName }
           SP.FixedArray a _ _ -> 
             let r = fixedArrRef a
                 ri = fromJust $ M.lookup r m -- This *should* never fail.
-            in typeBody' FixedArrayInfo { faName = tyInfName i
+            in typeBody' FixedArrayInfo { faName = tyName
                                         , faLength = (fixedArrLen . SP.unFixed) $ tyInfType i
                                         , faRefTypeDecl = tyInfDecl ri
                                         }
           SP.BoundedArray a _ _ alr -> 
             let r = boundedArrRef a
                 ri = fromJust $ M.lookup r m -- This *should* never fail.
-            in typeBody' BoundedArrayInfo { baName = tyInfName i
+            in typeBody' BoundedArrayInfo { baName = tyName
                                           , baLength = (boundedArrMaxLen . SP.unBounded) $ tyInfType i
                                           , baRefTypeDecl = tyInfDecl ri
                                           , baLengthRepr = show $ unLengthRepr alr
                                           }
           SP.Struct s _ _ ->
             let sfs = map fromField $ unFields . structFields $ s
-            in typeBody' StructInfo { sName = tyInfName i
+            in typeBody' StructInfo { sName = tyName
                                     , sFields = sfs
                                     }
           SP.Set s _ _ fr ->
             let sfs = map fromField $ unFields . setFields $ s
-            in typeBody' SetInfo { tName = tyInfName i
+            in typeBody' SetInfo { tName = tyName
                                  , tFields = sfs
                                  , tFlagRepr = show . unFlagsRepr $ fr
                                  }
           SP.Enum e _ _ tr ->
             let sfs = map fromField $ unFields . enumFields $ e
-            in typeBody' EnumInfo { eName = tyInfName i
+            in typeBody' EnumInfo { eName = tyName
                                   , eFields = sfs
                                   , eTagRepr = show . unTagRepr $ tr
                                   }
           SP.Partial e _ _ tr lr ->
             let sfs = map fromField $ unFields . partialFields $ e
-            in typeBody' PartialInfo { pName = tyInfName i
+            in typeBody' PartialInfo { pName = tyName
                                      , pFields = sfs
                                      , pTagRepr = show . unTagRepr $ tr
                                      , pLengthRepr = show . unLengthRepr $ lr
                                      }
-          SP.Pad {} -> typeBody' ()
-          _ -> return "!!! TODO: A DECL BODY !!!"
+          SP.Pad {} -> typeBody' PadInfo { paName = tyName }
   return i { tyInfDeclBody = b }
   where
+    tyName = tyInfName i
     typeBody' ctx = liftM T.unpack $ typeBody (tyInfTemplName i) ctx
     fromField (IndexedRef n r ix) = let r' = fromJust $ M.lookup r m -- This *should* never fail.
                                         r'' = tyInfDecl r'
@@ -213,7 +209,6 @@ typeInfo o = o' { tyInfTemplName = typeBodyTempl o
                 , tyInfType = o
                 }
   where
-    -- typeBody' ctx = liftM T.unpack $ typeBody (typeBodyTempl o) ctx
     o' = case o of
       SP.BuiltIn t _ _ ->
         baseInf
@@ -250,37 +245,27 @@ typeInfo o = o' { tyInfTemplName = typeBodyTempl o
       SP.Struct {} ->
         baseInf
           { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          -- , tyInfDeclBody = "!! STRUCT DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Set {} ->
         baseInf
           { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          -- , tyInfDeclBody = "!! SET DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Enum {} ->
         baseInf
           { tyInfFwdDecls = [ "enum " ++ tyName ++ ";"]
-          -- , tyInfDeclBody = "!! ENUM DECL !!"
           , tyInfDecl = "enum " ++ tyName
           }
       SP.Partial {} ->
         baseInf
           { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          -- , tyInfDeclBody = "!! SET DECL !!"
           , tyInfDecl = "struct " ++ tyName
           }
       SP.Pad t _ _ ->
         baseInf
           { tyInfFwdDecls = [ "typedef u8 " ++ tyName ++ "_t [" ++ (show . padLength $ t) ++ "]" ]
           , tyInfDecl = tyName ++ "_t"
-          }
-      _ ->
-        baseInf
-          { tyInfConsts = []
-          , tyInfFwdDecls = ["SOME " ++ tyName ++ ";"]
-          , tyInfDeclBody = []
           }
     tyName = SP.typeName o
     baseInf = defaultTypeInfo { tyInfName = tyName
@@ -328,6 +313,18 @@ defaultTypeInfo = TypeInfo
   , tyInfType = error "No type set."
   }
 
+data BuiltInInfo = BuiltInInfo
+  { biName :: Name
+  } deriving (Data, Typeable)
+
+data ScalarInfo = ScalarInfo
+  { scName :: Name
+  } deriving (Data, Typeable)
+
+data ConstInfo = ConstInfo
+  { cName :: Name
+  } deriving (Data, Typeable)
+
 data FixedArrayInfo = FixedArrayInfo
   { faName :: Name
   , faLength :: Integer
@@ -363,6 +360,10 @@ data PartialInfo = PartialInfo
   , pFields :: [FieldInfo]
   , pTagRepr :: String
   , pLengthRepr :: String
+  } deriving (Data, Typeable)
+
+data PadInfo = PadInfo
+  { paName :: Name
   } deriving (Data, Typeable)
 
 data FieldInfo = FieldInfo

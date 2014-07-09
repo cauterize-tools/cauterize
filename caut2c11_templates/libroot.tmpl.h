@@ -17,41 +17,41 @@
 #define MIN_SIZE_{{templName}} ({{templSize.rangeSizeMin}})
 #define MIN_SIZE_{{templName}} ({{templSize.rangeSizeMax}})
 
-const uint8_t SCHEMA_HASH_{{templName}}[] = {{templHash}}
+uint8_t const SCHEMA_HASH_{{templName}}[] = {{templHash}}
 
 /*
- * Forward Declarations
+ * Forward Declarations and constants.
  */
 
 {{#templTypes}}
 /* Type: {{tyInfName}} */
-const uint8_t TYPE_HASH_{{templName}}_{{tyInfName}}[] = {{tyInfHash}};
+{{#tyInfFwdDecls}}
+{{.}}
+{{/tyInfFwdDecls}}
+uint8_t const TYPE_HASH_{{templName}}_{{tyInfName}}[] = {{tyInfHash}};
 {{#tyInfConsts}}
 #define TYPE_CONST_{{templName}}_{{tyInfName}}_{{constInfName}} ({{constInfValue}})
 {{.}}
 {{/tyInfConsts}}
-
 #define TYPE_SIZE_MIN_{{templName}}_{{tyInfName}} ({{tyInfSize.rangeSizeMin}})
 #define TYPE_SIZE_MAX_{{templName}}_{{tyInfName}} ({{tyInfSize.rangeSizeMax}})
 
-{{#tyInfFwdDecls}}
-{{.}}
-{{/tyInfFwdDecls}}
-
 {{/templTypes}}
-
-/*
- * Type Declarations
- */
 
 {{#templTypes}}
 {{tyInfDeclBody}}
+
+{{/templTypes}}
+
+{{#templTypes}}
 {{#tyInfDecl}}
-enum caut_status pack_{{tyInfName}}(struct caut_pack_iter * iter, {{tyInfDecl}} const * const obj);
-enum caut_status unpack_{{tyInfName}}(struct caut_unpack_iter * iter, {{tyInfDecl}} * obj);
+/* Type: {{tyInfName}} */
+enum caut_status pack_{{tyInfName}}(struct caut_pack_iter * const iter, {{tyInfDecl}} const * const obj);
+enum caut_status unpack_{{tyInfName}}(struct caut_unpack_iter * const iter, {{tyInfDecl}} * const obj);
 size_t packed_size_{{tyInfName}}({{tyInfDecl}} const * const obj);
 {{/tyInfDecl}}
 {{^tyInfDecl}}
+/* Type: {{tyInfName}} */
 /* No packer, unpacker, or size checkers are defined for the type {{tyInfName}}. */
 {{/tyInfDecl}}
 
