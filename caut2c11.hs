@@ -66,9 +66,9 @@ caut2c11 opts = do
       s'' <- infoFromSpec s'
       let context = mkGenericContext s''
       
-      putStrLn hfile
-      hres <- hastacheFile muConfig hfile context
-      TL.putStrLn hres
+      -- putStrLn hfile
+      -- hres <- hastacheFile muConfig hfile context
+      -- TL.putStrLn hres
 
       putStrLn cfile
       cres <- hastacheFile muConfig cfile context
@@ -147,6 +147,20 @@ typeBodyTempl i =
     SP.Partial {} -> "types/partial_body.tmpl.c" 
     SP.Pad {} -> "types/pad_body.tmpl.c" 
 
+typeSerTempl :: SP.SpType Name -> FilePath
+typeSerTempl i =
+  case i of
+    SP.BuiltIn {} -> "types/builtin_serializers.tmpl.c" 
+    SP.Scalar {} -> "types/scalar_serializers.tmpl.c" 
+    SP.Const {} -> "types/const_serializers.tmpl.c" 
+    SP.FixedArray {} -> "types/fixed_serializers.tmpl.c" 
+    SP.BoundedArray {} -> "types/bounded_serializers.tmpl.c" 
+    SP.Struct {} -> "types/struct_serializers.tmpl.c" 
+    SP.Set {} -> "types/set_serializers.tmpl.c" 
+    SP.Enum {} -> "types/enum_serializers.tmpl.c" 
+    SP.Partial {} -> "types/partial_serializers.tmpl.c" 
+    SP.Pad {} -> "types/pad_serializers.tmpl.c" 
+
 typeInfoBody :: M.Map Name TypeInfo -> TypeInfo -> IO TypeInfo
 typeInfoBody m i = do
   b <- case tyInfType i of
@@ -196,7 +210,7 @@ typeInfoBody m i = do
   return i { tyInfDeclBody = b }
   where
     tyName = tyInfName i
-    typeBody' ctx = liftM T.unpack $ typeBody (tyInfTemplName i) ctx
+    typeBody' ctx = liftM T.unpack $ typeBody (tyInfBodyTemplName i) ctx
     fromField (IndexedRef n r ix) = let r' = fromJust $ M.lookup r m -- This *should* never fail.
                                         r'' = tyInfDecl r'
                                     in if "void" == r''
@@ -205,7 +219,8 @@ typeInfoBody m i = do
 
 
 typeInfo :: SP.SpType Name -> TypeInfo
-typeInfo o = o' { tyInfTemplName = typeBodyTempl o
+typeInfo o = o' { tyInfBodyTemplName = typeBodyTempl o
+                , tyInfSerTempName = typeSerTempl o
                 , tyInfType = o
                 }
   where
@@ -293,7 +308,8 @@ data TypeInfo = TypeInfo
   , tyInfPacker :: String
   , tyInfUnpacker :: String
   , tyInfLengthCheck :: String
-  , tyInfTemplName :: String
+  , tyInfBodyTemplName :: String
+  , tyInfSerTempName :: String
   , tyInfType :: SP.SpType Name
   } deriving (Data, Typeable)
 
@@ -309,7 +325,8 @@ defaultTypeInfo = TypeInfo
   , tyInfPacker = error "No packer declared."
   , tyInfUnpacker = error "No unpacker declared."
   , tyInfLengthCheck = error "No length checker declared."
-  , tyInfTemplName = ""
+  , tyInfBodyTemplName = error "No body template file defined."
+  , tyInfSerTempName = error "No serializer template file defined."
   , tyInfType = error "No type set."
   }
 

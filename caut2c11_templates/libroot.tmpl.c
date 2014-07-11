@@ -1,8 +1,22 @@
-/* BUILD: clang -pedantic -std=c11 -Wall -Wextra {{libname}}.c -o {{libname}} */
-#include "{{libname}}.h"
+/* BUILD: clang -pedantic -std=c11 -Wall -Wextra -c {{libname}}.c -o {{libname}}.o */
+#include "{{templName}}.h"
 
-/* Definitions for packing functions. */
-{{packDefinitions}}
+{{#templTypes}}
+{{#tyInfDecl}}
+/* Type: {{tyInfName}} */
+enum caut_status pack_{{tyInfName}}(struct caut_pack_iter * const iter, {{tyInfDecl}} const * const obj)
+{
+  /* BODY */
+}
 
-/* Definitions for unpacking functions. */
-{{unpackDefinitions}}
+enum caut_status unpack_{{tyInfName}}(struct caut_unpack_iter * const iter, {{tyInfDecl}} * const obj)
+{
+  /* BODY */
+}
+
+size_t packed_size_{{tyInfName}}({{tyInfDecl}} const * const obj) {
+  /* BODY */
+}
+{{/tyInfDecl}}
+
+{{/templTypes}}
