@@ -152,11 +152,11 @@ renderHFile spec = render $ vcat [ gaurdOpen
 
     tyDecl ty = let n = typeName ty
                 in case ty of
-                     SP.BuiltIn t _ _ -> if "void" == n
+                     SP.BuiltIn {} -> if "void" == n
                                            then "ERROR: cannot declare type `void`."
                                            else n
-                     SP.Scalar t _ _ -> n ++ "_t"
-                     SP.Const t _ _ -> n ++ "_t"
+                     SP.Scalar {} -> n ++ "_t"
+                     SP.Const {} -> n ++ "_t"
                      SP.FixedArray {} -> "struct " ++ n
                      SP.BoundedArray {} -> "struct " ++ n
                      SP.Struct {} -> "struct " ++ n
@@ -180,8 +180,6 @@ renderHFile spec = render $ vcat [ gaurdOpen
     libInclude f = text $ "#include <" ++ f ++ ">"
     relInclude f = text $ "#include \"" ++ f ++ "\""
     hashBytes = bytesToCArray $ hashToBytes $ SP.specHash spec
-
-
 
 blankLine :: Doc
 blankLine = text ""
@@ -220,132 +218,3 @@ builtInToNative BIieee754s = Just "float"
 builtInToNative BIieee754d = Just "double"
 builtInToNative BIbool     = Nothing -- The builtin Boolean relies on 'bool' from stdbool.h
 builtInToNative BIvoid     = Nothing -- The builtin Void type is unexpressable in C
-
-{-
-typeInfoBody :: M.Map Name TypeInfo -> TypeInfo -> IO TypeInfo
-typeInfoBody m i = do
-  b <- case tyInfType i of
-          SP.BuiltIn {} -> typeBody' BuiltInInfo { biName = tyName }
-          SP.Scalar {} -> typeBody' ScalarInfo { scName = tyName }
-          SP.Const {} -> typeBody' ConstInfo { cName = tyName }
-          SP.FixedArray a _ _ -> 
-            let r = fixedArrRef a
-                ri = fromJust $ M.lookup r m -- This *should* never fail.
-            in typeBody' FixedArrayInfo { faName = tyName
-                                        , faLength = (fixedArrLen . SP.unFixed) $ tyInfType i
-                                        , faRefTypeDecl = tyInfDecl ri
-                                        }
-          SP.BoundedArray a _ _ alr -> 
-            let r = boundedArrRef a
-                ri = fromJust $ M.lookup r m -- This *should* never fail.
-            in typeBody' BoundedArrayInfo { baName = tyName
-                                          , baLength = (boundedArrMaxLen . SP.unBounded) $ tyInfType i
-                                          , baRefTypeDecl = tyInfDecl ri
-                                          , baLengthRepr = show $ unLengthRepr alr
-                                          }
-          SP.Struct s _ _ ->
-            let sfs = map fromField $ unFields . structFields $ s
-            in typeBody' StructInfo { sName = tyName
-                                    , sFields = sfs
-                                    }
-          SP.Set s _ _ fr ->
-            let sfs = map fromField $ unFields . setFields $ s
-            in typeBody' SetInfo { tName = tyName
-                                 , tFields = sfs
-                                 , tFlagRepr = show . unFlagsRepr $ fr
-                                 }
-          SP.Enum e _ _ tr ->
-            let sfs = map fromField $ unFields . enumFields $ e
-            in typeBody' EnumInfo { eName = tyName
-                                  , eFields = sfs
-                                  , eTagRepr = show . unTagRepr $ tr
-                                  }
-          SP.Partial e _ _ tr lr ->
-            let sfs = map fromField $ unFields . partialFields $ e
-            in typeBody' PartialInfo { pName = tyName
-                                     , pFields = sfs
-                                     , pTagRepr = show . unTagRepr $ tr
-                                     , pLengthRepr = show . unLengthRepr $ lr
-                                     }
-          SP.Pad {} -> typeBody' PadInfo { paName = tyName }
-  return i { tyInfDeclBody = b }
-  where
-    tyName = tyInfName i
-    typeBody' ctx = liftM T.unpack $ typeBody (tyInfBodyTemplName i) ctx
-    fromField (IndexedRef n r ix) = let r' = fromJust $ M.lookup r m -- This *should* never fail.
-                                        r'' = tyInfDecl r'
-                                    in if "void" == r''
-                                          then FieldInfo n "" ix
-                                          else FieldInfo n r'' ix
-
-
-typeInfo :: SP.SpType Name -> TypeInfo
-typeInfo o = o' { tyInfBodyTemplName = typeBodyTempl o
-                , tyInfSerTempName = typeSerTempl o
-                , tyInfType = o
-                }
-  where
-    o' = case o of
-      SP.BuiltIn t _ _ ->
-        baseInf
-          { tyInfFwdDecls = [ builtInToTyDef $ unTBuiltIn t ]
-          , tyInfDecl = case tyName of
-                          "void" -> ""
-                          n -> n
-          }
-      SP.Scalar t _ _ ->
-        baseInf
-          { tyInfFwdDecls = [ "typedef " ++ (show . scalarRepr $ t) ++ " " ++ tyName ++ "_t;"]
-          , tyInfDecl = tyName ++ "_t"
-          }
-      SP.Const t _ _ ->
-        baseInf
-          { tyInfConsts = [ ConstInf "VALUE" (show . constValue . unConst $ o)]
-          , tyInfFwdDecls = [ "typedef " ++ (show . constRepr $ t) ++ " " ++ tyName ++ "_t;"]
-          , tyInfDecl = tyName ++ "_t"
-          }
-      SP.FixedArray t _ _ ->
-        let arrLenStr = show . fixedArrLen $ t
-        in baseInf
-           { tyInfConsts = [ ConstInf "LENGTH" arrLenStr]
-           , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-           , tyInfDecl = "struct " ++ tyName
-           }
-      SP.BoundedArray t _ _ _ ->
-        let arrMaxLenStr = show . boundedArrMaxLen $ t
-        in baseInf
-          { tyInfConsts = [ ConstInf "MAX_LENGTH" arrMaxLenStr]
-          , tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDecl = "struct " ++ tyName
-          }
-      SP.Struct {} ->
-        baseInf
-          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDecl = "struct " ++ tyName
-          }
-      SP.Set {} ->
-        baseInf
-          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDecl = "struct " ++ tyName
-          }
-      SP.Enum {} ->
-        baseInf
-          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDecl = "struct " ++ tyName
-          }
-      SP.Partial {} ->
-        baseInf
-          { tyInfFwdDecls = [ "struct " ++ tyName ++ ";"]
-          , tyInfDecl = "struct " ++ tyName
-          }
-      SP.Pad t _ _ ->
-        baseInf
-          { tyInfFwdDecls = [ "typedef u8 " ++ tyName ++ "_t[" ++ (show . padLength $ t) ++ "]" ]
-          , tyInfDecl = tyName ++ "_t"
-          }
-    tyName = SP.typeName o
-    baseInf = defaultTypeInfo { tyInfName = tyName
-                              , tyInfHash = bytesToCArray $ hashToBytes $ SP.spHash o
-                              , tyInfSize = RangeSize (minSize o) (maxSize o)
-                              }
--}
