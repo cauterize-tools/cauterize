@@ -74,6 +74,8 @@ renderHFile spec = render $ vcat [ gaurdOpen
                                  , blankLine
                                  , fwdDecls
                                  , blankLine
+                                 , typeProtoTypes
+                                 , blankLine
                                  , gaurdClose
                                  ]
   where
@@ -105,6 +107,7 @@ renderHFile spec = render $ vcat [ gaurdOpen
     typeSizes = vcat $ concatMap typeSize sTypes
     constDecls = vcat $ map constDecl sTypes
     fwdDecls = vcat $ map (text . fwdDecl) sTypes
+    typeProtoTypes = vcat $ concatMap funProtoTypes sTypes
 
     typeHash t = text $ ( "uint8_t const TYPE_HASH_" ++ libName ++ "_" ++ typeName t ++ "[] =\n  ")
                      ++ (bytesToCArray . hashToBytes $ SP.spHash t)
@@ -137,15 +140,39 @@ renderHFile spec = render $ vcat [ gaurdOpen
                       SP.BuiltIn t _ _ -> case builtInToNative $ unTBuiltIn t of
                                             Just native -> "typedef " ++ native ++ " " ++ n ++ ";"
                                             Nothing -> "/* No native renaming for type " ++ n ++ ".*/"
-                      SP.Scalar t _ _ -> "typedef " ++ (show . scalarRepr $ t) ++ " " ++ n ++ "_t;"
-                      SP.Const t _ _ -> "typedef " ++ (show . constRepr $ t) ++ " " ++ n ++ "_t;"
-                      SP.FixedArray {} -> "struct " ++ n ++ ";"
-                      SP.BoundedArray {} -> "struct " ++ n ++ ";"
-                      SP.Struct {} -> "struct " ++ n ++ ";"
-                      SP.Set {} -> "struct " ++ n ++ ";"
-                      SP.Enum {} -> "struct " ++ n ++ ";"
-                      SP.Partial {} -> "struct " ++ n ++ ";"
-                      SP.Pad {} -> "struct " ++ n ++ ";"
+                      SP.Scalar t _ _ -> "typedef " ++ (show . scalarRepr $ t) ++ " " ++ tyDecl ty ++ ";"
+                      SP.Const t _ _ -> "typedef " ++ (show . constRepr $ t) ++ " " ++ tyDecl ty ++ ";"
+                      SP.FixedArray {} -> tyDecl ty ++ ";"
+                      SP.BoundedArray {} -> tyDecl ty ++ ";"
+                      SP.Struct {} -> tyDecl ty ++ ";"
+                      SP.Set {} -> tyDecl ty ++ ";"
+                      SP.Enum {} -> tyDecl ty ++ ";"
+                      SP.Partial {} -> tyDecl ty ++ ";"
+                      SP.Pad {} -> tyDecl ty ++ ";"
+
+    tyDecl ty = let n = typeName ty
+                in case ty of
+                     SP.BuiltIn t _ _ -> if "void" == n
+                                           then "ERROR: cannot declare type `void`."
+                                           else n
+                     SP.Scalar t _ _ -> n ++ "_t"
+                     SP.Const t _ _ -> n ++ "_t"
+                     SP.FixedArray {} -> "struct " ++ n
+                     SP.BoundedArray {} -> "struct " ++ n
+                     SP.Struct {} -> "struct " ++ n
+                     SP.Set {} -> "struct " ++ n
+                     SP.Enum {} -> "struct " ++ n
+                     SP.Partial {} -> "struct " ++ n
+                     SP.Pad {} -> "struct " ++ n
+
+    funProtoTypes ty = let n = typeName ty
+                           d = tyDecl ty
+                           sizer = text $ "enum caut_status packed_size_" ++ n ++ "(" ++ d ++ " const * const obj);"
+                           packer = text $ "enum caut_status pack_" ++ n ++ "(struct caut_pack_iter * const iter, " ++ d ++ " const * const obj);"
+                           unpacker = text $ "enum caut_status unpack_" ++ n ++ "(struct caut_unpack_iter * const iter, " ++ d ++ " * const obj);"
+                       in if n == "void"
+                            then []
+                            else [packer, unpacker, sizer, blankLine]
 
     sTypes = specTypes spec
     libName = specNameToCName $ SP.specName spec
