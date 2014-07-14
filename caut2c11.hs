@@ -1,27 +1,21 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 module Main where
 
-import qualified Data.Text.Lazy.IO as TL
-import Text.Hastache
-import Text.Hastache.Context
-import Data.Data 
-import qualified Data.Text.Lazy as T
-import Data.Word 
-import Data.List 
-import Data.Char 
-import Data.Maybe 
-import qualified Data.Map as M
-import Control.Monad
 import Options.Applicative
-import Numeric
+import Text.PrettyPrint as P hiding ((<>))
 
-import Paths_cauterize
+import Data.Word
+import Data.Char
+import Data.List
+import Data.List.Split
+import Numeric
 
 import Cauterize.FormHash
 import Cauterize.Specification as SP
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
-import Cauterize.Common.IndexedRef
+-- import Cauterize.Common.IndexedRef
+
+-- import Paths_cauterize
 
 data Caut2C11Opts = Caut2C11Opts
   { inputFile :: String
@@ -55,29 +49,115 @@ main = runWithOptions caut2c11
 
 caut2c11 :: Caut2C11Opts -> IO ()
 caut2c11 opts = do
-  hfile <- getDataFileName "libroot.tmpl.h"
-  cfile <- getDataFileName "libroot.tmpl.c"
-
   s <- SP.parseFile (inputFile opts)
-
   case s of
     Left e -> print e
-    Right s' -> do
-      s'' <- infoFromSpec s'
-      let context = mkGenericContext s''
-      
-      -- putStrLn hfile
-      -- hres <- hastacheFile muConfig hfile context
-      -- TL.putStrLn hres
+    Right s' -> putStrLn $ renderHFile s'
 
-      putStrLn cfile
-      cres <- hastacheFile muConfig cfile context
-      TL.putStrLn cres
-
-replaceWith :: (Eq a) => [a] -> a -> a -> [a]
-replaceWith xs srch repl = map replFn xs
+renderHFile :: Spec Name -> String
+renderHFile spec = render $ vcat [ gaurdOpen
+                                 , gaurdDef
+                                 , blankLine
+                                 , includes
+                                 , blankLine
+                                 , docLines
+                                 , blankLine
+                                 , libDefines
+                                 , blankLine
+                                 , libHash
+                                 , blankLine
+                                 , typeHashes
+                                 , blankLine
+                                 , typeSizes
+                                 , blankLine
+                                 , constDecls
+                                 , blankLine
+                                 , fwdDecls
+                                 , blankLine
+                                 , gaurdClose
+                                 ]
   where
-    replFn x = if x == srch then repl else x
+    gaurdOpen  = text $ "#ifndef _CAUTERIZE_CAUT2C11_" ++ libName ++ "_"
+    gaurdDef   = text $ "#define _CAUTERIZE_CAUT2C11_" ++ libName ++ "_"
+    gaurdClose = text $ "#endif /* _CAUTERIZE_CAUT2C11_" ++ libName ++ "_ */"
+    includes = vcat [ libInclude "stddef.h"
+                    , libInclude "stdint.h"
+                    , libInclude "stdbool.h"
+                    , blankLine
+                    , relInclude "cauterize.h"
+                    ]
+
+    docLines = vcat [ text   "/*"
+                    , text $ " * Name: " ++ libName
+                    , text $ " * Version: " ++ libVersion
+                    , text   " */"
+                    ]
+
+    libDefines = vcat [ text $ "#define NAME_" ++ libName ++ " \"" ++ libName ++ "\""
+                      , text $ "#define VERSION_" ++ libName ++ " \"" ++ libVersion ++ "\""
+                      , text $ "#define MIN_SIZE_" ++ libName ++ " (" ++ (show . SP.minSize . SP.specSize $ spec) ++ ")"
+                      , text $ "#define MAX_SIZE_" ++ libName ++ " (" ++ (show . SP.maxSize . SP.specSize $ spec) ++ ")"
+                      ]
+
+    libHash = text $ "uint8_t const SCHEMA_HASH_" ++ libName ++ "[] = \n  " ++ hashBytes ++ ";"
+
+    typeHashes = vcat $ map typeHash sTypes
+    typeSizes = vcat $ concatMap typeSize sTypes
+    constDecls = vcat $ map constDecl sTypes
+    fwdDecls = vcat $ map (text . fwdDecl) sTypes
+
+    typeHash t = text $ ( "uint8_t const TYPE_HASH_" ++ libName ++ "_" ++ typeName t ++ "[] =\n  ")
+                     ++ (bytesToCArray . hashToBytes $ SP.spHash t)
+                     ++ "\n"
+
+    typeSize t = [ text $ "#define MIN_SIZE_" ++ libName ++ "_" ++ typeName t ++ " (" ++ (show . minSize $ t) ++ ")"
+                 , text $ "#define MAX_SIZE_" ++ libName ++ "_" ++ typeName t ++ " (" ++ (show . maxSize $ t) ++ ")"
+                 , blankLine
+                 ]
+
+    constDecl ty = let n = typeName ty
+                       constDec = constStr n
+                   in case ty of
+                        SP.BuiltIn {} -> P.empty
+                        SP.Scalar {} -> P.empty
+                        SP.Const t _ _ -> constDec "VALUE" (show . constValue $ t)
+                        SP.FixedArray t _ _ -> constDec "LENGTH" (show . fixedArrLen $ t)
+                        SP.BoundedArray t _ _ _ -> constDec "MAX_LENGTH" (show . boundedArrMaxLen $ t)
+                        SP.Struct {} -> P.empty
+                        SP.Set {} -> P.empty
+                        SP.Enum {} -> P.empty
+                        SP.Partial {} -> P.empty
+                        SP.Pad {} -> P.empty
+
+    fullConstName tyName term = "CONST_" ++ libName ++ "_" ++ tyName ++ "_" ++ term
+    constStr tyName term val = text $ fullConstName tyName term ++ " (" ++ val ++ ")"
+
+    fwdDecl ty = let n = typeName ty
+                 in case ty of
+                      SP.BuiltIn t _ _ -> case builtInToNative $ unTBuiltIn t of
+                                            Just native -> "typedef " ++ native ++ " " ++ n ++ ";"
+                                            Nothing -> "/* No native renaming for type " ++ n ++ ".*/"
+                      SP.Scalar t _ _ -> "typedef " ++ (show . scalarRepr $ t) ++ " " ++ n ++ "_t;"
+                      SP.Const t _ _ -> "typedef " ++ (show . constRepr $ t) ++ " " ++ n ++ "_t;"
+                      SP.FixedArray {} -> "struct " ++ n ++ ";"
+                      SP.BoundedArray {} -> "struct " ++ n ++ ";"
+                      SP.Struct {} -> "struct " ++ n ++ ";"
+                      SP.Set {} -> "struct " ++ n ++ ";"
+                      SP.Enum {} -> "struct " ++ n ++ ";"
+                      SP.Partial {} -> "struct " ++ n ++ ";"
+                      SP.Pad {} -> "struct " ++ n ++ ";"
+
+    sTypes = specTypes spec
+    libName = specNameToCName $ SP.specName spec
+    libVersion = specVerToCVer $ SP.specVersion spec
+    libInclude f = text $ "#include <" ++ f ++ ">"
+    relInclude f = text $ "#include \"" ++ f ++ "\""
+    hashBytes = bytesToCArray $ hashToBytes $ SP.specHash spec
+
+
+
+blankLine :: Doc
+blankLine = text ""
 
 specNameToCName :: Name -> Name
 specNameToCName n = "lib" ++ replaceWith n ' ' '_'
@@ -85,82 +165,36 @@ specNameToCName n = "lib" ++ replaceWith n ' ' '_'
 specVerToCVer :: Version -> String
 specVerToCVer = id
 
+replaceWith :: (Eq a) => [a] -> a -> a -> [a]
+replaceWith xs srch repl = map replFn xs
+  where
+    replFn x = if x == srch then repl else x
+
 bytesToCArray :: [Word8] -> String
 bytesToCArray bs = "{" ++ strBytes ++ "}"
   where
-    strBytes = intercalate "," $ map showByte bs
+    strBytes = intercalate ",\n   " $ map (intercalate ",") $ chunksOf 4 $ map showByte bs
     showByte b = let s = showHex b ""
                  in case s of
                       [b1,b2] -> "0x" ++ [toUpper b1,toUpper b2]
                       [b1] -> "0x0" ++ [toUpper b1]
                       _ -> error "This should be impossible."
 
-infoFromSpec :: SP.Spec Name -> IO TemplInfo
-infoFromSpec sp = do
-  tts <- mapM (typeInfoBody m) mTypes
-  return
-    TemplInfo { templName = specNameToCName $ SP.specName sp
-              , templVersion = specVerToCVer $ SP.specVersion sp
-              , templHash = bytesToCArray hashBytes
-              , templHashSize = length hashBytes
-              , templSize = SP.specSize sp
-              , templTypes = tts
-              }
-  where
-    hashBytes = hashToBytes $ SP.specHash sp
-    specTyMap = M.fromList $ map (\t -> (SP.typeName t, t)) $ SP.specTypes sp
-    m = fmap typeInfo specTyMap
-    mTypes = map snd $ M.toList m
+builtInToNative :: BuiltIn -> Maybe String
+builtInToNative BIu8       = Just "uint8_t"
+builtInToNative BIu16      = Just "uint16_t"
+builtInToNative BIu32      = Just "uint32_t"
+builtInToNative BIu64      = Just "uint64_t"
+builtInToNative BIs8       = Just "int8_t;"
+builtInToNative BIs16      = Just "int16_t"
+builtInToNative BIs32      = Just "int32_t"
+builtInToNative BIs64      = Just "int64_t"
+builtInToNative BIieee754s = Just "float"
+builtInToNative BIieee754d = Just "double"
+builtInToNative BIbool     = Nothing -- The builtin Boolean relies on 'bool' from stdbool.h
+builtInToNative BIvoid     = Nothing -- The builtin Void type is unexpressable in C
 
-builtInToTyDef :: BuiltIn -> String
-builtInToTyDef BIu8 = "typedef uint8_t u8;"
-builtInToTyDef BIu16 = "typedef uint16_t u16;"
-builtInToTyDef BIu32 = "typedef uint32_t u32;"
-builtInToTyDef BIu64 = "typedef uint64_t u64;"
-builtInToTyDef BIs8 = "typedef int8_t s8;"
-builtInToTyDef BIs16 = "typedef int16_t s16;"
-builtInToTyDef BIs32 = "typedef int32_t s32;"
-builtInToTyDef BIs64 = "typedef int64_t s64;"
-builtInToTyDef BIieee754s = "typedef float ieee754s;"
-builtInToTyDef BIieee754d = "typedef double ieee754d;"
-builtInToTyDef BIbool = "/* The builtin Boolean relies on 'bool' from stdbool.h */"
-builtInToTyDef BIvoid = "/* The builtin Void type is unexpressable in C */"
-
-typeBody :: Data a => FilePath -> a -> IO T.Text
-typeBody fname ctx = do
-  fpath <- getDataFileName fname
-  hastacheFile muConfig fpath ctx'
-  where
-    ctx' = mkGenericContext ctx
-
-typeBodyTempl :: SP.SpType Name -> FilePath
-typeBodyTempl i =
-  case i of
-    SP.BuiltIn {} -> "types/builtin_body.tmpl.c" 
-    SP.Scalar {} -> "types/scalar_body.tmpl.c" 
-    SP.Const {} -> "types/const_body.tmpl.c" 
-    SP.FixedArray {} -> "types/fixed_body.tmpl.c" 
-    SP.BoundedArray {} -> "types/bounded_body.tmpl.c" 
-    SP.Struct {} -> "types/struct_body.tmpl.c" 
-    SP.Set {} -> "types/set_body.tmpl.c" 
-    SP.Enum {} -> "types/enum_body.tmpl.c" 
-    SP.Partial {} -> "types/partial_body.tmpl.c" 
-    SP.Pad {} -> "types/pad_body.tmpl.c" 
-
-typeSerTempl :: SP.SpType Name -> FilePath
-typeSerTempl i =
-  case i of
-    SP.BuiltIn {} -> "types/builtin_serializers.tmpl.c" 
-    SP.Scalar {} -> "types/scalar_serializers.tmpl.c" 
-    SP.Const {} -> "types/const_serializers.tmpl.c" 
-    SP.FixedArray {} -> "types/fixed_serializers.tmpl.c" 
-    SP.BoundedArray {} -> "types/bounded_serializers.tmpl.c" 
-    SP.Struct {} -> "types/struct_serializers.tmpl.c" 
-    SP.Set {} -> "types/set_serializers.tmpl.c" 
-    SP.Enum {} -> "types/enum_serializers.tmpl.c" 
-    SP.Partial {} -> "types/partial_serializers.tmpl.c" 
-    SP.Pad {} -> "types/pad_serializers.tmpl.c" 
-
+{-
 typeInfoBody :: M.Map Name TypeInfo -> TypeInfo -> IO TypeInfo
 typeInfoBody m i = do
   b <- case tyInfType i of
@@ -279,7 +313,7 @@ typeInfo o = o' { tyInfBodyTemplName = typeBodyTempl o
           }
       SP.Pad t _ _ ->
         baseInf
-          { tyInfFwdDecls = [ "typedef u8 " ++ tyName ++ "_t [" ++ (show . padLength $ t) ++ "]" ]
+          { tyInfFwdDecls = [ "typedef u8 " ++ tyName ++ "_t[" ++ (show . padLength $ t) ++ "]" ]
           , tyInfDecl = tyName ++ "_t"
           }
     tyName = SP.typeName o
@@ -287,112 +321,4 @@ typeInfo o = o' { tyInfBodyTemplName = typeBodyTempl o
                               , tyInfHash = bytesToCArray $ hashToBytes $ SP.spHash o
                               , tyInfSize = RangeSize (minSize o) (maxSize o)
                               }
-
-data TemplInfo = TemplInfo
-  { templName :: String
-  , templVersion :: String
-  , templHash :: String
-  , templHashSize :: Int
-  , templSize :: RangeSize
-  , templTypes :: [TypeInfo]
-  } deriving (Data, Typeable)
-
-data TypeInfo = TypeInfo
-  { tyInfName :: Name
-  , tyInfHash :: String
-  , tyInfSize :: RangeSize
-  , tyInfConsts :: [ConstInf]
-  , tyInfFwdDecls :: [String]
-  , tyInfDeclBody :: String
-  , tyInfDecl :: String
-  , tyInfPacker :: String
-  , tyInfUnpacker :: String
-  , tyInfLengthCheck :: String
-  , tyInfBodyTemplName :: String
-  , tyInfSerTempName :: String
-  , tyInfType :: SP.SpType Name
-  } deriving (Data, Typeable)
-
-defaultTypeInfo :: TypeInfo
-defaultTypeInfo = TypeInfo
-  { tyInfName = error "No name set."
-  , tyInfHash = error "No hash set."
-  , tyInfSize = error "No size set."
-  , tyInfConsts = []
-  , tyInfFwdDecls = []
-  , tyInfDeclBody = error "No declaration body set."
-  , tyInfDecl = error "No declaration set."
-  , tyInfPacker = error "No packer declared."
-  , tyInfUnpacker = error "No unpacker declared."
-  , tyInfLengthCheck = error "No length checker declared."
-  , tyInfBodyTemplName = error "No body template file defined."
-  , tyInfSerTempName = error "No serializer template file defined."
-  , tyInfType = error "No type set."
-  }
-
-data BuiltInInfo = BuiltInInfo
-  { biName :: Name
-  } deriving (Data, Typeable)
-
-data ScalarInfo = ScalarInfo
-  { scName :: Name
-  } deriving (Data, Typeable)
-
-data ConstInfo = ConstInfo
-  { cName :: Name
-  } deriving (Data, Typeable)
-
-data FixedArrayInfo = FixedArrayInfo
-  { faName :: Name
-  , faLength :: Integer
-  , faRefTypeDecl :: String
-  } deriving (Data, Typeable)
-
-data BoundedArrayInfo = BoundedArrayInfo
-  { baName :: Name
-  , baLength :: Integer
-  , baRefTypeDecl :: String
-  , baLengthRepr :: String
-  } deriving (Data, Typeable)
-
-data StructInfo = StructInfo
-  { sName :: Name
-  , sFields :: [FieldInfo]
-  } deriving (Data, Typeable)
-
-data SetInfo = SetInfo
-  { tName :: Name
-  , tFields :: [FieldInfo]
-  , tFlagRepr :: String
-  } deriving (Data, Typeable)
-
-data EnumInfo = EnumInfo
-  { eName :: Name
-  , eFields :: [FieldInfo]
-  , eTagRepr :: String
-  } deriving (Data, Typeable)
-
-data PartialInfo = PartialInfo
-  { pName :: Name
-  , pFields :: [FieldInfo]
-  , pTagRepr :: String
-  , pLengthRepr :: String
-  } deriving (Data, Typeable)
-
-data PadInfo = PadInfo
-  { paName :: Name
-  } deriving (Data, Typeable)
-
-data FieldInfo = FieldInfo
-  { fName :: Name
-  , fRefDecl :: String
-  , fIndex :: Integer
-  }  deriving (Data, Typeable)
-
-data ConstInf = ConstInf
-  { constInfName :: String
-  , constInfValue :: String
-  } deriving (Data, Typeable)
-
-muConfig :: MuConfig IO
-muConfig = defaultConfig { muEscapeFunc = emptyEscape }
+-}
