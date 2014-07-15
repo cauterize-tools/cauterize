@@ -6,14 +6,16 @@ import Text.PrettyPrint as P hiding ((<>))
 import Data.Word
 import Data.Char
 import Data.List
+import qualified Data.Map as M
 import Data.List.Split
+import Data.Maybe
 import Numeric
 
 import Cauterize.FormHash
 import Cauterize.Specification as SP
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
--- import Cauterize.Common.IndexedRef
+import Cauterize.Common.IndexedRef
 
 -- import Paths_cauterize
 
@@ -76,6 +78,8 @@ renderHFile spec = render $ vcat [ gaurdOpen
                                  , blankLine
                                  , typeProtoTypes
                                  , blankLine
+                                 , typeBodies
+                                 , blankLine
                                  , gaurdClose
                                  ]
   where
@@ -108,6 +112,7 @@ renderHFile spec = render $ vcat [ gaurdOpen
     constDecls = vcat $ map constDecl sTypes
     fwdDecls = vcat $ map (text . fwdDecl) sTypes
     typeProtoTypes = vcat $ concatMap funProtoTypes sTypes
+    typeBodies = vcat $ map typeBody sTypes
 
     typeHash t = text $ ( "uint8_t const TYPE_HASH_" ++ libName ++ "_" ++ typeName t ++ "[] =\n  ")
                      ++ (bytesToCArray . hashToBytes $ SP.spHash t)
@@ -174,7 +179,55 @@ renderHFile spec = render $ vcat [ gaurdOpen
                             then []
                             else [packer, unpacker, sizer, blankLine]
 
+    typeBody ty = let n = typeName ty
+                  in case ty of
+                     SP.BuiltIn {} -> P.empty
+                     SP.Scalar {} -> P.empty
+                     SP.Const {} -> P.empty
+                     SP.FixedArray t _ _ -> let refDecl = tyDeclFromName $ fixedArrRef t
+                                            in text $ "struct " ++ n ++ " {\n" ++
+                                                       "  " ++ refDecl ++ " elems[" ++ fullConstName n "LENGTH" ++ "];\n" ++
+                                                       "};\n"
+                     SP.BoundedArray t _ _ alr -> let alr' = show $ unLengthRepr alr
+                                                      refDecl = tyDeclFromName $ boundedArrRef t
+                                                  in text $ "struct " ++ n ++ " {\n" ++
+                                                            "  " ++ alr' ++ " _length;\n\n" ++
+                                                            "  " ++ refDecl ++ " elems[" ++ fullConstName n "MAX_LENGTH" ++ "];\n" ++
+                                                            "};\n"
+                     SP.Struct t _ _  -> text $ "struct " ++ n ++ " {\n" ++
+                                                   concatMap (("  " ++) . fieldBody) (unFields . structFields $ t) ++
+                                                "};\n"
+                     SP.Set t _ _ fr -> text $ "struct " ++ n ++ " {\n" ++
+                                                  "  " ++ tyDeclFromName (show . unFlagsRepr $ fr) ++ " _flags;\n\n" ++
+                                                  concatMap (("  " ++) . fieldBody) (unFields . setFields $ t) ++
+                                               "};\n"
+                     SP.Enum t _ _ tr -> text $ "struct " ++ n ++ " {\n" ++
+                                                "  enum " ++ n ++ "_tag {\n" ++
+                                                   concatMap (\fn -> "    " ++ fieldName fn ++ " = " ++ (show . fieldIndex $ fn) ++ ",\n") (unFields . enumFields $ t) ++
+                                                "  };\n\n" ++ 
+
+                                                "  " ++ (tyDeclFromName . show . unTagRepr $ tr) ++ " _tag;\n\n" ++
+                                                   concatMap (("  " ++) . fieldBody) (unFields . enumFields $ t) ++
+                                                "};\n"
+                     SP.Partial t _ _ tr lr -> text $ "struct " ++ n ++ " {\n" ++
+                                                      "  enum " ++ n ++ "_tag {\n" ++
+                                                         concatMap (\fn -> "    " ++ fieldName fn ++ " = " ++ (show . fieldIndex $ fn) ++ ",\n") (unFields . partialFields $ t) ++
+                                                      "  };\n\n" ++ 
+
+                                                      "  " ++ (tyDeclFromName . show . unTagRepr $ tr) ++ " _tag;\n" ++
+                                                      "  " ++ (tyDeclFromName . show . unLengthRepr $ lr) ++ " _length;\n\n" ++
+                                                         concatMap (("  " ++) . fieldBody) (unFields . partialFields $ t) ++
+                                                      "};\n"
+                     SP.Pad {} -> P.empty
+      where
+        fieldBody f = if fieldRef f == "void"
+                        then "/* Field " ++ fieldName f ++ " is void. */\n"
+                        else (tyDeclFromName . fieldRef $ f) ++ " " ++ fieldName f ++ ";\n"
+
     sTypes = specTypes spec
+    mTypes = M.fromList $ zip (map typeName sTypes) sTypes
+    tyDeclFromName n = let t = fromMaybe (error "Inconsistent map.") (M.lookup n mTypes)
+                       in tyDecl t
     libName = specNameToCName $ SP.specName spec
     libVersion = specVerToCVer $ SP.specVersion spec
     libInclude f = text $ "#include <" ++ f ++ ">"
