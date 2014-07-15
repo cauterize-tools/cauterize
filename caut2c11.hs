@@ -54,7 +54,10 @@ caut2c11 opts = do
   s <- SP.parseFile (inputFile opts)
   case s of
     Left e -> print e
-    Right s' -> putStrLn $ renderHFile s'
+    Right s' -> do
+      putStrLn $ renderHFile s'
+      putStrLn   "########################################################"
+      putStrLn $ renderCFile s'
 
 renderHFile :: Spec Name -> String
 renderHFile spec = render $ vcat [ gaurdOpen
@@ -137,8 +140,7 @@ renderHFile spec = render $ vcat [ gaurdOpen
                         SP.Partial {} -> P.empty
                         SP.Pad {} -> P.empty
 
-    fullConstName tyName term = "CONST_" ++ libName ++ "_" ++ tyName ++ "_" ++ term
-    constStr tyName term val = text $ fullConstName tyName term ++ " (" ++ val ++ ")"
+    constStr tyName term val = text $ fullConstName libName tyName term ++ " (" ++ val ++ ")"
 
     fwdDecl ty = let n = typeName ty
                  in case ty of
@@ -154,21 +156,6 @@ renderHFile spec = render $ vcat [ gaurdOpen
                       SP.Enum {} -> tyDecl ty ++ ";"
                       SP.Partial {} -> tyDecl ty ++ ";"
                       SP.Pad {} -> tyDecl ty ++ ";"
-
-    tyDecl ty = let n = typeName ty
-                in case ty of
-                     SP.BuiltIn {} -> if "void" == n
-                                           then "ERROR: cannot declare type `void`."
-                                           else n
-                     SP.Scalar {} -> n
-                     SP.Const {} -> n
-                     SP.FixedArray {} -> "struct " ++ n
-                     SP.BoundedArray {} -> "struct " ++ n
-                     SP.Struct {} -> "struct " ++ n
-                     SP.Set {} -> "struct " ++ n
-                     SP.Enum {} -> "struct " ++ n
-                     SP.Partial {} -> "struct " ++ n
-                     SP.Pad {} -> "struct " ++ n
 
     funProtoTypes ty = let n = typeName ty
                            d = tyDecl ty
@@ -186,13 +173,13 @@ renderHFile spec = render $ vcat [ gaurdOpen
                      SP.Const {} -> P.empty
                      SP.FixedArray t _ _ -> let refDecl = tyDeclFromName $ fixedArrRef t
                                             in text $ "struct " ++ n ++ " {\n" ++
-                                                       "  " ++ refDecl ++ " elems[" ++ fullConstName n "LENGTH" ++ "];\n" ++
+                                                       "  " ++ refDecl ++ " elems[" ++ fullConstName libName n "LENGTH" ++ "];\n" ++
                                                        "};\n"
                      SP.BoundedArray t _ _ alr -> let alr' = show $ unLengthRepr alr
                                                       refDecl = tyDeclFromName $ boundedArrRef t
                                                   in text $ "struct " ++ n ++ " {\n" ++
                                                             "  " ++ alr' ++ " _length;\n\n" ++
-                                                            "  " ++ refDecl ++ " elems[" ++ fullConstName n "MAX_LENGTH" ++ "];\n" ++
+                                                            "  " ++ refDecl ++ " elems[" ++ fullConstName libName n "MAX_LENGTH" ++ "];\n" ++
                                                             "};\n"
                      SP.Struct t _ _  -> text $ "struct " ++ n ++ " {\n" ++
                                                    concatMap (("  " ++) . fieldBody) (unFields . structFields $ t) ++
@@ -233,6 +220,97 @@ renderHFile spec = render $ vcat [ gaurdOpen
     libInclude f = text $ "#include <" ++ f ++ ">"
     relInclude f = text $ "#include \"" ++ f ++ "\""
     hashBytes = bytesToCArray $ hashToBytes $ SP.specHash spec
+
+renderCFile :: Spec Name -> String
+renderCFile spec = render $ vcat [ includes
+                                 , blankLine
+                                 , packed_sizers
+                                 , blankLine
+                                 ]
+  where
+    includes = text $ "#include \"" ++ libName ++ ".h\""
+
+    packed_sizers = vcat $ map typePackBody sTypes
+
+    typePackBody ty =
+      let n = typeName ty
+          d = tyDecl ty
+          fieldSize f = let fn = fieldName f
+                            rn = fieldRef f
+                        in "packed_size_" ++ rn ++ "(&obj->" ++ fn ++ ");"
+          guts =
+            case ty of
+              SP.FixedArray t _ _ ->
+                let refName = fixedArrRef t
+                in [ "size_t size = 0;"
+                   , ""
+                   , "for (size_t i = 0; i < ARR_LEN(obj->elems); i++) {"
+                   , "  size += packed_size_" ++ refName ++ "(&obj->elems[i]);"
+                   , "}"
+                   , ""
+                   , "return size;"
+                   ]
+              SP.BoundedArray t _ _ _ ->
+                let refName = boundedArrRef t
+                in [ "size_t size = sizeof(obj->_length);"
+                   , ""
+                   , "for (size_t i = 0; i < obj->_length; i++) {"
+                   , "  size += packed_size_" ++ refName ++ "(&obj->elems[i]);"
+                   , "}"
+                   , ""
+                   , "return size;"
+                   ]
+              SP.Struct t _ _ ->
+                let fields = unFields $ structFields t
+                in [ "size_t size = 0;"
+                   , ""
+                   ] ++ map (("size += " ++) . fieldSize) fields ++
+                   [ ""
+                   , "return size;"
+                   ]
+              SP.Set t _ _ _ ->
+                let fields = unFields $ setFields t
+                    ifBitSet f = let idx = fieldIndex f
+                                 in [ "if (obj->_flags & (1 << " ++ show idx ++ ")) {"
+                                    , "  size += " ++ fieldSize f
+                                    , "}"
+                                    ]
+                in [ "size_t size = sizeof(obj->_flags);"
+                   , ""
+                   ] ++ concatMap ifBitSet fields ++
+                   [ ""
+                   , "return size;"
+                   ]
+              -- Enum
+              -- Partial
+              _ -> [ "(void)obj;"
+                   , "return MAX_SIZE_" ++ libName ++ "_" ++ n ++ ";"
+                   ]
+      in text $ "size_t packed_size_" ++ n ++ "(" ++ d ++ " const * const obj) {\n" ++
+                unlines (map ("  " ++) guts) ++
+                "}\n"
+
+    sTypes = specTypes spec
+    libName = specNameToCName $ SP.specName spec
+
+fullConstName :: String -> String -> String -> String
+fullConstName libName tyName term = "CONST_" ++ libName ++ "_" ++ tyName ++ "_" ++ term
+
+tyDecl :: SP.SpType Name -> String
+tyDecl ty = let n = typeName ty
+            in case ty of
+                 SP.BuiltIn {} -> if "void" == n
+                                       then "ERROR: cannot declare type `void`."
+                                       else n
+                 SP.Scalar {} -> n
+                 SP.Const {} -> n
+                 SP.FixedArray {} -> "struct " ++ n
+                 SP.BoundedArray {} -> "struct " ++ n
+                 SP.Struct {} -> "struct " ++ n
+                 SP.Set {} -> "struct " ++ n
+                 SP.Enum {} -> "struct " ++ n
+                 SP.Partial {} -> "struct " ++ n
+                 SP.Pad {} -> "struct " ++ n
 
 blankLine :: Doc
 blankLine = text ""
