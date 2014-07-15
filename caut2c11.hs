@@ -230,97 +230,99 @@ renderCFile spec = render $ vcat [ includes
   where
     includes = text $ "#include \"" ++ libName ++ ".h\""
 
-    packed_sizers = vcat $ map typePackBody sTypes
+    packed_sizers = vcat $ map packedSizeBody sTypes
 
-    typePackBody ty =
-      let n = typeName ty
-          d = tyDecl ty
-          fieldSize prefix voidPrefix f = let fn = fieldName f
-                                              rn = fieldRef f
-                                          in if rn == "void"
-                                                then voidPrefix ++ "/* Field `" ++ fn ++ "` is void and has no size. */"
-                                                else prefix ++ "packed_size_" ++ rn ++ "(&obj->" ++ fn ++ ");"
-          guts =
-            case ty of
-              SP.FixedArray t _ _ ->
-                let refName = fixedArrRef t
-                in [ "size_t size = 0;"
-                   , ""
-                   , "for (size_t i = 0; i < ARR_LEN(obj->elems); i++) {"
-                   , "  size += packed_size_" ++ refName ++ "(&obj->elems[i]);"
-                   , "}"
-                   , ""
-                   , "return size;"
-                   ]
-              SP.BoundedArray t _ _ _ ->
-                let refName = boundedArrRef t
-                in [ "size_t size = sizeof(obj->_length);"
-                   , ""
-                   , "for (size_t i = 0; i < obj->_length; i++) {"
-                   , "  size += packed_size_" ++ refName ++ "(&obj->elems[i]);"
-                   , "}"
-                   , ""
-                   , "return size;"
-                   ]
-              SP.Struct t _ _ ->
-                let fields = unFields $ structFields t
-                in [ "size_t size = 0;"
-                   , ""
-                   ] ++ map (fieldSize "size += " "") fields ++
-                   [ ""
-                   , "return size;"
-                   ]
-              SP.Set t _ _ _ ->
-                let fields = unFields $ setFields t
-                    ifBitSet f = let idx = fieldIndex f
-                                 in [ "if (obj->_flags & (1 << " ++ show idx ++ ")) {"
-                                    , fieldSize "  size += " "  " f
-                                    , "}"
+    packedSizeBody ty = if "void" == n
+                          then P.empty
+                          else text $ "size_t packed_size_" ++ n ++ "(" ++ d ++ " const * const obj) {\n" ++
+                                      unlines (map ("  " ++) packedSizeGuts) ++
+                                      "}\n"
+      where
+        n = typeName ty
+        d = tyDecl ty
+        fieldSize prefix voidPrefix f = let fn = fieldName f
+                                            rn = fieldRef f
+                                        in if rn == "void"
+                                              then voidPrefix ++ "/* Field `" ++ fn ++ "` is void and has no size. */"
+                                              else prefix ++ "packed_size_" ++ rn ++ "(&obj->" ++ fn ++ ");"
+        packedSizeGuts =
+          case ty of
+            SP.FixedArray t _ _ ->
+              let refName = fixedArrRef t
+              in [ "size_t size = 0;"
+                 , ""
+                 , "for (size_t i = 0; i < ARR_LEN(obj->elems); i++) {"
+                 , "  size += packed_size_" ++ refName ++ "(&obj->elems[i]);"
+                 , "}"
+                 , ""
+                 , "return size;"
+                 ]
+            SP.BoundedArray t _ _ _ ->
+              let refName = boundedArrRef t
+              in [ "size_t size = sizeof(obj->_length);"
+                 , ""
+                 , "for (size_t i = 0; i < obj->_length; i++) {"
+                 , "  size += packed_size_" ++ refName ++ "(&obj->elems[i]);"
+                 , "}"
+                 , ""
+                 , "return size;"
+                 ]
+            SP.Struct t _ _ ->
+              let fields = unFields $ structFields t
+              in [ "size_t size = 0;"
+                 , ""
+                 ] ++ map (fieldSize "size += " "") fields ++
+                 [ ""
+                 , "return size;"
+                 ]
+            SP.Set t _ _ _ ->
+              let fields = unFields $ setFields t
+                  ifBitSet f = let idx = fieldIndex f
+                               in [ "if (obj->_flags & (1 << " ++ show idx ++ ")) {"
+                                  , fieldSize "  size += " "  " f
+                                  , "}"
+                                  ]
+              in [ "size_t size = sizeof(obj->_flags);"
+                 , ""
+                 ] ++ concatMap ifBitSet fields ++
+                 [ ""
+                 , "return size;"
+                 ]
+            SP.Enum t _ _ _ ->
+              let fields = unFields $ enumFields t
+                  switchCase f = let fn = fieldName f
+                                 in [ "case " ++ n ++ "_tag_" ++ fn ++ ":"
+                                    ,  fieldSize "  size += " "  " f
+                                    , "  break;"
                                     ]
-                in [ "size_t size = sizeof(obj->_flags);"
-                   , ""
-                   ] ++ concatMap ifBitSet fields ++
-                   [ ""
-                   , "return size;"
-                   ]
-              SP.Enum t _ _ _ ->
-                let fields = unFields $ enumFields t
-                    switchCase f = let fn = fieldName f
-                                   in [ "case " ++ n ++ "_tag_" ++ fn ++ ":"
-                                      ,  fieldSize "  size += " "  " f
-                                      , "  break;"
-                                      ]
-                in [ "size_t size = sizeof(obj->_tag);"
-                   , ""
-                   , "switch (obj->_tag) {"
-                   ] ++
-                   concatMap switchCase fields ++
-                   [ "}"
-                   , ""
-                   , "return size;"
-                   ]
-              SP.Partial t _ _ _ _ ->
-                let fields = unFields $ partialFields t
-                    switchCase f = let fn = fieldName f
-                                   in [ "case " ++ n ++ "_tag_" ++ fn ++ ":"
-                                      ,  fieldSize "  size += " "  " f
-                                      , "  break;"
-                                      ]
-                in [ "size_t size = sizeof(obj->_tag) + sizeof(obj->_length);"
-                   , ""
-                   , "switch (obj->_tag) {"
-                   ] ++
-                   concatMap switchCase fields ++
-                   [ "}"
-                   , ""
-                   , "return size;"
-                   ]
-              _ -> [ "(void)obj;"
-                   , "return MAX_SIZE_" ++ libName ++ "_" ++ n ++ ";"
-                   ]
-      in text $ "size_t packed_size_" ++ n ++ "(" ++ d ++ " const * const obj) {\n" ++
-                unlines (map ("  " ++) guts) ++
-                "}\n"
+              in [ "size_t size = sizeof(obj->_tag);"
+                 , ""
+                 , "switch (obj->_tag) {"
+                 ] ++
+                 concatMap switchCase fields ++
+                 [ "}"
+                 , ""
+                 , "return size;"
+                 ]
+            SP.Partial t _ _ _ _ ->
+              let fields = unFields $ partialFields t
+                  switchCase f = let fn = fieldName f
+                                 in [ "case " ++ n ++ "_tag_" ++ fn ++ ":"
+                                    ,  fieldSize "  size += " "  " f
+                                    , "  break;"
+                                    ]
+              in [ "size_t size = sizeof(obj->_tag) + sizeof(obj->_length);"
+                 , ""
+                 , "switch (obj->_tag) {"
+                 ] ++
+                 concatMap switchCase fields ++
+                 [ "}"
+                 , ""
+                 , "return size;"
+                 ]
+            _ -> [ "(void)obj;"
+                 , "return MAX_SIZE_" ++ libName ++ "_" ++ n ++ ";"
+                 ]
 
     sTypes = specTypes spec
     libName = specNameToCName $ SP.specName spec
