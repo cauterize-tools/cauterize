@@ -160,8 +160,8 @@ renderHFile spec = render $ vcat [ gaurdOpen
                      SP.BuiltIn {} -> if "void" == n
                                            then "ERROR: cannot declare type `void`."
                                            else n
-                     SP.Scalar {} -> n ++ "_t"
-                     SP.Const {} -> n ++ "_t"
+                     SP.Scalar {} -> n
+                     SP.Const {} -> n
                      SP.FixedArray {} -> "struct " ++ n
                      SP.BoundedArray {} -> "struct " ++ n
                      SP.Struct {} -> "struct " ++ n
