@@ -190,7 +190,7 @@ renderHFile spec = render $ vcat [ gaurdOpen
                                                "};\n"
                      SP.Enum t _ _ tr -> text $ "struct " ++ n ++ " {\n" ++
                                                 "  enum " ++ n ++ "_tag {\n" ++
-                                                   concatMap (\fn -> "    " ++ fieldName fn ++ " = " ++ (show . fieldIndex $ fn) ++ ",\n") (unFields . enumFields $ t) ++
+                                                   concatMap (\fn -> "    " ++ n ++ "_tag_" ++ fieldName fn ++ " = " ++ (show . fieldIndex $ fn) ++ ",\n") (unFields . enumFields $ t) ++
                                                 "  };\n\n" ++ 
 
                                                 "  " ++ (tyDeclFromName . show . unTagRepr $ tr) ++ " _tag;\n\n" ++
@@ -235,9 +235,11 @@ renderCFile spec = render $ vcat [ includes
     typePackBody ty =
       let n = typeName ty
           d = tyDecl ty
-          fieldSize f = let fn = fieldName f
-                            rn = fieldRef f
-                        in "packed_size_" ++ rn ++ "(&obj->" ++ fn ++ ");"
+          fieldSize prefix voidPrefix f = let fn = fieldName f
+                                              rn = fieldRef f
+                                          in if rn == "void"
+                                                then voidPrefix ++ "/* Field `" ++ fn ++ "` is void and has no size. */"
+                                                else prefix ++ "packed_size_" ++ rn ++ "(&obj->" ++ fn ++ ");"
           guts =
             case ty of
               SP.FixedArray t _ _ ->
@@ -264,7 +266,7 @@ renderCFile spec = render $ vcat [ includes
                 let fields = unFields $ structFields t
                 in [ "size_t size = 0;"
                    , ""
-                   ] ++ map (("size += " ++) . fieldSize) fields ++
+                   ] ++ map (fieldSize "size += " "") fields ++
                    [ ""
                    , "return size;"
                    ]
@@ -272,7 +274,7 @@ renderCFile spec = render $ vcat [ includes
                 let fields = unFields $ setFields t
                     ifBitSet f = let idx = fieldIndex f
                                  in [ "if (obj->_flags & (1 << " ++ show idx ++ ")) {"
-                                    , "  size += " ++ fieldSize f
+                                    , fieldSize "  size += " "  " f
                                     , "}"
                                     ]
                 in [ "size_t size = sizeof(obj->_flags);"
@@ -281,8 +283,38 @@ renderCFile spec = render $ vcat [ includes
                    [ ""
                    , "return size;"
                    ]
-              -- Enum
-              -- Partial
+              SP.Enum t _ _ _ ->
+                let fields = unFields $ enumFields t
+                    switchCase f = let fn = fieldName f
+                                   in [ "case " ++ n ++ "_tag_" ++ fn ++ ":"
+                                      ,  fieldSize "  size += " "  " f
+                                      , "  break;"
+                                      ]
+                in [ "size_t size = sizeof(obj->_tag);"
+                   , ""
+                   , "switch (obj->_tag) {"
+                   ] ++
+                   concatMap switchCase fields ++
+                   [ "}"
+                   , ""
+                   , "return size;"
+                   ]
+              SP.Partial t _ _ _ _ ->
+                let fields = unFields $ partialFields t
+                    switchCase f = let fn = fieldName f
+                                   in [ "case " ++ n ++ "_tag_" ++ fn ++ ":"
+                                      ,  fieldSize "  size += " "  " f
+                                      , "  break;"
+                                      ]
+                in [ "size_t size = sizeof(obj->_tag) + sizeof(obj->_length);"
+                   , ""
+                   , "switch (obj->_tag) {"
+                   ] ++
+                   concatMap switchCase fields ++
+                   [ "}"
+                   , ""
+                   , "return size;"
+                   ]
               _ -> [ "(void)obj;"
                    , "return MAX_SIZE_" ++ libName ++ "_" ++ n ++ ";"
                    ]
