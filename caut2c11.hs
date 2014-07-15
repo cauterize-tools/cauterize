@@ -194,7 +194,9 @@ renderHFile spec = render $ vcat [ gaurdOpen
                                                 "  };\n\n" ++ 
 
                                                 "  " ++ (tyDeclFromName . show . unTagRepr $ tr) ++ " _tag;\n\n" ++
-                                                   concatMap (("  " ++) . fieldBody) (unFields . enumFields $ t) ++
+                                                "  union {\n" ++
+                                                   concatMap (("    " ++) . fieldBody) (unFields . enumFields $ t) ++
+                                                "  };\n" ++
                                                 "};\n"
                      SP.Partial t _ _ tr lr -> text $ "struct " ++ n ++ " {\n" ++
                                                       "  enum " ++ n ++ "_tag {\n" ++
@@ -203,7 +205,9 @@ renderHFile spec = render $ vcat [ gaurdOpen
 
                                                       "  " ++ (tyDeclFromName . show . unTagRepr $ tr) ++ " _tag;\n" ++
                                                       "  " ++ (tyDeclFromName . show . unLengthRepr $ lr) ++ " _length;\n\n" ++
-                                                         concatMap (("  " ++) . fieldBody) (unFields . partialFields $ t) ++
+                                                      "  union {\n" ++
+                                                      concatMap (("    " ++) . fieldBody) (unFields . partialFields $ t) ++
+                                                      "  };\n" ++
                                                       "};\n"
                      SP.Pad {} -> P.empty
       where
