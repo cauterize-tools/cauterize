@@ -230,12 +230,125 @@ renderCFile spec = render $ vcat [ includes
                                  , blankLine
                                  , packed_sizers
                                  , blankLine
+                                 , packers
+                                 , blankLine
                                  ]
   where
     includes = text $ "#include \"" ++ libName ++ ".h\""
 
     packed_sizers = vcat $ map packedSizeBody sTypes
+    packers = vcat $ map packBody sTypes
 
+    packBody ty = if "void" == n
+                    then P.empty
+                    else text $ "enum caut_status pack_" ++ n ++ "(struct caut_pack_iter * const iter, " ++ d ++ " const * const obj) {\n" ++
+                                unlines (map ("  " ++) packGuts) ++
+                                "}\n"
+      where
+        n = typeName ty
+        d = tyDecl ty
+
+        packGuts =
+          case ty of
+            SP.BuiltIn {} ->
+              [ "return __caut_pack_" ++ n ++ "(iter, obj);"
+              ]
+            SP.Scalar t _ _ ->
+              let repr = show . scalarRepr $ t
+              in [ "return __caut_pack_" ++ repr ++ "(iter, (" ++ repr ++ " *)obj);"
+                 ]
+            SP.Const t _ _ ->
+              let repr = show $ constRepr t
+                  val = show $ constValue t
+              in [ repr ++ " const CONST_VAL = " ++ val ++ ";"
+                 , ""
+                 , "if (CONST_VAL == *obj) {"
+                 , "  return __caut_pack_" ++ n ++ "(iter, obj);"
+                 , "} else {"
+                 , "  return caut_status_invalid_constant;"
+                 , "}"
+                 ]
+            SP.FixedArray t _ _ ->
+              let lenName = fullConstName libName n "LENGTH"
+                  refType = fixedArrRef t
+              in [ "for (size_t i = 0; i < " ++ lenName ++ "; i++) {"
+                 , "  STATUS_CHECK(pack_" ++ refType ++ "(iter, &obj->elems[i]));"
+                 , "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.BoundedArray t _ _ lr ->
+              let refType = boundedArrRef t
+                  lenRef = show . unLengthRepr $ lr
+              in [ "STATUS_CHECK(pack_" ++ lenRef ++ "(iter, &obj->_length));"
+                 , ""
+                 , "for (size_t i = 0; i < obj->_length; i++) {"
+                 , "  STATUS_CHECK(pack_" ++ refType ++ "(iter, &obj->elems[i]));"
+                 , "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.Struct t _ _ ->
+              let fs = unFields . structFields $ t
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                in "STATUS_CHECK(pack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+              in map packField fs ++ [ "", "return caut_status_ok;" ]
+            SP.Set t _ _ flagsR ->
+              let fs = unFields . setFields $ t
+                  packFlags = "STATUS_CHECK(pack_" ++ (show . unFlagsRepr) flagsR ++ "(iter, &obj->_flags));"
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                    p = "  STATUS_CHECK(pack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+                                in ifBitSet f [p]
+              in [packFlags, ""] ++ concatMap packField fs ++ [ "", "return caut_status_ok;" ]
+            SP.Enum t _ _ tr ->
+              let fs = unFields . enumFields $ t
+                  packTag = "STATUS_CHECK(pack_" ++ (show . unTagRepr) tr ++ "(iter, &obj->_tag));"
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                    pf = if "void" == fr
+                                            then "  /* Field `" ++ fn ++ "` is void and has no size. */"
+                                            else "  STATUS_CHECK(pack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+                                in [ "case " ++ n ++ "_tag_" ++  fn ++ ":"
+                                   , pf
+                                   , "  break;"
+                                   ]
+              in [ packTag
+                 , ""
+                 , "switch(obj->_tag) {"
+                 ] ++ concatMap packField fs ++
+                 [ "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.Partial t _ _ tr lr ->
+              let fs = unFields . partialFields $ t
+                  packTag = "STATUS_CHECK(pack_" ++ (show . unTagRepr) tr ++ "(iter, &obj->_tag));"
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                    pf = if "void" == fr
+                                            then [ "  /* Field `" ++ fn ++ "` is void and has no size. */" ]
+                                            else [ "  obj->_length = packed_size_" ++ fr ++ "(&obj->" ++ fn ++ ");"
+                                                 , "  STATUS_CHECK(pack_" ++ (show . unLengthRepr) lr ++ "(iter, &obj->_length));"
+                                                 , "  STATUS_CHECK(pack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+                                                 ]
+                                in [ "case " ++ n ++ "_tag_" ++  fn ++ ":"
+                                   ] ++
+                                   pf ++
+                                   [ "  break;"
+                                   ]
+              in [ packTag
+                 , ""
+                 , "switch(obj->_tag) {"
+                 ] ++ concatMap packField fs ++
+                 [ "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.Pad {} -> [ "return __caut_pack_null_bytes(iter, sizeof(*obj));"
+                         ]
+  
     packedSizeBody ty = if "void" == n
                           then P.empty
                           else text $ "size_t packed_size_" ++ n ++ "(" ++ d ++ " const * const obj) {\n" ++
@@ -281,14 +394,11 @@ renderCFile spec = render $ vcat [ includes
                  ]
             SP.Set t _ _ _ ->
               let fields = unFields $ setFields t
-                  ifBitSet f = let idx = fieldIndex f
-                               in [ "if (obj->_flags & (1 << " ++ show idx ++ ")) {"
-                                  , fieldSize "  size += " "  " f
-                                  , "}"
-                                  ]
+                  sizeIfSet f = let s = fieldSize "  size += " "  " f
+                                in ifBitSet f [s]
               in [ "size_t size = sizeof(obj->_flags);"
                  , ""
-                 ] ++ concatMap ifBitSet fields ++
+                 ] ++ concatMap sizeIfSet fields ++
                  [ ""
                  , "return size;"
                  ]
@@ -330,6 +440,14 @@ renderCFile spec = render $ vcat [ includes
 
     sTypes = specTypes spec
     libName = specNameToCName $ SP.specName spec
+
+-- Inserts `b` between a conditional suitable for checking if a flag is set for
+-- the specified field in a Set.
+ifBitSet :: IndexedRef r -> [String] -> [String]
+ifBitSet f b = let idx = fieldIndex f
+                   cond = "if (obj->_flags & (1 << " ++ show idx ++ ")) {"
+                   close = ["}"]
+               in cond:b ++ close
 
 fullConstName :: String -> String -> String -> String
 fullConstName libName tyName term = "CONST_" ++ libName ++ "_" ++ tyName ++ "_" ++ term
