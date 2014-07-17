@@ -232,12 +232,69 @@ renderCFile spec = render $ vcat [ includes
                                  , blankLine
                                  , packers
                                  , blankLine
+                                 , unpackers
+                                 , blankLine
                                  ]
   where
     includes = text $ "#include \"" ++ libName ++ ".h\""
 
     packed_sizers = vcat $ map packedSizeBody sTypes
     packers = vcat $ map packBody sTypes
+    unpackers = vcat $ map unpackBody sTypes
+
+    unpackBody ty = if "void" == n
+                      then P.empty
+                      else text $ "enum caut_status unpack_" ++ n ++ "(struct caut_unpack_iter * const iter, " ++ d ++ " * const obj) {\n" ++
+                                  unlines (map ("  " ++) unpackGuts) ++
+                                  "}\n"
+      where
+        n = typeName ty
+        d = tyDecl ty
+        unpackGuts =
+          case ty of
+            SP.BuiltIn {} ->
+              [ "return __caut_unpack_" ++ n ++ "(iter, obj);"
+              ]
+            SP.Scalar t _ _ ->
+              let repr = show . scalarRepr $ t
+              in [ "return __caut_unpack_" ++ repr ++ "(iter, (" ++ repr ++ " *)obj);"
+                 ]
+            SP.Const {} ->
+              let constValDef = fullConstName libName n "VALUE"
+              in [ "*obj = __caut_unpack_" ++ n ++ "(iter, obj);"
+                 , ""
+                 , "if (" ++ constValDef ++ " != *obj) {"
+                 , "  return caut_status_invalid_constant;"
+                 , "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.FixedArray t _ _ ->
+              let refType = fixedArrRef t
+              in [ "for (size_t i = 0; i < ARR_LEN(obj->elems); i++) {"
+                 , "  STATUS_CHECK(unpack_" ++ refType ++ "(iter, &obj->elems[i]));"
+                 , "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.BoundedArray t _ _ lr ->
+              let refType = boundedArrRef t
+                  lenRef = show . unLengthRepr $ lr
+              in [ "STATUS_CHECK(unpack_" ++ lenRef ++ "(iter, &obj->_length));"
+                 , ""
+                 , "for (size_t i = 0; i < obj->_length; i++) {"
+                 , "  STATUS_CHECK(unpack_" ++ refType ++ "(iter, &obj->elems[i]));"
+                 , "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.Struct t _ _ ->
+              let fs = unFields . structFields $ t
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                in "STATUS_CHECK(unpack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+              in map packField fs ++ [ "", "return caut_status_ok;" ]
+            _ -> ["/* TODO */"]
 
     packBody ty = if "void" == n
                     then P.empty
@@ -257,21 +314,17 @@ renderCFile spec = render $ vcat [ includes
               let repr = show . scalarRepr $ t
               in [ "return __caut_pack_" ++ repr ++ "(iter, (" ++ repr ++ " *)obj);"
                  ]
-            SP.Const t _ _ ->
-              let repr = show $ constRepr t
-                  val = show $ constValue t
-              in [ repr ++ " const CONST_VAL = " ++ val ++ ";"
-                 , ""
-                 , "if (CONST_VAL == *obj) {"
+            SP.Const {} ->
+              let constValDef = fullConstName libName n "VALUE"
+              in [ "if (" ++ constValDef ++ " == *obj) {"
                  , "  return __caut_pack_" ++ n ++ "(iter, obj);"
                  , "} else {"
                  , "  return caut_status_invalid_constant;"
                  , "}"
                  ]
             SP.FixedArray t _ _ ->
-              let lenName = fullConstName libName n "LENGTH"
-                  refType = fixedArrRef t
-              in [ "for (size_t i = 0; i < " ++ lenName ++ "; i++) {"
+              let refType = fixedArrRef t
+              in [ "for (size_t i = 0; i < ARR_LEN(obj->elems); i++) {"
                  , "  STATUS_CHECK(pack_" ++ refType ++ "(iter, &obj->elems[i]));"
                  , "}"
                  , ""
