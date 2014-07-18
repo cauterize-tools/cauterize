@@ -294,6 +294,61 @@ renderCFile spec = render $ vcat [ includes
                                     fr = fieldRef f
                                 in "STATUS_CHECK(unpack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
               in map packField fs ++ [ "", "return caut_status_ok;" ]
+            SP.Set t _ _ flagsR ->
+              let fs = unFields . setFields $ t
+                  packFlags = "STATUS_CHECK(unpack_" ++ (show . unFlagsRepr) flagsR ++ "(iter, &obj->_flags));"
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                    p = "  STATUS_CHECK(unpack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+                                in ifBitSet f [p]
+              in [packFlags, ""] ++ concatMap packField fs ++ [ "", "return caut_status_ok;" ]
+            SP.Enum t _ _ tr ->
+              let fs = unFields . enumFields $ t
+                  packTag = "STATUS_CHECK(unpack_" ++ (show . unTagRepr) tr ++ "(iter, &obj->_tag));"
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                    pf = if "void" == fr
+                                            then "  /* Field `" ++ fn ++ "` is void and has no size. */"
+                                            else "  STATUS_CHECK(unpack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+                                in [ "case " ++ n ++ "_tag_" ++  fn ++ ":"
+                                   , pf
+                                   , "  break;"
+                                   ]
+              in [ packTag
+                 , ""
+                 , "switch(obj->_tag) {"
+                 ] ++ concatMap packField fs ++
+                 [ "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.Partial t _ _ tr lr ->
+              let fs = unFields . partialFields $ t
+                  unpackTag = "STATUS_CHECK(unpack_" ++ (show . unTagRepr) tr ++ "(iter, &obj->_tag));"
+                  unpackLen = "STATUS_CHECK(unpack_" ++ (show . unLengthRepr) lr ++ "(iter, &obj->_length));"
+                  packField f = let fn = fieldName f
+                                    fr = fieldRef f
+                                    pf = if "void" == fr
+                                            then [ "  /* Field `" ++ fn ++ "` is void and has no size. */" ]
+                                            else [ "  STATUS_CHECK(unpack_" ++ fr ++ "(iter, &obj->" ++ fn ++ "));"
+                                                 ]
+                                in [ "case " ++ n ++ "_tag_" ++  fn ++ ":"
+                                   ] ++
+                                   pf ++
+                                   [ "  break;"
+                                   ]
+              in [ unpackTag
+                 , unpackLen
+                 , ""
+                 , "switch(obj->_tag) {"
+                 ] ++ concatMap packField fs ++
+                 [ "}"
+                 , ""
+                 , "return caut_status_ok;"
+                 ]
+            SP.Pad {} -> [ "return __caut_unpack_null_bytes(iter, sizeof(*obj));"
+                         ]
+  
             _ -> ["/* TODO */"]
 
     packBody ty = if "void" == n
