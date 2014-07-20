@@ -10,7 +10,7 @@ import Test.QuickCheck.Gen
 import Control.Monad
 import Data.Word
 
-import Cauterize.Common.IndexedRef
+import Cauterize.Common.Field
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
@@ -105,8 +105,8 @@ arbFielded ts n cstr = do
 
   return $ cstr n (Fields fieldFs')
 
-arbIRef :: [Name] -> Name -> Gen (Integer -> IndexedRef Name)
-arbIRef ts n = liftM (IndexedRef n) $ elements ts
+arbIRef :: [Name] -> Name -> Gen (Integer -> Field Name)
+arbIRef ts n = liftM (Field n) $ elements ts
 
 sequences :: [a] -> [[a]]
 sequences ls = ls' ++ [i ++ [a] | i <- sequences ls, a <- ls]

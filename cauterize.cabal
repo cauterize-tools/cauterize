@@ -18,8 +18,6 @@ cabal-version:       >=1.10
 executable cauterize
   ghc-options:         -Wall -O2
   main-is:             main.hs
-  -- other-modules:       
-  -- other-extensions:    
   build-depends:       base >=4.6 && <4.8,
                        parsec ==3.1.*,
                        pretty ==1.1.*,
@@ -31,9 +29,8 @@ executable cauterize
                        bytestring ==0.10.4.*,
                        GraphSCC ==1.0.*
 
-  -- hs-source-dirs:      
   default-language:    Haskell2010
-
+  
 executable test
   ghc-options:         -Wall -O2
   main-is:             test.hs
@@ -52,3 +49,29 @@ executable test
 
   -- hs-source-dirs:      
   default-language:    Haskell2010
+
+library
+  build-depends:       base >=4.6 && <4.8,
+                       parsec ==3.1.*,
+                       pretty ==1.1.*,
+                       pretty-class ==0.1.*,
+                       optparse-applicative ==0.8.*,
+                       cryptohash ==0.11.*,
+                       QuickCheck ==2.7.3.*,
+                       containers ==0.5.*,
+                       bytestring ==0.10.4.*,
+                       GraphSCC ==1.0.*
+  default-language:    Haskell2010
+  exposed-modules:     Cauterize.Common.Field,
+                       Cauterize.Common.Primitives,
+                       Cauterize.Common.References,
+                       Cauterize.Common.Types,
+                       Cauterize.Schema,
+                       Cauterize.Specification,
+                       Cauterize.FormHash
+  other-modules:       Cauterize.Common.ParserUtils,
+                       Cauterize.Schema.Arbitrary,
+                       Cauterize.Schema.Parser,
+                       Cauterize.Schema.Types,
+                       Cauterize.Specification.Parser,
+                       Cauterize.Specification.Types
