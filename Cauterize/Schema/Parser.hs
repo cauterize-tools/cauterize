@@ -14,11 +14,11 @@ import Cauterize.Schema.Types
 
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
-import Cauterize.Common.IndexedRef
+import Cauterize.Common.Field
 
 type ASTSchema = Schema String
 type ASTType = ScType String
-type ASTIndexedRef = IndexedRef String
+type ASTField = Field Name
 
 parseFile :: FilePath -> IO (Either ParseError ASTSchema)
 parseFile path = readFile path >>= parseString path
@@ -82,14 +82,14 @@ parseArr identStr mkArrFn = pSexp identStr $ do
   i <- spacedNumber
   return $ mkArrFn n m i
 
-parseIndexedRef :: Parser (Integer -> ASTIndexedRef)
-parseIndexedRef = pSexp "field" $ do
+parseField :: Parser (Integer -> ASTField)
+parseField = pSexp "field" $ do
   n <- spacedName
   m <- option "void" spacedName
-  return $ \i -> IndexedRef n m i
+  return $ \i -> Field n m i
 
-parseIndexedRefs :: Parser [Integer -> ASTIndexedRef]
-parseIndexedRefs = many $ spaces1 >> parseIndexedRef
+parseSpacedFields :: Parser [Integer -> ASTField]
+parseSpacedFields = many $ spaces1 >> parseField
 
 parseStruct :: Parser ASTType
 parseStruct = pSexp "struct" $ do
@@ -125,4 +125,4 @@ tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]
 
 parseFields :: Parser (Fields Name)
-parseFields = pSexp "fields" $ liftM (Fields . tagWithIndex) parseIndexedRefs
+parseFields = pSexp "fields" $ liftM (Fields . tagWithIndex) parseSpacedFields

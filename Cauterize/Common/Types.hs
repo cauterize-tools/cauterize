@@ -4,7 +4,7 @@ module Cauterize.Common.Types where
 
 import Cauterize.Common.Primitives
 import Cauterize.Common.References
-import Cauterize.Common.IndexedRef
+import Cauterize.Common.Field
 import Data.Data
 import Data.List
 

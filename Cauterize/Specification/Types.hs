@@ -18,7 +18,7 @@ module Cauterize.Specification.Types
 
 import Cauterize.FormHash
 import Cauterize.Common.Primitives
-import Cauterize.Common.IndexedRef
+import Cauterize.Common.Field
 import Data.List
 import Data.Function
 import Data.Maybe
@@ -278,8 +278,8 @@ mkSpecType m p =
     (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (FixedSize l)
   where
     lookupRef r = fromJust $ r `M.lookup` m
-    lookupIndexedRef (IndexedRef _ r _) = lookupRef r
-    lookupRefs = map lookupIndexedRef . unFields
+    lookupField (Field _ r _) = lookupRef r
+    lookupRefs = map lookupField . unFields
 
 instance References (SpType String) where
   referencesOf (BuiltIn {..}) = []

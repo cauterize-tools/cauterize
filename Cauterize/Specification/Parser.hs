@@ -10,7 +10,7 @@ import Cauterize.Specification.Types
 import Cauterize.Common.ParserUtils
 import Cauterize.Common.Primitives
 import Cauterize.Common.Types
-import Cauterize.Common.IndexedRef
+import Cauterize.Common.Field
 
 import Control.Monad
 
@@ -144,10 +144,10 @@ parsePad = pSexp "pad" $ do
   sz <- parseFixedSize
   return $ Pad (TPad n (unFixedSize sz)) hs sz
 
-parseIndexedRefs :: Parser [IndexedRef Name]
-parseIndexedRefs = option [] $ do
+parseFieldList :: Parser [Field Name]
+parseFieldList = option [] $ do
       spaces1
-      parseIndexedRef `sepBy` spaces1
+      parseField `sepBy` spaces1
 
 parseFixedSize :: Parser FixedSize
 parseFixedSize = (>>) spaces1 $ pSexp "fixed-size" $ liftM FixedSize spacedNumber
@@ -155,12 +155,12 @@ parseFixedSize = (>>) spaces1 $ pSexp "fixed-size" $ liftM FixedSize spacedNumbe
 parseRangeSize :: Parser RangeSize
 parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumber spacedNumber
 
-parseIndexedRef :: Parser (IndexedRef Name)
-parseIndexedRef = pSexp "field" $ do
+parseField :: Parser (Field Name)
+parseField = pSexp "field" $ do
   n <- spacedName
   t <- spacedName
   ix <- spacedNumber
-  return $ IndexedRef n t ix
+  return $ Field n t ix
   
 parseLengthRepr :: Parser LengthRepr
 parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr spacedBuiltIn
@@ -172,4 +172,4 @@ parseFlagsRepr :: Parser FlagsRepr
 parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr spacedBuiltIn
 
 parseFields :: Parser (Fields Name)
-parseFields = pSexp "fields" $ liftM Fields parseIndexedRefs
+parseFields = pSexp "fields" $ liftM Fields parseFieldList
