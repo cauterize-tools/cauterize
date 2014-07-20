@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances, RecordWildCards, DeriveDataTypeable #-}
 module Cauterize.Specification.Types
   ( Spec(..)
   , SpType(..)
@@ -13,6 +13,7 @@ module Cauterize.Specification.Types
 
   , fromSchema
   , prettyPrint
+  , typeName
   ) where
 
 import Cauterize.FormHash
@@ -21,6 +22,7 @@ import Cauterize.Common.IndexedRef
 import Data.List
 import Data.Function
 import Data.Maybe
+import Data.Data
 
 import qualified Data.Map as M
 import qualified Data.List as L
@@ -34,16 +36,16 @@ import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
 data FixedSize = FixedSize { unFixedSize :: Integer }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 data RangeSize = RangeSize { rangeSizeMin :: Integer, rangeSizeMax :: Integer }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 data LengthRepr = LengthRepr { unLengthRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 data TagRepr = TagRepr { unTagRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 data FlagsRepr = FlagsRepr { unFlagsRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 mkRangeSize :: Integer -> Integer -> RangeSize
 mkRangeSize mi ma = if mi > ma
@@ -92,8 +94,12 @@ instance Pretty TagRepr where
 instance Pretty FlagsRepr where
   pretty (FlagsRepr bi) = parens $ text "flags-repr" <+> pShow bi
 
-data Spec t = Spec Name Version FormHash RangeSize [SpType t]
-  deriving (Show, Eq)
+data Spec t = Spec { specName :: Name
+                   , specVersion :: Version
+                   , specHash :: FormHash
+                   , specSize :: RangeSize
+                   , specTypes :: [SpType t] }
+  deriving (Show, Eq, Data, Typeable)
 
 data SpType t = BuiltIn      { unBuiltIn   :: TBuiltIn
                              , spHash      :: FormHash
@@ -139,7 +145,7 @@ data SpType t = BuiltIn      { unBuiltIn   :: TBuiltIn
               | Pad          { unPad       :: TPad
                              , spHash      :: FormHash
                              , spFixedSize :: FixedSize }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance Sized (SpType b) where
   minSize (BuiltIn { spFixedSize = s}) = minSize s
@@ -164,17 +170,17 @@ instance Sized (SpType b) where
   maxSize (Partial { spRangeSize = s}) = maxSize s
   maxSize (Pad { spFixedSize = s}) = maxSize s
 
-spTypeName :: SpType a -> Name
-spTypeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
-spTypeName (Scalar { unScalar = (TScalar n _)}) = n
-spTypeName (Const { unConst = (TConst n _ _)}) = n
-spTypeName (FixedArray { unFixed = (TFixedArray n _ _)}) = n
-spTypeName (BoundedArray { unBounded = (TBoundedArray n _ _)}) = n
-spTypeName (Struct { unStruct = (TStruct n _)}) = n
-spTypeName (Set { unSet = (TSet n _)}) = n
-spTypeName (Enum { unEnum = (TEnum n _)}) = n
-spTypeName (Partial { unPartial = (TPartial n _)}) = n
-spTypeName (Pad { unPad = (TPad n _)}) = n
+typeName :: SpType a -> Name
+typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
+typeName (Scalar { unScalar = (TScalar n _)}) = n
+typeName (Const { unConst = (TConst n _ _)}) = n
+typeName (FixedArray { unFixed = (TFixedArray n _ _)}) = n
+typeName (BoundedArray { unBounded = (TBoundedArray n _ _)}) = n
+typeName (Struct { unStruct = (TStruct n _)}) = n
+typeName (Set { unSet = (TSet n _)}) = n
+typeName (Enum { unEnum = (TEnum n _)}) = n
+typeName (Partial { unPartial = (TPartial n _)}) = n
+typeName (Pad { unPad = (TPad n _)}) = n
 
 pruneBuiltIns :: [SpType String] -> [SpType String]
 pruneBuiltIns fs = refBis ++ topLevel
@@ -198,7 +204,7 @@ fromSchema :: SC.Schema Name -> Spec Name
 fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
   where
     fs' = pruneBuiltIns $ map fromF fs
-    keepNames = S.fromList $ map spTypeName fs'
+    keepNames = S.fromList $ map typeName fs'
 
     tyMap = SC.schemaTypeMap sc
     sigMap = SC.schemaSigMap sc

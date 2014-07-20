@@ -1,21 +1,25 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, DeriveDataTypeable #-}
 module Cauterize.Common.IndexedRef where
 
 import Cauterize.Common.Primitives
 
 import qualified Data.Map as M
 import Data.Maybe as M
+import Data.Data
 
 import Text.PrettyPrint
 
 data Fields r = Fields { unFields :: [IndexedRef r] }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 fieldsLength :: Fields r -> Int
 fieldsLength (Fields fs) = length fs
 
-data IndexedRef r = IndexedRef Name r Integer
-  deriving (Show, Ord, Eq)
+data IndexedRef r = IndexedRef { fieldName :: Name
+                               , fieldRef :: r
+                               , fieldIndex :: Integer
+                               }
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 refSig :: M.Map Name Signature -> IndexedRef Name -> Signature
 refSig sm (IndexedRef n m _) = concat ["(field ", n, " ", luSig m, ")"]

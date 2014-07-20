@@ -1,4 +1,4 @@
-module Main where
+module Main (main) where
 
 import Cauterize.Schema.Arbitrary
 import qualified Cauterize.Schema as SC
@@ -12,7 +12,8 @@ import Text.PrettyPrint.Class
 import Control.Monad
 
 main :: IO ()
-main = parsePrettyParseIsId
+main = -- parsePrettyParseIsId
+       printArbSpec
 
 parseExample :: IO ()
 parseExample = do
@@ -20,8 +21,7 @@ parseExample = do
 
   case r of
     (Left e) -> print e
-    (Right v) -> do
-      let r' = SC.prettyPrint v
+    (Right v) ->
       case SC.checkSchema v of
         [] -> putStrLn $ SP.prettyPrint $ SP.fromSchema v
         es -> print es
@@ -38,8 +38,7 @@ parsePrettyParseIsId = do
 
 printArbSpec :: IO ()
 printArbSpec = do
-  s <- generate (arbitrary :: Gen ValidSchema)
-  let s' = unValidSchema s
-  case SC.checkSchema s' of
-    [] -> print . pretty $ SP.fromSchema s'
+  s <- liftM unValidSchema $ generate (arbitrary :: Gen ValidSchema)
+  case SC.checkSchema s of
+    [] -> print . pretty $ SP.fromSchema s
     es -> print es

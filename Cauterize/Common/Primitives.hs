@@ -1,30 +1,27 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Cauterize.Common.Primitives
   ( BuiltIn(..)
   , Name
   , Signature
   , Version
 
-  , MinSize
-  , MaxSize
-
   , minimalExpression
   , minimalBitField
   , builtInSize
   ) where
 
+import Data.Data
+
 type Name = String
 type Signature = String
 type Version = String
-
-type MinSize = Integer
-type MaxSize = Integer
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
              | BIieee754s | BIieee754d
              | BIbool
              | BIvoid
-  deriving (Enum, Bounded, Ord, Eq)
+  deriving (Enum, Bounded, Ord, Eq, Data, Typeable)
 
 -- | Returns the smallest BuiltIn that is capable of representing the provided
 -- value.

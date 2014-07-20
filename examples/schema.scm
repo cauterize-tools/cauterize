@@ -1,9 +1,9 @@
 (schema "aName" "0.0.1"
-        (scalar number s64) 
-        (scalar unsigned u8)
+        (scalar number64 s64) 
+        (scalar unsigned8 u8)
         (const smallconst u8 34)
-        (fixed somefixed number 64)
-        (bounded somebounded number 64)
+        (fixed somefixed number64 64)
+        (bounded somebounded number64 64)
         (pad p8 8)
         (struct astruct
                 (fields
@@ -25,10 +25,10 @@
                 (field a)
                 (field b)
                 (field c s8)
-                (field d number)))
+                (field d number64)))
         (set aset
                 (fields
-                  (field a number)
+                  (field a number64)
                   (field b s8)
                   (field c anenum)))
         (partial req
