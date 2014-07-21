@@ -23,6 +23,7 @@ import Data.List
 import Data.Function
 import Data.Maybe
 import Data.Data
+import Data.Graph
 
 import qualified Data.Map as M
 import qualified Data.List as L
@@ -199,11 +200,21 @@ pruneBuiltIns fs = refBis ++ topLevel
     isBuiltIn (BuiltIn {..}) = True
     isBuiltIn _ = False
 
+-- Topographically sort the types so that types with the fewest dependencies
+-- show up first in the list of types. Types with the most dependencies are
+-- ordered at the end. This allows languages that have order-dependencies to
+-- rely on the sorted list for the order of code generation.
+topoSort :: [SpType String] -> [SpType String]
+topoSort sps = flattenSCCs . stronglyConnComp $ map m sps
+  where
+    m t = let n = typeName t
+          in (t, n, referencesOf t)
+
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema Name -> Spec Name
 fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
   where
-    fs' = pruneBuiltIns $ map fromF fs
+    fs' = topoSort $ pruneBuiltIns $ map fromF fs
     keepNames = S.fromList $ map typeName fs'
 
     tyMap = SC.schemaTypeMap sc
