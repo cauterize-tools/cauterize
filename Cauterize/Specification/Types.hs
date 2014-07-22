@@ -95,60 +95,60 @@ instance Pretty TagRepr where
 instance Pretty FlagsRepr where
   pretty (FlagsRepr bi) = parens $ text "flags-repr" <+> pShow bi
 
-data Spec t = Spec { specName :: Name
-                   , specVersion :: Version
-                   , specHash :: FormHash
-                   , specSize :: RangeSize
-                   , specTypes :: [SpType t] }
+data Spec = Spec { specName :: Name
+                 , specVersion :: Version
+                 , specHash :: FormHash
+                 , specSize :: RangeSize
+                 , specTypes :: [SpType] }
   deriving (Show, Eq, Data, Typeable)
 
-data SpType t = BuiltIn      { unBuiltIn   :: TBuiltIn
-                             , spHash      :: FormHash
-                             , spFixedSize :: FixedSize }
+data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
+                           , spHash      :: FormHash
+                           , spFixedSize :: FixedSize }
 
-              | Scalar       { unScalar     :: TScalar
-                             , spHash       :: FormHash
-                             , spFixedSize  :: FixedSize }
+            | Scalar       { unScalar     :: TScalar
+                           , spHash       :: FormHash
+                           , spFixedSize  :: FixedSize }
 
-              | Const        { unConst     :: TConst
-                             , spHash      :: FormHash
-                             , spFixedSize :: FixedSize }
+            | Const        { unConst     :: TConst
+                           , spHash      :: FormHash
+                           , spFixedSize :: FixedSize }
 
-              | FixedArray   { unFixed     :: TFixedArray t
-                             , spHash      :: FormHash
-                             , spRangeSize :: RangeSize }
+            | FixedArray   { unFixed     :: TFixedArray
+                           , spHash      :: FormHash
+                           , spRangeSize :: RangeSize }
 
-              | BoundedArray { unBounded   :: TBoundedArray t
-                             , spHash      :: FormHash
-                             , spRangeSize :: RangeSize
-                             , lenRepr     :: LengthRepr }
+            | BoundedArray { unBounded   :: TBoundedArray
+                           , spHash      :: FormHash
+                           , spRangeSize :: RangeSize
+                           , lenRepr     :: LengthRepr }
 
-              | Struct       { unStruct    :: TStruct t
-                             , spHash      :: FormHash
-                             , spRangeSize :: RangeSize }
+            | Struct       { unStruct    :: TStruct
+                           , spHash      :: FormHash
+                           , spRangeSize :: RangeSize }
 
-              | Set          { unSet       :: TSet t
-                             , spHash      :: FormHash
-                             , spRangeSize :: RangeSize
-                             , flagsRepr   :: FlagsRepr }
+            | Set          { unSet       :: TSet
+                           , spHash      :: FormHash
+                           , spRangeSize :: RangeSize
+                           , flagsRepr   :: FlagsRepr }
 
-              | Enum         { unEnum      :: TEnum t
-                             , spHash      :: FormHash
-                             , spRangeSize :: RangeSize
-                             , tagRepr     :: TagRepr }
+            | Enum         { unEnum      :: TEnum
+                           , spHash      :: FormHash
+                           , spRangeSize :: RangeSize
+                           , tagRepr     :: TagRepr }
 
-              | Partial      { unPartial   :: TPartial t
-                             , spHash      :: FormHash
-                             , spRangeSize :: RangeSize
-                             , tagRepr     :: TagRepr
-                             , lenRepr     :: LengthRepr }
+            | Partial      { unPartial   :: TPartial
+                           , spHash      :: FormHash
+                           , spRangeSize :: RangeSize
+                           , tagRepr     :: TagRepr
+                           , lenRepr     :: LengthRepr }
 
-              | Pad          { unPad       :: TPad
-                             , spHash      :: FormHash
-                             , spFixedSize :: FixedSize }
+            | Pad          { unPad       :: TPad
+                           , spHash      :: FormHash
+                           , spFixedSize :: FixedSize }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance Sized (SpType b) where
+instance Sized SpType where
   minSize (BuiltIn { spFixedSize = s}) = minSize s
   minSize (Scalar { spFixedSize = s}) = minSize s
   minSize (Const { spFixedSize = s}) = minSize s
@@ -171,7 +171,7 @@ instance Sized (SpType b) where
   maxSize (Partial { spRangeSize = s}) = maxSize s
   maxSize (Pad { spFixedSize = s}) = maxSize s
 
-typeName :: SpType a -> Name
+typeName :: SpType -> Name
 typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
 typeName (Scalar { unScalar = (TScalar n _)}) = n
 typeName (Const { unConst = (TConst n _ _)}) = n
@@ -183,7 +183,7 @@ typeName (Enum { unEnum = (TEnum n _)}) = n
 typeName (Partial { unPartial = (TPartial n _)}) = n
 typeName (Pad { unPad = (TPad n _)}) = n
 
-pruneBuiltIns :: [SpType String] -> [SpType String]
+pruneBuiltIns :: [SpType] -> [SpType]
 pruneBuiltIns fs = refBis ++ topLevel
   where
     (bis, topLevel) = L.partition isBuiltIn fs
@@ -204,14 +204,14 @@ pruneBuiltIns fs = refBis ++ topLevel
 -- show up first in the list of types. Types with the most dependencies are
 -- ordered at the end. This allows languages that have order-dependencies to
 -- rely on the sorted list for the order of code generation.
-topoSort :: [SpType String] -> [SpType String]
+topoSort :: [SpType] -> [SpType]
 topoSort sps = flattenSCCs . stronglyConnComp $ map m sps
   where
     m t = let n = typeName t
           in (t, n, referencesOf t)
 
 -- TODO: Double-check the Schema hash can be recreated.
-fromSchema :: SC.Schema Name -> Spec Name
+fromSchema :: SC.Schema -> Spec
 fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
   where
     fs' = topoSort $ pruneBuiltIns $ map fromF fs
@@ -233,7 +233,7 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
       where
         hash = hashScType p
 
-mkSpecType :: M.Map Name (SpType Name) -> SC.ScType Name -> FormHash -> SpType Name
+mkSpecType :: M.Map Name SpType -> SC.ScType -> FormHash -> SpType
 mkSpecType m p =
   case p of
     (SC.BuiltIn t@(TBuiltIn b)) ->
@@ -292,7 +292,7 @@ mkSpecType m p =
     lookupField (Field _ r _) = lookupRef r
     lookupRefs = map lookupField . unFields
 
-instance References (SpType String) where
+instance References SpType where
   referencesOf (BuiltIn {..}) = []
   referencesOf (Scalar s _ _) = referencesOf s
   referencesOf (Const  c _ _) = referencesOf c
@@ -304,7 +304,7 @@ instance References (SpType String) where
   referencesOf (Partial p _ _ r l) = nub $ show r : show l : referencesOf p
   referencesOf (Pad {..}) = []
 
-prettyPrint :: Spec String -> String
+prettyPrint :: Spec -> String
 prettyPrint = show . pretty
 
 pShow :: (Show a) => a -> Doc
@@ -313,7 +313,7 @@ pShow = text . show
 pDQText :: String -> Doc
 pDQText = doubleQuotes . text
 
-instance Pretty (Spec String) where
+instance Pretty Spec where
   pretty (Spec n v h sz fs) = parens $ hang ps 1 pfs
     where
       ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty h <+> pretty sz
@@ -321,7 +321,7 @@ instance Pretty (Spec String) where
 
 -- When printing spec types, the following is the general order of fields
 --  (type name hash [references] [representations] [lengths])
-instance Pretty (SpType String) where
+instance Pretty SpType where
   pretty (BuiltIn (TBuiltIn b) h sz) = parens $ pt <+> pa
     where
       pt = text "builtin" <+> pShow b <+> pretty h
@@ -353,19 +353,19 @@ instance Pretty (SpType String) where
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.
-prettyFieldedB0 :: (Pretty sz) => String -> String -> Fields Name -> sz -> FormHash -> Doc
+prettyFieldedB0 :: (Pretty sz) => String -> String -> Fields -> sz -> FormHash -> Doc
 prettyFieldedB0 t n fs sz hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
     pfs = pretty sz $$ specPrettyFields fs
 
-prettyFieldedB1 :: (Pretty sz, Pretty bi) => String -> String -> Fields Name -> sz -> bi -> FormHash -> Doc
+prettyFieldedB1 :: (Pretty sz, Pretty bi) => String -> String -> Fields -> sz -> bi -> FormHash -> Doc
 prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
     pfs = pretty sz $$ pretty repr $$ specPrettyFields fs
 
-prettyFieldedB2 :: (Pretty sz, Pretty bi1, Pretty bi2) => String -> String -> Fields Name -> sz -> bi1 -> bi2 -> FormHash -> Doc
+prettyFieldedB2 :: (Pretty sz, Pretty bi1, Pretty bi2) => String -> String -> Fields -> sz -> bi1 -> bi2 -> FormHash -> Doc
 prettyFieldedB2 t n fs sz repr1 repr2 hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash

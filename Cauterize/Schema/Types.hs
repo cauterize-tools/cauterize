@@ -30,25 +30,25 @@ import Text.PrettyPrint.Class
 
 type Cycle = [Name]
 
-data Schema t = Schema Name Version [ScType t]
+data Schema = Schema Name Version [ScType]
   deriving (Show)
 
-data ScType t = BuiltIn      TBuiltIn
-              | Scalar       TScalar
-              | Const        TConst
-              | FixedArray   (TFixedArray t)
-              | BoundedArray (TBoundedArray t)
-              | Struct       (TStruct t)
-              | Set          (TSet t)
-              | Enum         (TEnum t)
-              | Partial      (TPartial t)
-              | Pad          TPad
+data ScType = BuiltIn      TBuiltIn
+            | Scalar       TScalar
+            | Const        TConst
+            | FixedArray   TFixedArray
+            | BoundedArray TBoundedArray
+            | Struct       TStruct
+            | Set          TSet
+            | Enum         TEnum
+            | Partial      TPartial
+            | Pad          TPad
   deriving (Show, Ord, Eq)
 
-schemaTypeMap :: Schema t -> M.Map Name (ScType t)
+schemaTypeMap :: Schema -> M.Map Name ScType
 schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\t -> (typeName t, t)) fs
 
-typeName :: ScType t -> Name
+typeName :: ScType -> Name
 typeName (BuiltIn (TBuiltIn b)) = show b
 typeName (Scalar (TScalar n _)) = n
 typeName (Const (TConst n _ _)) = n
@@ -63,7 +63,7 @@ typeName (Pad (TPad n _)) = n
 biSig :: BuiltIn -> Signature
 biSig b = "(" ++ show b ++ ")"
 
-typeSig :: M.Map Name Signature -> ScType Name -> Signature 
+typeSig :: M.Map Name Signature -> ScType -> Signature 
 typeSig sm t =
   case t of
     (BuiltIn (TBuiltIn b)) -> biSig b
@@ -80,13 +80,13 @@ typeSig sm t =
     luSig n = fromJust $ n `M.lookup` sm
 
 -- | Creates a map of Type Names to Type Signatures
-schemaSigMap :: Schema Name -> M.Map Name Signature
+schemaSigMap :: Schema -> M.Map Name Signature
 schemaSigMap schema = resultMap
   where
     tyMap = schemaTypeMap schema
     resultMap = fmap (typeSig resultMap) tyMap
 
-referredNames :: ScType Name -> [Name]
+referredNames :: ScType -> [Name]
 referredNames (BuiltIn t) = referencesOf t
 referredNames (Scalar t) = referencesOf t
 referredNames (Const t) = referencesOf t
@@ -105,7 +105,7 @@ data SchemaErrors = DuplicateNames [Name]
 
 -- |If checkSchema returns [], then the Schema should be safe to operate on
 -- with any of the methods provided in the Cauterize.Schema module.
-checkSchema :: Schema Name -> [SchemaErrors]
+checkSchema :: Schema -> [SchemaErrors]
 checkSchema s@(Schema _ _ ts) = catMaybes [duplicateNames, cycles, nonExistent]
   where
     tns  = map typeName ts
@@ -121,12 +121,12 @@ checkSchema s@(Schema _ _ ts) = catMaybes [duplicateNames, cycles, nonExistent]
                       [] -> Nothing
                       bn -> Just $ NonExistent bn
 
-schemaCycles :: Schema Name -> [Cycle]
+schemaCycles :: Schema -> [Cycle]
 schemaCycles s = typeCycles (map snd $ M.toList tyMap)
   where
     tyMap = schemaTypeMap s
 
-    typeCycles :: [ScType Name] -> [Cycle]
+    typeCycles :: [ScType] -> [Cycle]
     typeCycles ts = let ns = map (\t -> (typeName t, typeName t, referredNames t)) ts
                     in mapMaybe isScc (stronglyConnComp ns)
       where
@@ -149,19 +149,19 @@ padShowInteger v = let v' = abs v
 
 -- Instances
 
-prettyPrint :: Schema String -> String
+prettyPrint :: Schema -> String
 prettyPrint = show . pretty
 
 pShow :: (Show a) => a -> Doc
 pShow = text . show 
 
-instance Pretty (Schema String) where
+instance Pretty Schema where
   pretty (Schema n v fs) = parens $ hang ps 1 pfs
     where
       ps = text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v
       pfs = vcat $ map pretty fs
 
-instance Pretty (ScType String) where
+instance Pretty ScType where
   pretty (BuiltIn _) = empty
   pretty (Scalar (TScalar n b)) = parens $ text "scalar" <+> text n <+> pShow b
   pretty (Const (TConst n b i)) = parens $ text "const" <+> text n <+> pShow b <+> integer i
@@ -173,7 +173,7 @@ instance Pretty (ScType String) where
   pretty (Partial (TPartial n fs)) = prettyFielded "partial" n fs
   pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
 
-prettyFielded :: String -> Name -> Fields Name -> Doc
+prettyFielded :: String -> Name -> Fields -> Doc
 prettyFielded t n fs = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n

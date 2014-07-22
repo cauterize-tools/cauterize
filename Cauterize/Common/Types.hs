@@ -17,29 +17,31 @@ instance References TBuiltIn where
 
 data TConst = TConst { constName :: Name
                      , constRepr :: BuiltIn
-                     , constValue :: Integer }
+                     , constValue :: Integer
+                     }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TConst where
   referencesOf (TConst _ b _) = [show b]
 
 
-data TFixedArray t = TFixedArray { fixedArrName :: Name,
-                                   fixedArrRef :: t,
-                                   fixedArrLen :: Integer }
+data TFixedArray = TFixedArray { fixedArrName :: Name
+                               , fixedArrRef :: Name
+                               , fixedArrLen :: Integer
+                               }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References (TFixedArray Name) where
+instance References TFixedArray where
   referencesOf (TFixedArray _ n _) = [n]
 
 
-data TBoundedArray t = TBoundedArray { boundedArrName :: Name
-                                     , boundedArrRef :: t
-                                     , boundedArrMaxLen :: Integer
-                                     }
+data TBoundedArray = TBoundedArray { boundedArrName :: Name
+                                   , boundedArrRef :: Name
+                                   , boundedArrMaxLen :: Integer
+                                   }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References (TBoundedArray Name) where
+instance References TBoundedArray where
   referencesOf (TBoundedArray _ n _) = [n]
 
 
@@ -51,31 +53,31 @@ instance References TScalar where
   referencesOf (TScalar _ b) = [show b]
 
 
-data TStruct t = TStruct { structName :: Name, structFields :: Fields t }
+data TStruct = TStruct { structName :: Name, structFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References (TStruct Name) where
+instance References TStruct where
   referencesOf (TStruct _ (Fields rs)) = nub $ map refRef rs
 
 
-data TEnum t = TEnum { enumName :: Name, enumFields :: Fields t }
+data TEnum = TEnum { enumName :: Name, enumFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References (TEnum Name) where
+instance References TEnum where
   referencesOf (TEnum _ (Fields rs)) = nub $ map refRef rs
 
 
-data TSet t = TSet { setName :: Name, setFields :: Fields t }
+data TSet = TSet { setName :: Name, setFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References (TSet Name) where
+instance References TSet where
   referencesOf (TSet _ (Fields rs)) = nub $ map refRef rs
 
 
-data TPartial t = TPartial { partialName :: Name, partialFields :: Fields t }
+data TPartial = TPartial { partialName :: Name, partialFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References (TPartial Name) where
+instance References TPartial where
   referencesOf (TPartial _ (Fields rs)) = nub $ map refRef rs
 
 

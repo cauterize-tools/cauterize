@@ -15,7 +15,7 @@ import Cauterize.Common.Primitives
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
-newtype ValidSchema = ValidSchema { unValidSchema :: Schema Name }
+newtype ValidSchema = ValidSchema { unValidSchema :: Schema }
   deriving (Show)
 
 instance Arbitrary ValidSchema where
@@ -29,12 +29,12 @@ maxFields = 5
 constRange :: (Num a, Enum a) => [a]
 constRange = [1..10]
 
-arbSchema :: Gen (Schema Name)
+arbSchema :: Gen Schema
 arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
   where
     rs = genTypeRuns maxRuns
 
-genTypeRuns :: Word -> Gen [ScType Name]
+genTypeRuns :: Word -> Gen [ScType]
 genTypeRuns runs = liftM (biTys ++) $ go runs genNames (map show bis)
   where
     go 0 _ _ = return []
@@ -45,7 +45,7 @@ genTypeRuns runs = liftM (biTys ++) $ go runs genNames (map show bis)
       rs <- go (runs' - 1) laterNames (ex ++ nowNames)
       return $ ts ++ rs
 
-genTypes :: [Name] -> [Name] -> Gen [ScType Name]
+genTypes :: [Name] -> [Name] -> Gen [ScType]
 genTypes [] _ = return []
 genTypes (thisName:restNames) ex = do
   let arbs' = sequence (sequence arbs ex) thisName
@@ -53,7 +53,7 @@ genTypes (thisName:restNames) ex = do
   r <- genTypes restNames ex
   return $ t:r
 
-arbs :: [[Name] -> Name -> Gen (ScType Name)]
+arbs :: [[Name] -> Name -> Gen ScType]
 arbs = [ arbScalar
        , arbConst
        , arbFixed
@@ -68,34 +68,34 @@ arbs = [ arbScalar
 arbArraySize :: Gen Integer
 arbArraySize = liftM fromIntegral (arbitrary :: Gen Word32)
 
-arbScalar :: [Name] -> Name -> Gen (ScType Name)
+arbScalar :: [Name] -> Name -> Gen ScType
 arbScalar _ n = liftM (Scalar . TScalar n) arbBi
 
-arbConst :: [Name] -> Name -> Gen (ScType Name)
+arbConst :: [Name] -> Name -> Gen ScType
 arbConst _ n = liftM2 (\b i -> Const $ TConst n b i) arbBi (elements constRange)
 
-arbFixed :: [Name] -> Name -> Gen (ScType Name)
+arbFixed :: [Name] -> Name -> Gen ScType
 arbFixed ts n = liftM2 (\t s -> FixedArray $ TFixedArray n t s) (elements ts) arbArraySize
 
-arbBounded :: [Name] -> Name -> Gen (ScType Name)
+arbBounded :: [Name] -> Name -> Gen ScType
 arbBounded ts n = liftM2 (\t s -> BoundedArray $ TBoundedArray n t s) (elements ts) arbArraySize
 
-arbStruct :: [Name] -> Name -> Gen (ScType Name)
+arbStruct :: [Name] -> Name -> Gen ScType
 arbStruct ts n = arbFielded ts n (\n' fs -> Struct $ TStruct n' fs)
 
-arbSet ::  [Name] -> Name -> Gen (ScType Name)
+arbSet ::  [Name] -> Name -> Gen ScType
 arbSet ts n = arbFielded ts n (\n' fs -> Set $ TSet n' fs)
 
-arbEnum ::  [Name] -> Name -> Gen (ScType Name)
+arbEnum ::  [Name] -> Name -> Gen ScType
 arbEnum ts n = arbFielded ts n (\n' fs -> Enum $ TEnum n' fs)
 
-arbPartial ::  [Name] -> Name -> Gen (ScType Name)
+arbPartial ::  [Name] -> Name -> Gen ScType
 arbPartial ts n = arbFielded ts n (\n' fs -> Partial $ TPartial n' fs)
 
-arbPad :: [Name] -> Name -> Gen (ScType Name)
+arbPad :: [Name] -> Name -> Gen ScType
 arbPad _ n = liftM (Pad . TPad n) (elements [1..8])
 
-arbFielded :: [Name] -> Name -> (Name -> Fields Name -> a) -> Gen a
+arbFielded :: [Name] -> Name -> (Name -> Fields -> a) -> Gen a
 arbFielded ts n cstr = do
   fieldCount <- elements [1..maxFields] :: Gen Integer
   let fieldNames = take (fromIntegral fieldCount) genNames
@@ -105,7 +105,7 @@ arbFielded ts n cstr = do
 
   return $ cstr n (Fields fieldFs')
 
-arbIRef :: [Name] -> Name -> Gen (Integer -> Field Name)
+arbIRef :: [Name] -> Name -> Gen (Integer -> Field)
 arbIRef ts n = liftM (Field n) $ elements ts
 
 sequences :: [a] -> [[a]]
@@ -123,7 +123,7 @@ genNames = let syms = ["a","e","i","o","u","y"]
 bis :: [BuiltIn]
 bis = [minBound..maxBound]
 
-biTys :: [ScType Name]
+biTys :: [ScType]
 biTys = map (BuiltIn . TBuiltIn) bis
 
 arbBi :: Gen BuiltIn

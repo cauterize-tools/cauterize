@@ -1,7 +1,7 @@
 module Cauterize.Schema.Parser
   ( parseFile
   , parseString
-  , ASTSchema
+  , Schema
   ) where
 
 import Control.Monad
@@ -16,20 +16,16 @@ import Cauterize.Common.Primitives
 import Cauterize.Common.Types
 import Cauterize.Common.Field
 
-type ASTSchema = Schema String
-type ASTType = ScType String
-type ASTField = Field Name
-
-parseFile :: FilePath -> IO (Either ParseError ASTSchema)
+parseFile :: FilePath -> IO (Either ParseError Schema)
 parseFile path = readFile path >>= parseString path
 
-parseString :: FilePath -> String -> IO (Either ParseError ASTSchema)
+parseString :: FilePath -> String -> IO (Either ParseError Schema)
 parseString path str = 
   return $ case parse parseSchema path str of
               Left e -> Left e
               Right s -> Right s
 
-parseSchema :: Parser ASTSchema
+parseSchema :: Parser Schema
 parseSchema = do
   s <- pSchema
   spacedEof
@@ -43,7 +39,7 @@ parseSchema = do
     pTypes = option [] $ spaces1 >> parseType `sepBy` spaces1 
     bis = map (BuiltIn . TBuiltIn) [minBound .. maxBound]
 
-parseType :: Parser ASTType
+parseType :: Parser ScType
 parseType = choice $ map try
   [ parseScalar
   , parseConst
@@ -56,23 +52,23 @@ parseType = choice $ map try
   , parsePartial
   ]
 
-parseScalar :: Parser ASTType
+parseScalar :: Parser ScType
 parseScalar = pSexp "scalar" $ do
   n <- spacedName
   b <- spacedBuiltIn
   return $ Scalar $ TScalar n b
 
-parseConst :: Parser ASTType
+parseConst :: Parser ScType
 parseConst = pSexp "const" $ do
   n <- spacedName
   b <- spacedBuiltIn
   i <- spacedNumber
   return $ Const $ TConst n b i
 
-parseFixedArray :: Parser ASTType
+parseFixedArray :: Parser ScType
 parseFixedArray = parseArr "fixed" (\n m i -> FixedArray $ TFixedArray n m i)
 
-parseBoundedArray :: Parser ASTType
+parseBoundedArray :: Parser ScType
 parseBoundedArray = parseArr "bounded" (\n m i -> BoundedArray $ TBoundedArray n m i)
 
 parseArr :: String -> (Name -> Name -> Integer -> a) -> Parser a
@@ -82,40 +78,40 @@ parseArr identStr mkArrFn = pSexp identStr $ do
   i <- spacedNumber
   return $ mkArrFn n m i
 
-parseField :: Parser (Integer -> ASTField)
+parseField :: Parser (Integer -> Field)
 parseField = pSexp "field" $ do
   n <- spacedName
   m <- option "void" spacedName
   return $ \i -> Field n m i
 
-parseSpacedFields :: Parser [Integer -> ASTField]
+parseSpacedFields :: Parser [Integer -> Field]
 parseSpacedFields = many $ spaces1 >> parseField
 
-parseStruct :: Parser ASTType
+parseStruct :: Parser ScType
 parseStruct = pSexp "struct" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields
   return $ Struct $ TStruct n fs
 
-parseEnum :: Parser ASTType
+parseEnum :: Parser ScType
 parseEnum = pSexp "enum" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields
   return $ Enum $ TEnum n fs
 
-parseSet :: Parser ASTType
+parseSet :: Parser ScType
 parseSet = pSexp "set" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields 
   return $ Set $ TSet n fs
 
-parsePad :: Parser ASTType
+parsePad :: Parser ScType
 parsePad = pSexp "pad" $ do
   n <- spacedName
   i <- spacedNumber
   return $ Pad $ TPad n i
 
-parsePartial :: Parser ASTType
+parsePartial :: Parser ScType
 parsePartial = pSexp "partial" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields
@@ -124,5 +120,5 @@ parsePartial = pSexp "partial" $ do
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]
 
-parseFields :: Parser (Fields Name)
+parseFields :: Parser Fields
 parseFields = pSexp "fields" $ liftM (Fields . tagWithIndex) parseSpacedFields
