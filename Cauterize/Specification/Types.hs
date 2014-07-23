@@ -297,11 +297,11 @@ instance References SpType where
   referencesOf (Scalar s _ _) = referencesOf s
   referencesOf (Const  c _ _) = referencesOf c
   referencesOf (FixedArray f _ _) = referencesOf f
-  referencesOf (BoundedArray b _ _ r) = nub $ show r : referencesOf b
+  referencesOf (BoundedArray b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
   referencesOf (Struct s _ _) = referencesOf s
-  referencesOf (Set s _ _ r) = nub $ show r : referencesOf s
-  referencesOf (Enum e _ _ r) = nub $ show r : referencesOf e
-  referencesOf (Partial p _ _ r l) = nub $ show r : show l : referencesOf p
+  referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
+  referencesOf (Enum e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
+  referencesOf (Partial p _ _ r l) = nub $ show (unTagRepr r) : show (unLengthRepr l) : referencesOf p
   referencesOf (Pad {..}) = []
 
 prettyPrint :: Spec -> String
