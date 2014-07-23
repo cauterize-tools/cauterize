@@ -17,6 +17,7 @@
 * [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
 * [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
 * [Piqi](http://piqi.org/)
+* [Transit](https://github.com/cognitect/transit-format)
 
 ## Primary Goals
 
