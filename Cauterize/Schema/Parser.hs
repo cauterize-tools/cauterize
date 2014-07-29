@@ -81,8 +81,10 @@ parseArr identStr mkArrFn = pSexp identStr $ do
 parseField :: Parser (Integer -> Field)
 parseField = pSexp "field" $ do
   n <- spacedName
-  m <- option "void" spacedName
-  return $ \i -> Field n m i
+  m <- optionMaybe spacedName
+  return $ \i -> case m of
+                    Just m' -> Field n m' i
+                    Nothing -> EmptyField n i
 
 parseSpacedFields :: Parser [Integer -> Field]
 parseSpacedFields = many $ spaces1 >> parseField

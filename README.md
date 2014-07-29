@@ -77,15 +77,6 @@ Floating point types:
   * `ieee754s`
   * `ieee754d`
 
-Void types:
-
-  * `void`
-
-The single void type is a way of indicating, in any type, that there is nothing
-to represent. This is handy in the case of enumerations and sets (discussed
-later in the document) when associated data isn't required -- the meaning is
-entirely captured by the field name.
-
 New built-in types cannot be defined in a schema.
 
 #### Scalars
@@ -315,8 +306,9 @@ They are defined like this:
   (field ...))
 ```
 
-If the target type is not specified in the schema, it will be inferred to be
-`void`.
+If the target type is not specified in the schema, code generators will only
+define a field index and will not attempt to associate the field with a
+contained type.
 
 ## Specifications
 

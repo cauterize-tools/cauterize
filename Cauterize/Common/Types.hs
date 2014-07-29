@@ -7,6 +7,7 @@ import Cauterize.Common.References
 import Cauterize.Common.Field
 import Data.Data
 import Data.List
+import Data.Maybe
 
 data TBuiltIn = TBuiltIn { unTBuiltIn :: BuiltIn }
   deriving (Show, Ord, Eq, Data, Typeable)
@@ -57,28 +58,28 @@ data TStruct = TStruct { structName :: Name, structFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TStruct where
-  referencesOf (TStruct _ (Fields rs)) = nub $ map refRef rs
+  referencesOf (TStruct _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TEnum = TEnum { enumName :: Name, enumFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TEnum where
-  referencesOf (TEnum _ (Fields rs)) = nub $ map refRef rs
+  referencesOf (TEnum _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TSet = TSet { setName :: Name, setFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TSet where
-  referencesOf (TSet _ (Fields rs)) = nub $ map refRef rs
+  referencesOf (TSet _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TPartial = TPartial { partialName :: Name, partialFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TPartial where
-  referencesOf (TPartial _ (Fields rs)) = nub $ map refRef rs
+  referencesOf (TPartial _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TPad = TPad { padName :: Name, padLength :: Integer }

@@ -154,9 +154,18 @@ parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumb
 parseField :: Parser Field
 parseField = pSexp "field" $ do
   n <- spacedName
+  try (parseFullField n) <|> parseEmptyField n
+
+parseFullField :: String -> Parser Field
+parseFullField n = do
   t <- spacedName
   ix <- spacedNumber
   return $ Field n t ix
+  
+parseEmptyField :: String -> Parser Field
+parseEmptyField n = do
+  ix <- spacedNumber
+  return $ EmptyField n ix
   
 parseLengthRepr :: Parser LengthRepr
 parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr spacedBuiltIn

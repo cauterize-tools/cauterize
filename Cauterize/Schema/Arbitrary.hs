@@ -106,7 +106,13 @@ arbFielded ts n cstr = do
   return $ cstr n (Fields fieldFs')
 
 arbIRef :: [Name] -> Name -> Gen (Integer -> Field)
-arbIRef ts n = liftM (Field n) $ elements ts
+arbIRef ts n = frequency [(3, arbField ts n), (1, arbEmptyField n)]
+
+arbField :: [Name] -> Name -> Gen (Integer -> Field)
+arbField ts n = liftM (Field n) $ elements ts
+
+arbEmptyField :: Name -> Gen (Integer -> Field)
+arbEmptyField n = return $ EmptyField n
 
 sequences :: [a] -> [[a]]
 sequences ls = ls' ++ [i ++ [a] | i <- sequences ls, a <- ls]

@@ -1,3 +1,3 @@
 (schema "reserved name" "0.0.1"
-        (enum void (fields (field a))))
+        (enum u8 (fields (field a))))
 

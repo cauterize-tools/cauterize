@@ -3,6 +3,7 @@ module Main (main) where
 import Cauterize.Schema.Arbitrary
 import qualified Cauterize.Schema as SC
 import qualified Cauterize.Specification as SP
+import qualified Cauterize.Specification.Parser as SP
 
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
@@ -40,5 +41,10 @@ printArbSpec :: IO ()
 printArbSpec = do
   s <- liftM unValidSchema $ generate (arbitrary :: Gen ValidSchema)
   case SC.checkSchema s of
-    [] -> print . pretty $ SP.fromSchema s
+    [] -> parseAndPrint $ show . pretty $ SP.fromSchema s
     es -> print es
+
+parseAndPrint :: String -> IO ()
+parseAndPrint sch = case SP.parseString "arbitrary.scm" sch of
+                      Left es -> print es
+                      Right sc -> print . pretty $ sc

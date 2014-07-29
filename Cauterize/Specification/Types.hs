@@ -58,10 +58,12 @@ class Sized a where
   maxSize :: a -> Integer
 
   minimumOfSizes :: [a] -> Integer
-  minimumOfSizes = minimum . map minSize
+  minimumOfSizes [] = 0
+  minimumOfSizes xs = minimum $ map minSize xs
 
   maximumOfSizes :: [a] -> Integer
-  maximumOfSizes = maximum . map maxSize
+  maximumOfSizes [] = 0
+  maximumOfSizes xs = maximum $ map maxSize xs
 
   rangeFitting :: [a] -> RangeSize
   rangeFitting ss = mkRangeSize (minimumOfSizes ss) (maximumOfSizes ss)
@@ -289,8 +291,9 @@ mkSpecType m p =
     (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (FixedSize l)
   where
     lookupRef r = fromJust $ r `M.lookup` m
-    lookupField (Field _ r _) = lookupRef r
-    lookupRefs = map lookupField . unFields
+    lookupField (Field _ r _) = Just $ lookupRef r
+    lookupField (EmptyField _ _) = Nothing
+    lookupRefs = mapMaybe lookupField . unFields
 
 instance References SpType where
   referencesOf (BuiltIn {..}) = []
