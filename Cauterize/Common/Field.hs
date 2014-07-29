@@ -15,8 +15,8 @@ data Fields = Fields { unFields :: [Field] }
 fieldsLength :: Fields -> Int
 fieldsLength (Fields fs) = length fs
 
-data Field = Field { fieldName :: Name , fieldRef :: Name , fieldIndex :: Integer }
-           | EmptyField { fieldName :: Name, fieldIndex :: Integer }
+data Field = Field { fName :: Name , fRef :: Name , fIndex :: Integer }
+           | EmptyField { fName :: Name, fIndex :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 refSig :: M.Map Name Signature -> Field -> Signature
