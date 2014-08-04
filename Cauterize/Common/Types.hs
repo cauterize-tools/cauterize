@@ -75,13 +75,6 @@ instance References TSet where
   referencesOf (TSet _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
-data TPartial = TPartial { partialName :: Name, partialFields :: Fields }
-  deriving (Show, Ord, Eq, Data, Typeable)
-
-instance References TPartial where
-  referencesOf (TPartial _ (Fields rs)) = nub $ mapMaybe refRef rs
-
-
 data TPad = TPad { padName :: Name, padLength :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 

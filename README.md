@@ -262,36 +262,6 @@ The following defines a type that can only be represented by 8 null bytes.
 (pad p8 8)
 ```
 
-#### Partial
-
-Partials allow code generators to emit partial implementations of protocol
-specifications. This can be useful if there are several small devices that are
-to be part of a larger federated system. If there's a central node that
-broadcasts messages to many nodes, but not all nodes are interested in all
-messages, then Partial types allow the smaller nodes to only include packing
-and unpacking code for the portions of the partial they use.
-
-Partials use a tag, like enumerations, for each variant. Unlike enumerations,
-partials also include a _length_ of the encoded type. This is so that nodes
-that don't implement the whole specification can safely skip over the bytes
-used for the type _and then continue decoding any following type information_.
-
-```scheme
-(partial [type name] [field list])
-```
-
-Here's the same example demonstrated for Enumerations, but represented as a
-partial.
-
-```scheme
-(partial request (fields
-                   (field getKeyCount)
-                   (field checkKeyExists keyName)
-                   (field getKey keyName)
-                   (field eraseKey keyName)
-                   (field setKey keyValuePair)))
-```
-
 ### Field Lists
 
 Field lists are used to designate a set of (name/type) pairs. These pairs are

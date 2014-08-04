@@ -61,7 +61,6 @@ arbs = [ arbScalar
        , arbStruct
        , arbSet
        , arbEnum
-       , arbPartial
        , arbPad
        ]
 
@@ -88,9 +87,6 @@ arbSet ts n = arbFielded ts n (\n' fs -> Set $ TSet n' fs)
 
 arbEnum ::  [Name] -> Name -> Gen ScType
 arbEnum ts n = arbFielded ts n (\n' fs -> Enum $ TEnum n' fs)
-
-arbPartial ::  [Name] -> Name -> Gen ScType
-arbPartial ts n = arbFielded ts n (\n' fs -> Partial $ TPartial n' fs)
 
 arbPad :: [Name] -> Name -> Gen ScType
 arbPad _ n = liftM (Pad . TPad n) (elements [1..8])

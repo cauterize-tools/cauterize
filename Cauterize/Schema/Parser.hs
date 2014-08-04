@@ -49,7 +49,6 @@ parseType = choice $ map try
   , parseEnum
   , parseSet
   , parsePad
-  , parsePartial
   ]
 
 parseScalar :: Parser ScType
@@ -112,12 +111,6 @@ parsePad = pSexp "pad" $ do
   n <- spacedName
   i <- spacedNumber
   return $ Pad $ TPad n i
-
-parsePartial :: Parser ScType
-parsePartial = pSexp "partial" $ do
-  n <- spacedName
-  fs <- spaces1 >> parseFields
-  return $ Partial $ TPartial n fs
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]

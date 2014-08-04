@@ -50,7 +50,6 @@ parseType = choice $ map try
   , parseStruct
   , parseSet
   , parseEnum
-  , parsePartial
   , parsePad
   ]
 
@@ -122,16 +121,6 @@ parseEnum = pSexp "enum" $ do
   repr <- spaces1 >> parseTagRepr
   fs <- spaces1 >> parseFields
   return $ Enum (TEnum n fs) hs sz repr
-
-parsePartial :: Parser SpType
-parsePartial = pSexp "partial" $ do
-  n <- spacedName
-  hs <- spacedFormHash
-  sz <- parseRangeSize
-  pTagRepr <- spaces1 >> parseTagRepr
-  pLenRepr <- spaces1 >> parseLengthRepr
-  fs <- spaces1 >> parseFields
-  return $ Partial (TPartial n fs) hs sz pTagRepr pLenRepr
 
 parsePad :: Parser SpType
 parsePad = pSexp "pad" $ do

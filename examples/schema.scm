@@ -30,8 +30,4 @@
                 (fields
                   (field a number64)
                   (field b s8)
-                  (field c anenum)))
-        (partial req
-                 (fields
-                   (field a s32)
-                   (field b s32))))
+                  (field c anenum))))

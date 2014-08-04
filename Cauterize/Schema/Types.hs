@@ -41,7 +41,6 @@ data ScType = BuiltIn      TBuiltIn
             | Struct       TStruct
             | Set          TSet
             | Enum         TEnum
-            | Partial      TPartial
             | Pad          TPad
   deriving (Show, Ord, Eq)
 
@@ -57,7 +56,6 @@ typeName (BoundedArray (TBoundedArray n _ _)) = n
 typeName (Struct (TStruct n _)) = n
 typeName (Set (TSet n _)) = n
 typeName (Enum (TEnum n _)) = n
-typeName (Partial (TPartial n _)) = n
 typeName (Pad (TPad n _)) = n
 
 biSig :: BuiltIn -> Signature
@@ -74,7 +72,6 @@ typeSig sm t =
     (Struct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
     (Set (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
     (Enum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
-    (Partial (TPartial n rs)) -> concat ["(partial ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
     (Pad (TPad n i)) -> concat ["(pad ", n, " ", padShowInteger i, ")"]
   where
     luSig n = fromJust $ n `M.lookup` sm
@@ -95,7 +92,6 @@ referredNames (BoundedArray t) = referencesOf t
 referredNames (Struct t) = referencesOf t
 referredNames (Set t) = referencesOf t
 referredNames (Enum t) = referencesOf t
-referredNames (Partial t) = referencesOf t
 referredNames (Pad t) = referencesOf t
 
 data SchemaErrors = DuplicateNames [Name]
@@ -170,7 +166,6 @@ instance Pretty ScType where
   pretty (Struct (TStruct n fs)) = prettyFielded "struct" n fs
   pretty (Set (TSet n fs)) = prettyFielded "set" n fs
   pretty (Enum (TEnum n fs)) = prettyFielded "enum" n fs
-  pretty (Partial (TPartial n fs)) = prettyFielded "partial" n fs
   pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
 
 prettyFielded :: String -> Name -> Fields -> Doc

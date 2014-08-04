@@ -139,12 +139,6 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spRangeSize :: RangeSize
                            , tagRepr     :: TagRepr }
 
-            | Partial      { unPartial   :: TPartial
-                           , spHash      :: FormHash
-                           , spRangeSize :: RangeSize
-                           , tagRepr     :: TagRepr
-                           , lenRepr     :: LengthRepr }
-
             | Pad          { unPad       :: TPad
                            , spHash      :: FormHash
                            , spFixedSize :: FixedSize }
@@ -159,7 +153,6 @@ instance Sized SpType where
   minSize (Struct { spRangeSize = s}) = minSize s
   minSize (Set { spRangeSize = s}) = minSize s
   minSize (Enum { spRangeSize = s}) = minSize s
-  minSize (Partial { spRangeSize = s}) = minSize s
   minSize (Pad { spFixedSize = s}) = minSize s
 
   maxSize (BuiltIn { spFixedSize = s}) = maxSize s
@@ -170,7 +163,6 @@ instance Sized SpType where
   maxSize (Struct { spRangeSize = s}) = maxSize s
   maxSize (Set { spRangeSize = s}) = maxSize s
   maxSize (Enum { spRangeSize = s}) = maxSize s
-  maxSize (Partial { spRangeSize = s}) = maxSize s
   maxSize (Pad { spFixedSize = s}) = maxSize s
 
 typeName :: SpType -> Name
@@ -182,7 +174,6 @@ typeName (BoundedArray { unBounded = (TBoundedArray n _ _)}) = n
 typeName (Struct { unStruct = (TStruct n _)}) = n
 typeName (Set { unSet = (TSet n _)}) = n
 typeName (Enum { unEnum = (TEnum n _)}) = n
-typeName (Partial { unPartial = (TPartial n _)}) = n
 typeName (Pad { unPad = (TPad n _)}) = n
 
 pruneBuiltIns :: [SpType] -> [SpType]
@@ -276,18 +267,6 @@ mkSpecType m p =
           repr' = TagRepr repr
           reprSz = builtInSize repr
       in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
-    (SC.Partial t@(TPartial _ rs)) ->
-      let refs = lookupRefs rs
-          minMin = minimumOfSizes refs
-          maxMax = maximumOfSizes refs
-          ptagRepr = minimalExpression (fieldsLength rs)
-          ptagRepr' = TagRepr ptagRepr
-          ptagReprSz = builtInSize ptagRepr
-          plenRepr = minimalExpression maxMax
-          plenRepr' = LengthRepr plenRepr
-          plenReprSz = builtInSize plenRepr
-          overhead = ptagReprSz + plenReprSz
-      in \h -> Partial t h (mkRangeSize (overhead + minMin) (overhead + maxMax)) ptagRepr' plenRepr'
     (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (FixedSize l)
   where
     lookupRef r = fromJust $ r `M.lookup` m
@@ -304,7 +283,6 @@ instance References SpType where
   referencesOf (Struct s _ _) = referencesOf s
   referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
   referencesOf (Enum e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
-  referencesOf (Partial p _ _ r l) = nub $ show (unTagRepr r) : show (unLengthRepr l) : referencesOf p
   referencesOf (Pad {..}) = []
 
 prettyPrint :: Spec -> String
@@ -348,7 +326,6 @@ instance Pretty SpType where
   pretty (Struct (TStruct n rs) h sz) = prettyFieldedB0 "struct" n rs sz h
   pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
   pretty (Enum (TEnum n rs) h sz bi) = prettyFieldedB1 "enum" n rs sz bi h
-  pretty (Partial (TPartial n rs) h sz bi ln) = prettyFieldedB2 "partial" n rs sz bi ln h
   -- when printing/parsing padding, the length of the padding is always the min/max
   pretty (Pad (TPad n _) h sz) = parens pt
     where
@@ -367,9 +344,3 @@ prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
     pfs = pretty sz $$ pretty repr $$ specPrettyFields fs
-
-prettyFieldedB2 :: (Pretty sz, Pretty bi1, Pretty bi2) => String -> String -> Fields -> sz -> bi1 -> bi2 -> FormHash -> Doc
-prettyFieldedB2 t n fs sz repr1 repr2 hash = parens $ hang pt 1 pfs
-  where
-    pt = text t <+> text n <+> pretty hash
-    pfs = pretty sz $$ pretty repr1 $$ pretty repr2 $$ specPrettyFields fs
