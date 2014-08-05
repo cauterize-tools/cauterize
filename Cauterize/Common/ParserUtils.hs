@@ -21,7 +21,7 @@ import Numeric
 
 import qualified Data.ByteString as BS
 
-import Cauterize.Common.Primitives
+import Cauterize.Common.Types
 
 parens :: Parser a -> Parser a
 parens a = do

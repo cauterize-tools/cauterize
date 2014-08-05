@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, RecordWildCards, DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances, RecordWildCards #-}
 module Cauterize.Specification.Types
   ( Spec(..)
   , SpType(..)
@@ -17,12 +17,10 @@ module Cauterize.Specification.Types
   ) where
 
 import Cauterize.FormHash
-import Cauterize.Common.Primitives
-import Cauterize.Common.Field
+import Cauterize.Common.Types
 import Data.List
 import Data.Function
 import Data.Maybe
-import Data.Data
 import Data.Graph
 
 import qualified Data.Map as M
@@ -30,23 +28,21 @@ import qualified Data.List as L
 import qualified Data.Set as S
 import qualified Cauterize.Schema.Types as SC
 
-import Cauterize.Common.Types
-import Cauterize.Common.References
 
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
 data FixedSize = FixedSize { unFixedSize :: Integer }
-  deriving (Show, Ord, Eq, Data, Typeable)
+  deriving (Show, Ord, Eq)
 data RangeSize = RangeSize { rangeSizeMin :: Integer, rangeSizeMax :: Integer }
-  deriving (Show, Ord, Eq, Data, Typeable)
+  deriving (Show, Ord, Eq)
 
 data LengthRepr = LengthRepr { unLengthRepr :: BuiltIn }
-  deriving (Show, Ord, Eq, Data, Typeable)
+  deriving (Show, Ord, Eq)
 data TagRepr = TagRepr { unTagRepr :: BuiltIn }
-  deriving (Show, Ord, Eq, Data, Typeable)
+  deriving (Show, Ord, Eq)
 data FlagsRepr = FlagsRepr { unFlagsRepr :: BuiltIn }
-  deriving (Show, Ord, Eq, Data, Typeable)
+  deriving (Show, Ord, Eq)
 
 mkRangeSize :: Integer -> Integer -> RangeSize
 mkRangeSize mi ma = if mi > ma
@@ -102,7 +98,7 @@ data Spec = Spec { specName :: Name
                  , specHash :: FormHash
                  , specSize :: RangeSize
                  , specTypes :: [SpType] }
-  deriving (Show, Eq, Data, Typeable)
+  deriving (Show, Eq)
 
 data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash      :: FormHash
@@ -142,7 +138,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
             | Pad          { unPad       :: TPad
                            , spHash      :: FormHash
                            , spFixedSize :: FixedSize }
-  deriving (Show, Ord, Eq, Data, Typeable)
+  deriving (Show, Ord, Eq)
 
 instance Sized SpType where
   minSize (BuiltIn { spFixedSize = s}) = minSize s
@@ -344,3 +340,12 @@ prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n <+> pretty hash
     pfs = pretty sz $$ pretty repr $$ specPrettyFields fs
+
+specPrettyRefs :: Field -> Doc
+specPrettyRefs  (EmptyField n i) = parens $ text "field" <+> text n <+> integer i
+specPrettyRefs  (Field n m i) = parens $ text "field" <+> text n <+> text m <+> integer i
+
+specPrettyFields :: Fields -> Doc
+specPrettyFields (Fields fs) = parens $ hang (text "fields") 1 pfs
+  where
+    pfs = vcat $ map specPrettyRefs fs

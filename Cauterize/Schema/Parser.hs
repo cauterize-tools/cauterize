@@ -10,11 +10,8 @@ import Text.Parsec
 import Text.Parsec.String
 
 import Cauterize.Common.ParserUtils
-import Cauterize.Schema.Types
-
-import Cauterize.Common.Primitives
 import Cauterize.Common.Types
-import Cauterize.Common.Field
+import Cauterize.Schema.Types
 
 parseFile :: FilePath -> IO (Either ParseError Schema)
 parseFile path = readFile path >>= parseString path

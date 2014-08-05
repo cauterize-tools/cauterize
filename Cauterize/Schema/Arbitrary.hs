@@ -10,8 +10,6 @@ import Test.QuickCheck.Gen
 import Control.Monad
 import Data.Word
 
-import Cauterize.Common.Field
-import Cauterize.Common.Primitives
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 

@@ -47,10 +47,7 @@ library
                        bytestring ==0.10.4.*,
                        GraphSCC ==1.0.*
   default-language:    Haskell2010
-  exposed-modules:     Cauterize.Common.Field,
-                       Cauterize.Common.Primitives,
-                       Cauterize.Common.References,
-                       Cauterize.Common.Types,
+  exposed-modules:     Cauterize.Common.Types,
                        Cauterize.Schema,
                        Cauterize.Specification,
                        Cauterize.FormHash,

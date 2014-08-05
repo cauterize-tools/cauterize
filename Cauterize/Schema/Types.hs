@@ -13,9 +13,6 @@ module Cauterize.Schema.Types
   , prettyPrint
   ) where
 
-import Cauterize.Common.Primitives
-import Cauterize.Common.Field
-import Cauterize.Common.References
 import Cauterize.Common.Types
 
 import Data.Maybe
@@ -173,3 +170,12 @@ prettyFielded t n fs = parens $ hang pt 1 pfs
   where
     pt = text t <+> text n
     pfs = schemaPrettyFields fs
+
+schemaPrettyFields :: Fields -> Doc
+schemaPrettyFields (Fields fs) = parens $ hang (text "fields") 1 pfs
+  where
+    pfs = vcat $ map schemaPrettyRefs fs
+
+schemaPrettyRefs :: Field -> Doc
+schemaPrettyRefs  (EmptyField n _) = parens $ text "field" <+> text n
+schemaPrettyRefs  (Field n m _) = parens $ text "field" <+> text n <+> text m

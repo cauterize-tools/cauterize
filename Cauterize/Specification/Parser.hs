@@ -9,7 +9,6 @@ import Text.Parsec.String
 import Cauterize.Specification.Types
 import Cauterize.Common.ParserUtils
 import Cauterize.Common.Types
-import Cauterize.Common.Field
 
 import Control.Monad
 
