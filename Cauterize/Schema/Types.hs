@@ -33,15 +33,15 @@ type Cycle = [Name]
 data Schema = Schema Name Version [ScType]
   deriving (Show)
 
-data ScType = BuiltIn      TBuiltIn
-            | Scalar       TScalar
-            | Const        TConst
-            | FixedArray   TFixedArray
-            | BoundedArray TBoundedArray
-            | Struct       TStruct
-            | Set          TSet
-            | Enum         TEnum
-            | Pad          TPad
+data ScType = BuiltIn TBuiltIn
+            | Scalar  TScalar
+            | Const   TConst
+            | Array   TArray
+            | Vector  TVector
+            | Struct  TStruct
+            | Set     TSet
+            | Enum    TEnum
+            | Pad     TPad
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema -> M.Map Name ScType
@@ -51,8 +51,8 @@ typeName :: ScType -> Name
 typeName (BuiltIn (TBuiltIn b)) = show b
 typeName (Scalar (TScalar n _)) = n
 typeName (Const (TConst n _ _)) = n
-typeName (FixedArray (TFixedArray n _ _)) = n
-typeName (BoundedArray (TBoundedArray n _ _)) = n
+typeName (Array (TArray n _ _)) = n
+typeName (Vector (TVector n _ _)) = n
 typeName (Struct (TStruct n _)) = n
 typeName (Set (TSet n _)) = n
 typeName (Enum (TEnum n _)) = n
@@ -67,8 +67,8 @@ typeSig sm t =
     (BuiltIn (TBuiltIn b)) -> biSig b
     (Scalar (TScalar n b)) -> concat ["(scalar ", n, " ", biSig b, ")"]
     (Const (TConst n b i)) -> concat ["(const ", n, " ", biSig b, " ", padShowInteger i, ")"]
-    (FixedArray (TFixedArray n m i)) -> concat ["(fixed ", n, " ", luSig m, " ", padShowInteger i, ")"]
-    (BoundedArray (TBoundedArray n m i)) -> concat ["(bounded ", n, " ", luSig m, " ", padShowInteger i, ")"]
+    (Array (TArray n m i)) -> concat ["(array ", n, " ", luSig m, " ", padShowInteger i, ")"]
+    (Vector (TVector n m i)) -> concat ["(vector ", n, " ", luSig m, " ", padShowInteger i, ")"]
     (Struct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
     (Set (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
     (Enum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
@@ -87,8 +87,8 @@ referredNames :: ScType -> [Name]
 referredNames (BuiltIn t) = referencesOf t
 referredNames (Scalar t) = referencesOf t
 referredNames (Const t) = referencesOf t
-referredNames (FixedArray t) = referencesOf t
-referredNames (BoundedArray t) = referencesOf t
+referredNames (Array t) = referencesOf t
+referredNames (Vector t) = referencesOf t
 referredNames (Struct t) = referencesOf t
 referredNames (Set t) = referencesOf t
 referredNames (Enum t) = referencesOf t
@@ -161,8 +161,8 @@ instance Pretty ScType where
   pretty (BuiltIn _) = empty
   pretty (Scalar (TScalar n b)) = parens $ text "scalar" <+> text n <+> pShow b
   pretty (Const (TConst n b i)) = parens $ text "const" <+> text n <+> pShow b <+> integer i
-  pretty (FixedArray (TFixedArray n m s)) = parens $ text "fixed" <+> text n <+> text m <+> integer s
-  pretty (BoundedArray (TBoundedArray n m s)) = parens $ text "bounded" <+> text n <+> text m <+> integer s
+  pretty (Array (TArray n m s)) = parens $ text "array" <+> text n <+> text m <+> integer s
+  pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
   pretty (Struct (TStruct n fs)) = prettyFielded "struct" n fs
   pretty (Set (TSet n fs)) = prettyFielded "set" n fs
   pretty (Enum (TEnum n fs)) = prettyFielded "enum" n fs

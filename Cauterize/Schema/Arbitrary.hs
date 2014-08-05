@@ -74,10 +74,10 @@ arbConst :: [Name] -> Name -> Gen ScType
 arbConst _ n = liftM2 (\b i -> Const $ TConst n b i) arbBi (elements constRange)
 
 arbFixed :: [Name] -> Name -> Gen ScType
-arbFixed ts n = liftM2 (\t s -> FixedArray $ TFixedArray n t s) (elements ts) arbArraySize
+arbFixed ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize
 
 arbBounded :: [Name] -> Name -> Gen ScType
-arbBounded ts n = liftM2 (\t s -> BoundedArray $ TBoundedArray n t s) (elements ts) arbArraySize
+arbBounded ts n = liftM2 (\t s -> Vector $ TVector n t s) (elements ts) arbArraySize
 
 arbStruct :: [Name] -> Name -> Gen ScType
 arbStruct ts n = arbFielded ts n (\n' fs -> Struct $ TStruct n' fs)

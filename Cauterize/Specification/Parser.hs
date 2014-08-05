@@ -45,8 +45,8 @@ parseType = choice $ map try
   [ parseBuiltin
   , parseScalar
   , parseConst
-  , parseFixedArray
-  , parseBoundedArray
+  , parseArray
+  , parseVector
   , parseStruct
   , parseSet
   , parseEnum
@@ -77,24 +77,24 @@ parseConst = pSexp "const" $ do
   v <- spacedNumber
   return $ Const (TConst n bi v) hs sz
 
-parseFixedArray :: Parser SpType
-parseFixedArray = pSexp "fixed" $ do
+parseArray :: Parser SpType
+parseArray = pSexp "array" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseRangeSize
   len <- spacedNumber
   t <- spacedName
-  return $ FixedArray (TFixedArray n t len) hs sz
+  return $ Array (TArray n t len) hs sz
 
-parseBoundedArray :: Parser SpType
-parseBoundedArray = pSexp "bounded" $ do
+parseVector :: Parser SpType
+parseVector = pSexp "vector" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseRangeSize
   repr <- spaces1 >> parseLengthRepr
   len <- spacedNumber
   t <- spacedName
-  return $ BoundedArray (TBoundedArray n t len) hs sz repr
+  return $ Vector (TVector n t len) hs sz repr
 
 parseStruct :: Parser SpType
 parseStruct = pSexp "struct" $ do

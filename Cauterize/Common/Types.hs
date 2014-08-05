@@ -26,24 +26,24 @@ instance References TConst where
   referencesOf (TConst _ b _) = [show b]
 
 
-data TFixedArray = TFixedArray { fixedArrName :: Name
-                               , fixedArrRef :: Name
-                               , fixedArrLen :: Integer
-                               }
+data TArray = TArray { arrayName :: Name
+                     , arrayRef :: Name
+                     , arrayLen :: Integer
+                     }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References TFixedArray where
-  referencesOf (TFixedArray _ n _) = [n]
+instance References TArray where
+  referencesOf (TArray _ n _) = [n]
 
 
-data TBoundedArray = TBoundedArray { boundedArrName :: Name
-                                   , boundedArrRef :: Name
-                                   , boundedArrMaxLen :: Integer
-                                   }
+data TVector = TVector { vectorName :: Name
+                       , vectorRef :: Name
+                       , vectorMaxLen :: Integer
+                       }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References TBoundedArray where
-  referencesOf (TBoundedArray _ n _) = [n]
+instance References TVector where
+  referencesOf (TVector _ n _) = [n]
 
 
 data TScalar = TScalar { scalarName :: Name

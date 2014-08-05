@@ -116,11 +116,11 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash      :: FormHash
                            , spFixedSize :: FixedSize }
 
-            | FixedArray   { unFixed     :: TFixedArray
+            | Array        { unFixed     :: TArray
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize }
 
-            | BoundedArray { unBounded   :: TBoundedArray
+            | Vector       { unBounded   :: TVector
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize
                            , lenRepr     :: LengthRepr }
@@ -148,8 +148,8 @@ instance Sized SpType where
   minSize (BuiltIn { spFixedSize = s}) = minSize s
   minSize (Scalar { spFixedSize = s}) = minSize s
   minSize (Const { spFixedSize = s}) = minSize s
-  minSize (FixedArray { spRangeSize = s}) = minSize s
-  minSize (BoundedArray { spRangeSize = s}) = minSize s
+  minSize (Array { spRangeSize = s}) = minSize s
+  minSize (Vector { spRangeSize = s}) = minSize s
   minSize (Struct { spRangeSize = s}) = minSize s
   minSize (Set { spRangeSize = s}) = minSize s
   minSize (Enum { spRangeSize = s}) = minSize s
@@ -158,8 +158,8 @@ instance Sized SpType where
   maxSize (BuiltIn { spFixedSize = s}) = maxSize s
   maxSize (Scalar { spFixedSize = s}) = maxSize s
   maxSize (Const { spFixedSize = s}) = maxSize s
-  maxSize (FixedArray { spRangeSize = s}) = maxSize s
-  maxSize (BoundedArray { spRangeSize = s}) = maxSize s
+  maxSize (Array { spRangeSize = s}) = maxSize s
+  maxSize (Vector { spRangeSize = s}) = maxSize s
   maxSize (Struct { spRangeSize = s}) = maxSize s
   maxSize (Set { spRangeSize = s}) = maxSize s
   maxSize (Enum { spRangeSize = s}) = maxSize s
@@ -169,8 +169,8 @@ typeName :: SpType -> Name
 typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
 typeName (Scalar { unScalar = (TScalar n _)}) = n
 typeName (Const { unConst = (TConst n _ _)}) = n
-typeName (FixedArray { unFixed = (TFixedArray n _ _)}) = n
-typeName (BoundedArray { unBounded = (TBoundedArray n _ _)}) = n
+typeName (Array { unFixed = (TArray n _ _)}) = n
+typeName (Vector { unBounded = (TVector n _ _)}) = n
 typeName (Struct { unStruct = (TStruct n _)}) = n
 typeName (Set { unSet = (TSet n _)}) = n
 typeName (Enum { unEnum = (TEnum n _)}) = n
@@ -238,15 +238,15 @@ mkSpecType m p =
     (SC.Const   t@(TConst _ b _)) ->
       let s = builtInSize b
       in \h -> Const t h (FixedSize s)
-    (SC.FixedArray t@(TFixedArray _ r i)) ->
+    (SC.Array t@(TArray _ r i)) ->
       let ref = lookupRef r
-      in \h -> FixedArray t h (mkRangeSize (i * minSize ref) (i * maxSize ref))
-    (SC.BoundedArray t@(TBoundedArray _ r i)) ->
+      in \h -> Array t h (mkRangeSize (i * minSize ref) (i * maxSize ref))
+    (SC.Vector t@(TVector _ r i)) ->
       let ref = lookupRef r
           repr = minimalExpression i
           repr' = LengthRepr repr
           reprSz = builtInSize repr
-      in \h -> BoundedArray t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr'
+      in \h -> Vector t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr'
     (SC.Struct t@(TStruct _ rs)) ->
       let refs = lookupRefs rs
           sumMin = sumOfMinimums refs
@@ -278,8 +278,8 @@ instance References SpType where
   referencesOf (BuiltIn {..}) = []
   referencesOf (Scalar s _ _) = referencesOf s
   referencesOf (Const  c _ _) = referencesOf c
-  referencesOf (FixedArray f _ _) = referencesOf f
-  referencesOf (BoundedArray b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
+  referencesOf (Array f _ _) = referencesOf f
+  referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
   referencesOf (Struct s _ _) = referencesOf s
   referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
   referencesOf (Enum e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
@@ -315,13 +315,13 @@ instance Pretty SpType where
     where
       pt = text "const" <+> text n <+> pretty h
       pa = pretty sz $$ pShow b $$ integer i
-  pretty (FixedArray (TFixedArray n m i) h sz) = parens $ pt $+$ nest 1 pa
+  pretty (Array (TArray n m i) h sz) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "fixed" <+> text n <+> pretty h
+      pt = text "array" <+> text n <+> pretty h
       pa = pretty sz $$ integer i $$ text m
-  pretty (BoundedArray (TBoundedArray n m i) h sz bi) = parens $ pt $+$ nest 1 pa
+  pretty (Vector (TVector n m i) h sz bi) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "bounded" <+> text n <+> pretty h
+      pt = text "vector" <+> text n <+> pretty h
       pa = pretty sz $$ pretty bi $$ integer i $$ text m
   pretty (Struct (TStruct n rs) h sz) = prettyFieldedB0 "struct" n rs sz h
   pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h

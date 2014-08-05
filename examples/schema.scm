@@ -2,12 +2,12 @@
         (scalar number64 s64) 
         (scalar unsigned8 u8)
         (const smallconst u8 34)
-        (fixed somefixed number64 64)
-        (bounded somebounded number64 64)
+        (array somearray number64 64)
+        (vector somevector number64 64)
         (pad p8 8)
         (struct astruct
                 (fields
-                  (field z somebounded)
+                  (field z somevector)
                   (field a s8)
                   (field padding p8)
                   (field b smallconst)

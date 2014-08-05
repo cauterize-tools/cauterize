@@ -43,8 +43,8 @@ parseType :: Parser ScType
 parseType = choice $ map try
   [ parseScalar
   , parseConst
-  , parseFixedArray
-  , parseBoundedArray
+  , parseArray
+  , parseVector
   , parseStruct
   , parseEnum
   , parseSet
@@ -64,11 +64,11 @@ parseConst = pSexp "const" $ do
   i <- spacedNumber
   return $ Const $ TConst n b i
 
-parseFixedArray :: Parser ScType
-parseFixedArray = parseArr "fixed" (\n m i -> FixedArray $ TFixedArray n m i)
+parseArray :: Parser ScType
+parseArray = parseArr "array" (\n m i -> Array $ TArray n m i)
 
-parseBoundedArray :: Parser ScType
-parseBoundedArray = parseArr "bounded" (\n m i -> BoundedArray $ TBoundedArray n m i)
+parseVector :: Parser ScType
+parseVector = parseArr "vector" (\n m i -> Vector $ TVector n m i)
 
 parseArr :: String -> (Name -> Name -> Integer -> a) -> Parser a
 parseArr identStr mkArrFn = pSexp identStr $ do

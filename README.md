@@ -117,39 +117,39 @@ When constants are written into the serialization stream, they are represented
 as the specified built-in type would have been specified, but with the
 prescribed value.
 
-#### FixedArrays
+#### Arrays
 
-FixedArrays are types that allow the expression of a sequence of identical
+Arrays are types that allow the expression of a sequence of identical
 types where the sequence only ever makes sense with a fixed number of members.
 Consider a MAC address (always 6 bytes) or CAN-bus message payload ((almost)
 always 8 bytes).
 
 ```scheme
-(fixed [type name] [target type] [array length)
+(array [type name] [target type] [array length)
 ```
 
-As an example, consider this definition of a FixedArray describing a MAC
+As an example, consider this definition of a Array describing a MAC
 address:
 
 ```scheme
-(fixed macAddress u8 6)
+(array macAddress u8 6)
 ```
 
-#### BoundedArrays
+#### Vector
 
-BoundedArrays are types that allow the expression of a sequence of identical
-types up to a maximum length. BoundedArrays are like FixedArrays in every way
+Vector are types that allow the expression of a sequence of identical
+types up to a maximum length. Vector are like FixedArrays in every way
 except that their length must be checked in packing and unpacking.
 
 ```scheme
-(bounded [type name] [target type] [maximum array length])
+(vector [type name] [target type] [maximum array length])
 ```
 
 Consider this definition for a generic byte buffer with a maximum length of
 4096 bytes.
 
 ```scheme
-(bounded byteBuffer4k u8 4096)
+(vector byteBuffer4k u8 4096)
 ```
 
 #### Structures
