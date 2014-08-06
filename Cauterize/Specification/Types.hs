@@ -14,6 +14,7 @@ module Cauterize.Specification.Types
   , fromSchema
   , prettyPrint
   , typeName
+  , specTypeMap
   ) where
 
 import Cauterize.FormHash
@@ -221,6 +222,11 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
     fromF p = mkSpecType specMap p hash
       where
         hash = hashScType p
+
+specTypeMap :: Spec -> M.Map Name SpType
+specTypeMap s = let ts = specTypes s
+                    ns = map typeName ts
+                in M.fromList $ zip ns ts
 
 mkSpecType :: M.Map Name SpType -> SC.ScType -> FormHash -> SpType
 mkSpecType m p =
