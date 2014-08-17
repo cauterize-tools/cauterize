@@ -9,6 +9,7 @@ import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 import Control.Monad
 import Data.Word
+import Data.Int
 
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
@@ -20,12 +21,15 @@ instance Arbitrary ValidSchema where
   arbitrary = liftM ValidSchema arbSchema
 
 maxFields, maxRunTypes, maxRuns :: (Num a) => a
-maxRuns = 100
-maxRunTypes = 100
-maxFields = 64
+maxRuns = 50
+maxRunTypes = 3
+maxFields = 9
 
-constRange :: (Num a, Enum a) => [a]
-constRange = [0..16]
+arbArraySize :: Gen Integer
+arbArraySize = choose (1,384)
+
+constVal :: Gen Integer
+constVal = choose (0, 127)
 
 arbSchema :: Gen Schema
 arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
@@ -62,14 +66,11 @@ arbs = [ arbScalar
        , arbPad
        ]
 
-arbArraySize :: Gen Integer
-arbArraySize = liftM fromIntegral (arbitrary :: Gen Word32)
-
 arbScalar :: [Name] -> Name -> Gen ScType
 arbScalar _ n = liftM (Scalar . TScalar n) arbBi
 
 arbConst :: [Name] -> Name -> Gen ScType
-arbConst _ n = liftM2 (\b i -> Const $ TConst n b i) arbBi (elements constRange)
+arbConst _ n = liftM (\(b,i) -> Const $ TConst n b i) arbBiAndVal
 
 arbFixed :: [Name] -> Name -> Gen ScType
 arbFixed ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize
@@ -78,32 +79,32 @@ arbBounded :: [Name] -> Name -> Gen ScType
 arbBounded ts n = liftM2 (\t s -> Vector $ TVector n t s) (elements ts) arbArraySize
 
 arbStruct :: [Name] -> Name -> Gen ScType
-arbStruct ts n = arbFielded ts n (\n' fs -> Struct $ TStruct n' fs)
+arbStruct ts n = arbFielded arbContainerField ts n (\n' fs -> Struct $ TStruct n' fs)
 
 arbSet ::  [Name] -> Name -> Gen ScType
-arbSet ts n = arbFielded ts n (\n' fs -> Set $ TSet n' fs)
+arbSet ts n = arbFielded arbField ts n (\n' fs -> Set $ TSet n' fs)
 
 arbEnum ::  [Name] -> Name -> Gen ScType
-arbEnum ts n = arbFielded ts n (\n' fs -> Enum $ TEnum n' fs)
+arbEnum ts n = arbFielded arbField ts n (\n' fs -> Enum $ TEnum n' fs)
 
 arbPad :: [Name] -> Name -> Gen ScType
 arbPad _ n = liftM (Pad . TPad n) (elements [1..8])
 
-arbFielded :: [Name] -> Name -> (Name -> Fields -> a) -> Gen a
-arbFielded ts n cstr = do
+-- arbFielded :: [Name] -> Name -> (Name -> Fields -> a) -> Gen a
+arbFielded gen ts n cstr = do
   fieldCount <- elements [1..maxFields] :: Gen Integer
   let fieldNames = take (fromIntegral fieldCount) genNames
-  let arbIRef' = arbIRef ts
+  let arbIRef' = gen ts
   fieldFs <- mapM arbIRef' fieldNames
   let fieldFs' = zipWith ($) fieldFs [0..(fieldCount - 1)]
 
   return $ cstr n (Fields fieldFs')
 
-arbIRef :: [Name] -> Name -> Gen (Integer -> Field)
-arbIRef ts n = frequency [(3, arbField ts n), (1, arbEmptyField n)]
-
 arbField :: [Name] -> Name -> Gen (Integer -> Field)
-arbField ts n = liftM (Field n) $ elements ts
+arbField ts n = frequency [(3, arbContainerField ts n), (1, arbEmptyField n)]
+
+arbContainerField :: [Name] -> Name -> Gen (Integer -> Field)
+arbContainerField ts n = liftM (Field n) $ elements ts
 
 arbEmptyField :: Name -> Gen (Integer -> Field)
 arbEmptyField n = return $ EmptyField n
@@ -128,3 +129,23 @@ biTys = map (BuiltIn . TBuiltIn) bis
 
 arbBi :: Gen BuiltIn
 arbBi = elements bis
+
+arbBiVal :: Integral a => BuiltIn -> Gen a
+arbBiVal b = case b of
+               BIu8 -> liftM fromIntegral (arbitrary :: Gen Word8)
+               BIu16 -> liftM fromIntegral (arbitrary :: Gen Word16)
+               BIu32 -> liftM fromIntegral (arbitrary :: Gen Word32)
+               BIu64 -> liftM fromIntegral (arbitrary :: Gen Word64)
+               BIs8 -> liftM fromIntegral (arbitrary :: Gen Int8)
+               BIs16 -> liftM fromIntegral (arbitrary :: Gen Int16)
+               BIs32 -> liftM fromIntegral (arbitrary :: Gen Int32)
+               BIs64 -> liftM fromIntegral (arbitrary :: Gen Int64)
+               BIieee754s -> liftM fromIntegral (arbitrary :: Gen Int32)
+               BIieee754d -> liftM fromIntegral (arbitrary :: Gen Int32)
+               BIbool -> liftM fromIntegral (choose (0,1) :: Gen Word8)
+
+-- TODO: Eventually, I need to be able to generate float values too.
+arbBiAndVal :: Gen (BuiltIn, Integer)
+arbBiAndVal = do b <- arbBi
+                 v' <- arbBiVal b
+                 return $ (,) b v'
