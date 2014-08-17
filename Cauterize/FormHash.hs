@@ -22,7 +22,6 @@ import Numeric
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
--- TODO Update FormHash to store bytes as a list.
 data FormHash = FormHash { hashToByteString :: B.ByteString }
   deriving (Eq, Ord, Data, Typeable)
 

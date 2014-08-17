@@ -5,7 +5,6 @@ module Cauterize.Schema.Types
   , ScType(..)
 
   , schemaTypeMap
-  , schemaSigMap
   , checkSchema
   , typeName
   , referredNames
@@ -54,31 +53,6 @@ typeName (Struct (TStruct n _)) = n
 typeName (Set (TSet n _)) = n
 typeName (Enum (TEnum n _)) = n
 typeName (Pad (TPad n _)) = n
-
-biSig :: BuiltIn -> Signature
-biSig b = "(" ++ show b ++ ")"
-
-typeSig :: M.Map Name Signature -> ScType -> Signature 
-typeSig sm t =
-  case t of
-    (BuiltIn (TBuiltIn b)) -> biSig b
-    (Scalar (TScalar n b)) -> concat ["(scalar ", n, " ", biSig b, ")"]
-    (Const (TConst n b i)) -> concat ["(const ", n, " ", biSig b, " ", padShowInteger i, ")"]
-    (Array (TArray n m i)) -> concat ["(array ", n, " ", luSig m, " ", padShowInteger i, ")"]
-    (Vector (TVector n m i)) -> concat ["(vector ", n, " ", luSig m, " ", padShowInteger i, ")"]
-    (Struct (TStruct n rs)) -> concat ["(struct ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
-    (Set (TSet n rs)) -> concat ["(set ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
-    (Enum (TEnum n rs)) -> concat ["(enum ", n, " ", unwords $ map (refSig sm) (unFields rs), ")"]
-    (Pad (TPad n i)) -> concat ["(pad ", n, " ", padShowInteger i, ")"]
-  where
-    luSig n = fromJust $ n `M.lookup` sm
-
--- | Creates a map of Type Names to Type Signatures
-schemaSigMap :: Schema -> M.Map Name Signature
-schemaSigMap schema = resultMap
-  where
-    tyMap = schemaTypeMap schema
-    resultMap = fmap (typeSig resultMap) tyMap
 
 referredNames :: ScType -> [Name]
 referredNames (BuiltIn t) = referencesOf t
@@ -133,13 +107,6 @@ duplicates ins = map fst $ M.toList dups
     counts = foldl insertWith M.empty ins
     insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
   
-padShowInteger :: Integer -> String
-padShowInteger v = let v' = abs v
-                       v'' = show v'
-                   in if v < 0
-                        then '-':v''
-                        else '+':v''
-
 -- Instances
 
 prettyPrint :: Schema -> String

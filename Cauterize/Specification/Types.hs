@@ -208,20 +208,87 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
     keepNames = S.fromList $ map typeName fs'
 
     tyMap = SC.schemaTypeMap sc
-    sigMap = SC.schemaSigMap sc
-    getSig t = fromJust $ t `M.lookup` sigMap
-    hashScType = hashString . getSig . SC.typeName
+    thm = typeHashMap sc
+    hashScType n = fromJust $ n `M.lookup` thm
 
     overallHash = let a = hashInit `hashUpdate` n `hashUpdate` v
-                      sorted = sortBy (compare `on` fst) $ M.toList sigMap
+                      sorted = sortBy (compare `on` fst) $ M.toList thm
                       filtered = filter (\(x,_) -> x `S.member` keepNames) sorted
-                      hashStrs = map (show . hashString . snd) filtered
+                      hashStrs = map (show . snd) filtered
                   in hashFinalize $ foldl hashUpdate a hashStrs
 
     specMap = fmap fromF tyMap
     fromF p = mkSpecType specMap p hash
       where
-        hash = hashScType p
+        hash = hashScType (SC.typeName p)
+
+-- | This is responsible for building a map from names to hashes out of a
+-- Schema.  Hashes are of a textual that uniquely represents the type. The
+-- representation chosen for is as follows:
+--
+--   1. For builtins, hash the string representation of the builtin.
+--   2. For other types without fields:
+--     a. State the type prototype
+--     b. State the type name
+--     c. State any other field data
+--   3. For other types with fields:
+--     a. State hte type prototype
+--     b. State the type name
+--     c. State a textual representation of each field
+--
+-- Field data that represents other types should be replaced by the hash of
+-- that type. Field data that's represented as a built-in should use the name
+-- of the built-in.
+--
+-- Fields are represented by the word "field" followed by the field name, the
+-- hash of the referenced type, and a textual representation of the field's
+-- index.
+--
+-- Empty Fields are represented by the word "field" followed by the field name
+-- and a textual representation of the field's index.
+--
+-- An example:
+--
+--   This type: (const foo u8 12)
+--
+--   ... is represented as the hash of the string ...
+--
+--   "const foo u8 +12"
+--
+-- Another example:
+--
+--   This type: (array bar 64 baz)
+--
+--   ... is represented as the hash of the string ...
+--
+--   "array bar [hash of baz] +64"
+--
+typeHashMap :: SC.Schema -> M.Map Name FormHash
+typeHashMap s = m
+  where
+    m = fmap typeHash (SC.schemaTypeMap s)
+    lu n = show (fromJust $ n `M.lookup` m)
+    fieldStr (EmptyField n i) = ["field", n, showNumSigned i]
+    fieldStr (Field n r i) = ["field", n, lu r, showNumSigned i]
+    typeHash t =
+      let s = case t of
+                SC.BuiltIn (TBuiltIn b) -> [show b]
+                SC.Scalar (TScalar n b) -> ["scalar", n, show b]
+                SC.Const (TConst n b i) -> ["const", n, show b, showNumSigned i]
+                SC.Array (TArray n m i) -> ["array", n, lu m, showNumSigned i]
+                SC.Vector (TVector n m i) -> ["vector", n, lu m, showNumSigned i]
+                SC.Struct (TStruct n (Fields fs)) -> ["struct", n] ++ concatMap fieldStr fs
+                SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
+                SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
+                SC.Pad (TPad n i) -> ["pad", n, showNumSigned i]
+      in hashString . unwords $ s
+  
+showNumSigned :: (Ord a, Show a, Num a) => a -> String
+showNumSigned v = let v' = abs v
+                      v'' = show v'
+                  in if v < 0
+                       then '-':v''
+                       else '+':v''
 
 specTypeMap :: Spec -> M.Map Name SpType
 specTypeMap s = let ts = specTypes s
