@@ -186,7 +186,7 @@ pruneBuiltIns fs = refBis ++ topLevel
 
     refBiNames = S.toList $ rsSet `S.intersection` biSet
     refBis = map snd $ M.toList $ M.filterWithKey (\k _ -> k `elem` refBiNames) biMap
-    
+
     isBuiltIn (BuiltIn {..}) = True
     isBuiltIn _ = False
 
@@ -332,7 +332,7 @@ mkSpecType m p =
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
           maxMax = maximumOfSizes refs
-          repr = minimalBitField (fieldsLength rs)
+          repr = minimalExpression (fieldsLength rs)
           repr' = TagRepr repr
           reprSz = builtInSize repr
       in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
