@@ -60,10 +60,10 @@ minimalExpression v | 0 > v' && v' >= -128 = BIs8
                         
 
 minimalBitField :: Integral a => a -> BuiltIn
-minimalBitField v | 0 <= v' && v' < 8 = BIu8
-                  | 0 <= v' && v' < 16 = BIu16
-                  | 0 <= v' && v' < 32 = BIu32
-                  | 0 <= v' && v' < 64 = BIu64
+minimalBitField v | 0 <= v' && v' <= 8 = BIu8
+                  | 0 <= v' && v' <= 16 = BIu16
+                  | 0 <= v' && v' <= 32 = BIu32
+                  | 0 <= v' && v' <= 64 = BIu64
                   | otherwise = error
                       $ "Cannot express '" ++ show v' ++ "' bits in a bitfield."
   where
