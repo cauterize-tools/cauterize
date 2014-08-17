@@ -20,12 +20,12 @@ instance Arbitrary ValidSchema where
   arbitrary = liftM ValidSchema arbSchema
 
 maxFields, maxRunTypes, maxRuns :: (Num a) => a
-maxRuns = 5
-maxRunTypes = 3
-maxFields = 5
+maxRuns = 100
+maxRunTypes = 100
+maxFields = 64
 
 constRange :: (Num a, Enum a) => [a]
-constRange = [1..10]
+constRange = [0..16]
 
 arbSchema :: Gen Schema
 arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
