@@ -69,7 +69,7 @@ class Sized a where
   sumOfMinimums = sum . map minSize
 
   sumOfMaximums :: [a] -> Integer
-  sumOfMaximums = sum . map minSize
+  sumOfMaximums = sum . map maxSize
 
 instance Sized FixedSize where
   minSize (FixedSize i) = i
