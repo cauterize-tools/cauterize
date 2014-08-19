@@ -17,15 +17,16 @@ cabal-version:       >=1.10
 
 library
   build-depends:       base >=4.6 && <4.8,
-                       parsec >=3.1,
-                       pretty >=1.1,
-                       pretty-class >=0.1,
-                       optparse-applicative >=0.8,
-                       cryptohash >=0.11,
-                       QuickCheck >=2.7.3,
-                       containers >=0.5,
-                       bytestring >=0.10.4,
-                       GraphSCC >=1.0
+                       mtl >=2.1 && <2.2,
+                       parsec,
+                       pretty,
+                       pretty-class,
+                       optparse-applicative,
+                       cryptohash,
+                       QuickCheck,
+                       containers,
+                       bytestring,
+                       GraphSCC
   default-language:    Haskell2010
   exposed-modules:     Cauterize.Common.Types,
                        Cauterize.Schema.Types,
