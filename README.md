@@ -293,3 +293,106 @@ TBD
 * Add a "ranged" type that's similar to a scalar but only accepts n..m values in a builtin.
 * Prove hashes are on the expected content.
 * Ensure that const values will fit inside the specified builtin type.
+
+## Generic Interface
+
+The generic interface is designed to allow outside infrastructure, agnostic to
+the Cauterize payload, to reliably check and move the data.
+
+### Agnostic Interface Format
+
+```
+Size        Field
+=====================================
+1           'c' (check/seek byte)
+1           'a' (check/seek byte)
+1           Agnostic Interface Version
+1           Type/Data Length (Bits 0 to 4: type tag. Bits 5 to 8: additional length bytes.)
+size(hash)  Specification Tag
+(1-32)      Type Tag
+(1-8)       Data Length
+length      Data
+1           'u' (check/seek byte)
+1           't' (check/seek byte)
+size(check) Checksum of entire message
+```
+
+#### Descriptions
+
+```
+'c' (check/seek byte)
+'a' (check/seek byte)
+```
+Each message in the AI format starts with two bytes: 'c', and 'a'. These bytes
+can be used to indicate the start of a message. These bytes may be common bytes
+in the stream, but there should be enough information in the remainder of the
+AI message to validate the message.
+
+```
+Agnostic Interface Version
+```
+
+After the two check bytes, there's a version indicator: this allows the AI
+format to contain additional variation in the future. This document currently
+only defines version 0 of the AI specification. 
+
+```
+Type/Data Length (Bits 0 to 4: type tag. Bits 5 to 8: additional length bytes.)
+```
+
+After the AI version is a byte that indicates two values: the number of
+additional bytes (greater than 1) to use for the type tag and the number of
+additional bytes (greater than 1) to use for the data length.
+
+The first 5 bites (bits 0 to 4) encode the type tag. The last 3 bits (bits 5 to
+8) encode the length bytes. This gives us a maximum type tag length of 32 bytes
+and a maximum length field of 8 bytes.
+
+Note: sha1 is 20 bytes.
+Note: 2^(8*8) is a lot of bytes.
+
+```
+Specification Tag
+```
+
+After the length fields comes the specification tag. The specification tag is
+always printed in full. For a SHA1, this is 20 bytes.
+
+```
+Type Tag
+```
+
+The type tag is built by taking a prefix of the type hash this message encodes.
+The length of the prefix is defined by the value in the Type/Data Length field.
+
+Note: this field must be long enough to ensure an unambiguous prefix-to-type
+map.
+
+```
+Data Length
+```
+
+The data length field encodes how much data is used to encode the message data.
+Reading this length from the stream will read out the data used to encode the cauterize type.
+
+```
+Data
+```
+
+This is the encoded catuerize data.
+
+
+```
+'u' (check/seek byte)
+'t' (check/seek byte)
+```
+
+Two more seek bytes help quickly validate the message.
+
+```
+Checksum of entire message
+```
+
+Finally, a CRC/hash of the entire message up to, but not including, the
+CRC/hash is appended to the end. If the calculated hash matches this value, the
+message is almost certainly valid (excepting a motivated attacker).
