@@ -16,6 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
+  ghc-options:         -Wall -O2
   build-depends:       base >=4.6 && <4.8,
                        mtl >=2.1 && <2.2,
                        parsec,
@@ -36,5 +37,5 @@ library
                        Cauterize.Specification.Parser
                        Cauterize.Specification,
                        Cauterize.Schema.Arbitrary,
-                       Cauterize.FormHash
-  other-modules:       Cauterize.Common.ParserUtils
+                       Cauterize.FormHash,
+                       Cauterize.Common.ParserUtils
