@@ -1,5 +1,6 @@
 module Cauterize.Common.ParserUtils
   ( pSexp
+  , parens
   , spacedQuoted
   , spaces1
   , spacedName
