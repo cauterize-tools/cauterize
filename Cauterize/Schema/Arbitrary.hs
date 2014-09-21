@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Cauterize.Schema.Arbitrary
  ( genTypeRuns
- , arbSchema
- , ValidSchema(unValidSchema)
+ , arbSchemaParam
+ , ProtoParam(..)
+ , parseProtoParam
+ , allProtoParams
  ) where
 
 import Test.QuickCheck.Arbitrary
@@ -10,31 +12,59 @@ import Test.QuickCheck.Gen
 import Control.Monad
 import Data.Word
 import Data.Int
+import qualified Data.Set as S
 
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
-newtype ValidSchema = ValidSchema { unValidSchema :: Schema }
-  deriving (Show)
+data ProtoParam = ParamScalar
+                | ParamConst
+                | ParamArray
+                | ParamVector
+                | ParamStruct
+                | ParamSet
+                | ParamEnum
+                | ParamPad
+  deriving (Show, Eq, Ord)
 
-instance Arbitrary ValidSchema where
-  arbitrary = liftM ValidSchema arbSchema
+allProtoParams :: S.Set ProtoParam
+allProtoParams = S.fromList [ ParamScalar, ParamConst, ParamArray
+                            , ParamVector, ParamStruct, ParamSet
+                            , ParamEnum, ParamPad ]
 
-maxFields, maxRunTypes, maxRuns :: (Num a) => a
-maxRuns = 50
+parseProtoParam :: String -> Either String ProtoParam
+parseProtoParam "scalar" = Right ParamScalar
+parseProtoParam "const" = Right ParamConst
+parseProtoParam "array" = Right ParamArray
+parseProtoParam "vector" = Right ParamVector
+parseProtoParam "struct" = Right ParamStruct
+parseProtoParam "set" = Right ParamSet
+parseProtoParam "enum" = Right ParamEnum
+parseProtoParam "pad" = Right ParamPad
+parseProtoParam s = Left s
+
+maxFields, maxRunTypes :: (Num a) => a
 maxRunTypes = 3
 maxFields = 9
 
 arbArraySize :: Gen Integer
 arbArraySize = choose (1,384)
 
-constVal :: Gen Integer
-constVal = choose (0, 127)
-
-arbSchema :: Gen Schema
-arbSchema = liftM3 Schema (elements schemaNames) (elements schemaNames) rs
+arbSchemaParam :: S.Set ProtoParam -> Int -> Gen Schema
+arbSchemaParam ps typeCount = 
+  liftM3 Schema (elements schemaNames)
+                (elements schemaNames)
+                genTypesParam
   where
-    rs = genTypeRuns maxRuns
+    genTypesParam = liftM (biTys ++) $ go typeCount genNames (map show bis)
+    someArbs = map protoToArb (S.toList ps)
+    go 0 _ _ = return []
+    go _ [] _ = return []
+    go runsLeft (n:names) tyUniverse = do
+      let arbs' = sequence (sequence someArbs tyUniverse) n
+      t <- oneof arbs'
+      ts <- go (runsLeft - 1) names (n:tyUniverse)
+      return (t:ts)
 
 genTypeRuns :: Word -> Gen [ScType]
 genTypeRuns runs = liftM (biTys ++) $ go runs genNames (map show bis)
@@ -55,11 +85,21 @@ genTypes (thisName:restNames) ex = do
   r <- genTypes restNames ex
   return $ t:r
 
+protoToArb :: ProtoParam -> ([Name] -> Name -> Gen ScType)
+protoToArb ParamScalar = arbScalar
+protoToArb ParamConst = arbConst
+protoToArb ParamArray = arbArray
+protoToArb ParamVector = arbVector
+protoToArb ParamStruct = arbStruct
+protoToArb ParamSet = arbSet
+protoToArb ParamEnum = arbEnum
+protoToArb ParamPad = arbPad
+
 arbs :: [[Name] -> Name -> Gen ScType]
 arbs = [ arbScalar
        , arbConst
-       , arbFixed
-       , arbBounded
+       , arbArray
+       , arbVector
        , arbStruct
        , arbSet
        , arbEnum
@@ -72,11 +112,11 @@ arbScalar _ n = liftM (Scalar . TScalar n) arbBi
 arbConst :: [Name] -> Name -> Gen ScType
 arbConst _ n = liftM (\(b,i) -> Const $ TConst n b i) arbBiAndVal
 
-arbFixed :: [Name] -> Name -> Gen ScType
-arbFixed ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize
+arbArray :: [Name] -> Name -> Gen ScType
+arbArray ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize
 
-arbBounded :: [Name] -> Name -> Gen ScType
-arbBounded ts n = liftM2 (\t s -> Vector $ TVector n t s) (elements ts) arbArraySize
+arbVector :: [Name] -> Name -> Gen ScType
+arbVector ts n = liftM2 (\t s -> Vector $ TVector n t s) (elements ts) arbArraySize
 
 arbStruct :: [Name] -> Name -> Gen ScType
 arbStruct ts n = arbFielded arbContainerField ts n (\n' fs -> Struct $ TStruct n' fs)
@@ -90,7 +130,8 @@ arbEnum ts n = arbFielded arbField ts n (\n' fs -> Enum $ TEnum n' fs)
 arbPad :: [Name] -> Name -> Gen ScType
 arbPad _ n = liftM (Pad . TPad n) (elements [1..8])
 
--- arbFielded :: [Name] -> Name -> (Name -> Fields -> a) -> Gen a
+arbFielded :: ([Name] -> Name -> Gen (Integer -> Field))
+           -> [Name] -> Name -> (Name -> Fields -> b) -> Gen b
 arbFielded gen ts n cstr = do
   fieldCount <- elements [1..maxFields] :: Gen Integer
   let fieldNames = take (fromIntegral fieldCount) genNames
