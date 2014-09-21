@@ -209,7 +209,7 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
 
     tyMap = SC.schemaTypeMap sc
     thm = typeHashMap sc
-    hashScType n = fromJust $ n `M.lookup` thm
+    hashScType name = fromJust $ name `M.lookup` thm
 
     overallHash = let a = hashInit `hashUpdate` n `hashUpdate` v
                       sorted = sortBy (compare `on` fst) $ M.toList thm
@@ -271,17 +271,17 @@ typeHashMap s = m
     fieldStr (EmptyField n i) = ["field", n, showNumSigned i]
     fieldStr (Field n r i) = ["field", n, lu r, showNumSigned i]
     typeHash t =
-      let s = case t of
-                SC.BuiltIn (TBuiltIn b) -> [show b]
-                SC.Scalar (TScalar n b) -> ["scalar", n, show b]
-                SC.Const (TConst n b i) -> ["const", n, show b, showNumSigned i]
-                SC.Array (TArray n m i) -> ["array", n, lu m, showNumSigned i]
-                SC.Vector (TVector n m i) -> ["vector", n, lu m, showNumSigned i]
-                SC.Struct (TStruct n (Fields fs)) -> ["struct", n] ++ concatMap fieldStr fs
-                SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
-                SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
-                SC.Pad (TPad n i) -> ["pad", n, showNumSigned i]
-      in hashString . unwords $ s
+      let str = case t of
+                  SC.BuiltIn (TBuiltIn b) -> [show b]
+                  SC.Scalar (TScalar n b) -> ["scalar", n, show b]
+                  SC.Const (TConst n b i) -> ["const", n, show b, showNumSigned i]
+                  SC.Array (TArray n r i) -> ["array", n, lu r, showNumSigned i]
+                  SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
+                  SC.Struct (TStruct n (Fields fs)) -> ["struct", n] ++ concatMap fieldStr fs
+                  SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
+                  SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
+                  SC.Pad (TPad n i) -> ["pad", n, showNumSigned i]
+      in hashString . unwords $ str
   
 showNumSigned :: (Ord a, Show a, Num a) => a -> String
 showNumSigned v = let v' = abs v
