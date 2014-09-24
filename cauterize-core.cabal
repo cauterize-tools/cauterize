@@ -21,7 +21,7 @@ library
                        mtl >=2.1 && <2.2,
                        parsec,
                        pretty,
-                       pretty-class,
+                       pretty-class == 0.1.*,
                        optparse-applicative,
                        cryptohash,
                        QuickCheck,
