@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances, RecordWildCards, DeriveDataTypeable #-}
 module Cauterize.Specification.Types
   ( Spec(..)
   , SpType(..)
@@ -23,6 +23,7 @@ import Data.List
 import Data.Function
 import Data.Maybe
 import Data.Graph
+import Data.Data
 
 import qualified Data.Map as M
 import qualified Data.List as L
@@ -34,16 +35,16 @@ import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
 data FixedSize = FixedSize { unFixedSize :: Integer }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 data RangeSize = RangeSize { rangeSizeMin :: Integer, rangeSizeMax :: Integer }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 data LengthRepr = LengthRepr { unLengthRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 data TagRepr = TagRepr { unTagRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 data FlagsRepr = FlagsRepr { unFlagsRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 mkRangeSize :: Integer -> Integer -> RangeSize
 mkRangeSize mi ma = if mi > ma
@@ -99,7 +100,7 @@ data Spec = Spec { specName :: Name
                  , specHash :: FormHash
                  , specSize :: RangeSize
                  , specTypes :: [SpType] }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Data, Typeable)
 
 data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash      :: FormHash
@@ -139,7 +140,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
             | Pad          { unPad       :: TPad
                            , spHash      :: FormHash
                            , spFixedSize :: FixedSize }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance Sized SpType where
   minSize (BuiltIn { spFixedSize = s}) = minSize s

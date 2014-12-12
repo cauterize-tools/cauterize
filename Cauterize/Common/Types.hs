@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Cauterize.Common.Types
   ( BuiltIn(..)
   , Name
@@ -29,6 +30,7 @@ module Cauterize.Common.Types
 
 import Data.List
 import Data.Maybe
+import Data.Data
 import qualified Data.Map as M
 
 type Name = String
@@ -39,7 +41,7 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
              | BIieee754s | BIieee754d
              | BIbool
-  deriving (Enum, Bounded, Ord, Eq)
+  deriving (Enum, Bounded, Ord, Eq, Data, Typeable)
 
 -- | Returns the smallest BuiltIn that is capable of representing the provided
 -- value.
@@ -110,7 +112,7 @@ instance Read BuiltIn where
   readsPrec _ s = error $ "ERROR: \"" ++ s ++ "\" is not a BuiltIn."
 
 data TBuiltIn = TBuiltIn { unTBuiltIn :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TBuiltIn where
   referencesOf _ = []
@@ -120,7 +122,7 @@ data TConst = TConst { constName :: Name
                      , constRepr :: BuiltIn
                      , constValue :: Integer
                      }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TConst where
   referencesOf (TConst _ b _) = [show b]
@@ -130,7 +132,7 @@ data TArray = TArray { arrayName :: Name
                      , arrayRef :: Name
                      , arrayLen :: Integer
                      }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TArray where
   referencesOf (TArray _ n _) = [n]
@@ -140,7 +142,7 @@ data TVector = TVector { vectorName :: Name
                        , vectorRef :: Name
                        , vectorMaxLen :: Integer
                        }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TVector where
   referencesOf (TVector _ n _) = [n]
@@ -148,35 +150,35 @@ instance References TVector where
 
 data TScalar = TScalar { scalarName :: Name
                        , scalarRepr :: BuiltIn }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TScalar where
   referencesOf (TScalar _ b) = [show b]
 
 
 data TStruct = TStruct { structName :: Name, structFields :: Fields }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TStruct where
   referencesOf (TStruct _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TEnum = TEnum { enumName :: Name, enumFields :: Fields }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TEnum where
   referencesOf (TEnum _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TSet = TSet { setName :: Name, setFields :: Fields }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TSet where
   referencesOf (TSet _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TPad = TPad { padName :: Name, padLength :: Integer }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TPad where
   referencesOf (TPad _ _) = []
@@ -185,14 +187,14 @@ instance References TPad where
 
 
 data Fields = Fields { unFields :: [Field] }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 fieldsLength :: Fields -> Int
 fieldsLength (Fields fs) = length fs
 
 data Field = Field { fName :: Name , fRef :: Name , fIndex :: Integer }
            | EmptyField { fName :: Name, fIndex :: Integer }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 refSig :: M.Map Name Signature -> Field -> Signature
 refSig _ (EmptyField n _) = concat ["(field ", n, ")"]
