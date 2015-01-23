@@ -3,7 +3,7 @@ module Cauterize.Options where
 import Options.Applicative
 
 data CautOpts = CautOpts
-  { inputFile :: String
+  { schemaFile :: String
   } deriving (Show)
 
 runWithOptions :: (CautOpts -> IO ()) -> IO ()
@@ -18,7 +18,7 @@ options = info (optParser <**> helper)
 optParser :: Parser CautOpts
 optParser = CautOpts
   <$> strOption
-    ( long "input"
+    ( long "schema"
    <> metavar "FILE_PATH"
    <> help "Input Cauterize schema file."
     )

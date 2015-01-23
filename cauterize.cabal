@@ -25,6 +25,8 @@ library
                        QuickCheck,
                        containers,
                        bytestring,
+                       wl-pprint-text,
+                       text,
                        GraphSCC
   default-language:    Haskell2010
   exposed-modules:     Cauterize.Common.Types,
@@ -36,7 +38,11 @@ library
                        Cauterize.Specification,
                        Cauterize.Schema.Arbitrary,
                        Cauterize.FormHash,
-                       Cauterize.Common.ParserUtils
+                       Cauterize.Common.ParserUtils,
+                       Cauterize.Meta,
+                       Cauterize.Meta.Parser,
+                       Cauterize.Meta.Pretty,
+                       Cauterize.Meta.Types
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.
@@ -63,4 +69,13 @@ executable cauterize-test
                        QuickCheck >=2.7,
                        pretty,
                        pretty-class >= 0.1
+  default-language:    Haskell2010
+
+executable cauterize-meta
+  hs-source-dirs:      cauterize-meta
+  ghc-options:         -Wall -O2
+  main-is:             Main.hs
+  build-depends:       base >=4.7 && <4.8,
+                       cauterize,
+                       optparse-applicative
   default-language:    Haskell2010
