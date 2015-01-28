@@ -11,10 +11,13 @@ module Cauterize.Specification.Types
   , TagRepr(..)
   , FlagsRepr(..)
 
+  , Depth(..)
+
   , fromSchema
   , prettyPrint
   , typeName
   , specTypeMap
+  , typeDepthMap
   ) where
 
 import Cauterize.FormHash
@@ -28,8 +31,8 @@ import Data.Data
 import qualified Data.Map as M
 import qualified Data.List as L
 import qualified Data.Set as S
+import qualified Cauterize.Common.Types as CT
 import qualified Cauterize.Schema.Types as SC
-
 
 import Text.PrettyPrint
 import Text.PrettyPrint.Class
@@ -44,6 +47,9 @@ data LengthRepr = LengthRepr { unLengthRepr :: BuiltIn }
 data TagRepr = TagRepr { unTagRepr :: BuiltIn }
   deriving (Show, Ord, Eq, Data, Typeable)
 data FlagsRepr = FlagsRepr { unFlagsRepr :: BuiltIn }
+  deriving (Show, Ord, Eq, Data, Typeable)
+
+newtype Depth = Depth { unDepth :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 mkRangeSize :: Integer -> Integer -> RangeSize
@@ -95,10 +101,14 @@ instance Pretty TagRepr where
 instance Pretty FlagsRepr where
   pretty (FlagsRepr bi) = parens $ text "flags-repr" <+> pShow bi
 
+instance Pretty Depth where
+  pretty (Depth d) = parens $ text "depth" <+> integer d
+
 data Spec = Spec { specName :: Name
                  , specVersion :: Version
                  , specHash :: FormHash
                  , specSize :: RangeSize
+                 , specDepth :: Depth
                  , specTypes :: [SpType] }
   deriving (Show, Eq, Data, Typeable)
 
@@ -203,7 +213,7 @@ topoSort sps = flattenSCCs . stronglyConnComp $ map m sps
 
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema -> Spec
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') fs'
+fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') (maximumTypeDepth sc) fs'
   where
     fs' = topoSort $ pruneBuiltIns $ map fromF fs
     keepNames = S.fromList $ map typeName fs'
@@ -283,7 +293,37 @@ typeHashMap s = m
                   SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
                   SC.Pad (TPad n i) -> ["pad", n, showNumSigned i]
       in hashString . unwords $ str
-  
+
+typeDepthMap :: SC.Schema -> M.Map Name Integer
+typeDepthMap s = m
+  where
+    m = fmap typeDepth (SC.schemaTypeMap s)
+    lu n = fromJust $ n `M.lookup` m
+
+    fieldDepth (CT.Field { CT.fRef = r }) = lu r
+    fieldDepth (CT.EmptyField {}) = 0
+
+    maxFieldsDepth fs =
+      let ds = map fieldDepth fs
+      in maximum ds
+
+    typeDepth :: SC.ScType -> Integer
+    typeDepth t =
+      case t of
+        SC.BuiltIn (TBuiltIn {}) -> 1
+        SC.Scalar (TScalar {}) -> 2
+        SC.Const (TConst {}) -> 2
+        SC.Array (TArray _ r _) -> 1 + lu r
+        SC.Vector (TVector _ r _) -> 1 + lu r
+        SC.Struct (TStruct _ (Fields fs)) -> 1 + maxFieldsDepth fs
+        SC.Set (TSet _ (Fields fs)) -> 1 + maxFieldsDepth fs
+        SC.Enum (TEnum _ (Fields fs)) -> 1 + maxFieldsDepth fs
+        SC.Pad (TPad {}) -> 1
+
+maximumTypeDepth :: SC.Schema -> Depth
+maximumTypeDepth s = let m = typeDepthMap s
+                     in Depth . maximum . M.elems $ m
+
 showNumSigned :: (Ord a, Show a, Num a) => a -> String
 showNumSigned v = let v' = abs v
                       v'' = show v'
@@ -359,15 +399,15 @@ prettyPrint :: Spec -> String
 prettyPrint = show . pretty
 
 pShow :: (Show a) => a -> Doc
-pShow = text . show 
+pShow = text . show
 
 pDQText :: String -> Doc
 pDQText = doubleQuotes . text
 
 instance Pretty Spec where
-  pretty (Spec n v h sz fs) = parens $ hang ps 1 pfs
+  pretty (Spec n v h sz d fs) = parens $ hang ps 1 pfs
     where
-      ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty h <+> pretty sz
+      ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty h <+> pretty sz <+> pretty d
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields

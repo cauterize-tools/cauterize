@@ -33,7 +33,8 @@ parseSpec = do
       qhash <- spacedFormHash
       sz <- parseRangeSize
       types <- pTypes
-      return $ Spec qname qver qhash sz types
+      depth <- parseDepth
+      return $ Spec qname qver qhash sz depth types
     pTypes :: Parser [SpType]
     pTypes = option [] $ do
       spaces1
@@ -139,6 +140,9 @@ parseFixedSize = (>>) spaces1 $ pSexp "fixed-size" $ liftM FixedSize spacedNumbe
 parseRangeSize :: Parser RangeSize
 parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumber spacedNumber
 
+parseDepth :: Parser Depth
+parseDepth = pSexp "depth" (liftM Depth spacedNumber)
+
 parseField :: Parser Field
 parseField = pSexp "field" $ do
   n <- spacedName
@@ -149,18 +153,18 @@ parseFullField n = do
   t <- spacedName
   ix <- spacedNumber
   return $ Field n t ix
-  
+
 parseEmptyField :: String -> Parser Field
 parseEmptyField n = do
   ix <- spacedNumber
   return $ EmptyField n ix
-  
+
 parseLengthRepr :: Parser LengthRepr
 parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr spacedBuiltIn
-  
+
 parseTagRepr :: Parser TagRepr
 parseTagRepr = pSexp "tag-repr" $ liftM TagRepr spacedBuiltIn
-  
+
 parseFlagsRepr :: Parser FlagsRepr
 parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr spacedBuiltIn
 

@@ -32,7 +32,7 @@ data MetaType = MetaType { metaTypeName :: Name
 
 
 metaFromSpec :: Spec -> Meta
-metaFromSpec (Spec name version hash (RangeSize _ smax) types) =
+metaFromSpec (Spec name version hash (RangeSize _ smax) _ types) =
   Meta { metaName = name
        , metaVersion = 0
        , metaTypeLength = fromIntegral typePrefixLength
