@@ -2,7 +2,7 @@ name:                cauterize
 version:             0.1.0.0
 synopsis:            Cauterize core library and tools.
 -- description:         
-license:             MIT
+license:             BSD3
 license-file:        LICENSE
 author:              John Van Enk
 maintainer:          vanenkj@gmail.com
