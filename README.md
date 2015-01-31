@@ -2,17 +2,20 @@
 
 ## Alternatives to Cauterize
 
-* Cap'n Proto
-* Abstract Syntax Notation One (ASN.1)
-* Concise Binary Object Representation (CBOR)
-* Apache Thrift
-* Apache Avro
-* BERT-RPC
-* Protocol Buffers
-* Message Pack
-* Binary JSON (BSON)
-* Fressian (Datomic)
-* Extensible Binary Meta Language (EBML)
+Hey, there's a lot of software in the world and none of its perfect. If
+Cauterize isn't for you, maybe one of these projects will do what you need!
+
+* [Cap'n Proto](https://capnproto.org/)
+* [Abstract Syntax Notation One (ASN.1)](http://en.wikipedia.org/wiki/Abstract_Syntax_Notation_One)
+* [Concise Binary Object Representation (CBOR)](http://cbor.io/)
+* [Apache Thrift](https://thrift.apache.org/)
+* [Apache Avro](http://avro.apache.org/docs/current/)
+* [BERT-RPC](http://bert-rpc.org/)
+* [Protocol Buffers](https://developers.google.com/protocol-buffers/)
+* [Message Pack](http://msgpack.org/)
+* [Binary JSON (BSON)](http://bsonspec.org/)
+* [Fressian (Datomic)](https://github.com/Datomic/fressian)
+* [Extensible Binary Meta Language (EBML)](http://ebml.sourceforge.net/)
 * [extprot](https://github.com/mfp/extprot)
 * [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
 * [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
@@ -24,14 +27,15 @@
 ## Primary Goals
 
 * Unambiguous
-* Fixed-upper-bound memory usage
-* Fixed-upper-bound execution time
+* Upper-bound memory usage
+* Upper-bound execution time
 * Idioms native to target languages
 * Precise specifications
-* Suitable for small systems and networks
+* Suitable for small systems, busses, networks
 * Simplicity
 * Early detection of protocol drift
 * Structural protocol versioning
+* Easy to implement
 
 ## Schemas
 
