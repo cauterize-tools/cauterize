@@ -51,7 +51,7 @@ arbArraySize :: Gen Integer
 arbArraySize = choose (1,384)
 
 arbSchemaParam :: S.Set ProtoParam -> Int -> Gen Schema
-arbSchemaParam ps typeCount = 
+arbSchemaParam ps typeCount =
   liftM3 Schema (elements schemaNames)
                 (elements schemaNames)
                 genTypesParam

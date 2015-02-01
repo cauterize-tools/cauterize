@@ -1,66 +1,41 @@
 module Main (main) where
 
-import Cauterize.Schema.Arbitrary
-import qualified Cauterize.Schema as SC
-import qualified Cauterize.Specification as SP
-
 import Options.Applicative
-import Test.QuickCheck.Gen
-import Text.PrettyPrint.Class
-import qualified Data.Set as S
 
-data CautTestOpts = CautTestOpts String String
+import Cauterize.Test.Generate
+import Cauterize.Test.Generate.Options
+
+data Options = Options Command deriving (Show)
+data Command = GenerateCom GenerateOpts
   deriving (Show)
 
-{- 
+genOptions :: Parser Command
+genOptions = (GenerateCom . GenerateOpts)
+  <$> option auto
+    ( long "count" <> metavar "COUNT" <> help countHelp )
+  where
+    countHelp = "The number of types to generate."
+
+{-
  - TODO:
  -    - allowed prototypes
  -    - maximum length
  -    - minimum length
  -}
 
-optParser :: Parser CautTestOpts
-optParser = CautTestOpts
-  <$> strOption ( long "output" <> metavar "OUTPUT" <> help outputHelp)
-  <*> strOption ( long "count"  <> metavar "COUNT"  <> help countHelp)
-  where
-    outputHelp = "Output type. Either 'schema' or 'specification'."
-    countHelp = "The number of types to generate."
+optParser :: Parser Options
+optParser = Options
+  <$> subparser
+      ( command "generate"
+        ( info genOptions
+          ( progDesc "Generate a random schema." ) ) )
 
-options :: ParserInfo CautTestOpts
+options :: ParserInfo Options
 options = info (optParser <**> helper)
-               (fullDesc <> progDesc "Process Cauterize schema files.")
-
-runWithOptions :: (CautTestOpts -> IO ()) -> IO ()
-runWithOptions fn = execParser options >>= fn
+               (fullDesc <> progDesc "Test infrastructure for Cauterize")
 
 main :: IO ()
-main = runWithOptions printArbSpec
-
-printArbSpec :: CautTestOpts -> IO ()
-printArbSpec (CautTestOpts out count) = do
-  case out of
-    "schema" -> outputCaut id allProtoParams count'
-    "specification" -> outputCaut SP.fromSchema allProtoParams count'
-    _ -> error $ "I don't know anything about '" ++ show out ++ "'."
-  where
-    count' = case reads count of
-               [(v,"")] -> v
-               _ -> error $ "Invalid count: " ++ count
-
-outputCaut :: Pretty s => (SC.Schema -> s) -> S.Set ProtoParam -> Int -> IO ()
-outputCaut fn ps c = do
-  s <- mkASchema ps c
-  case s of
-    Left es -> print es
-    Right s' -> print . pretty $ fn s'
-
-{- TODO: When dealing with arrays, it's likely that the maximum depth we should
- - use is 5. Possibly 4. The size of arrays is exponential and this tends to
- - make huge huge huge huge huge types. -}
-mkASchema :: S.Set ProtoParam -> Int -> IO (Either String SC.Schema)
-mkASchema ps c = do
-  s <- generate $ arbSchemaParam ps c
-  case SC.checkSchema s of
-    [] -> return (Right s)
-    es -> return $ Left (show es)
+main = do
+  (Options c) <- execParser options
+  case c of
+    GenerateCom gos -> printArbSpec gos
