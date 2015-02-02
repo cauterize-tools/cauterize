@@ -9,13 +9,6 @@ data Options = Options Command deriving (Show)
 data Command = GenerateCom GenerateOpts
   deriving (Show)
 
-genOptions :: Parser Command
-genOptions = (GenerateCom . GenerateOpts)
-  <$> option auto
-    ( long "count" <> metavar "COUNT" <> help countHelp )
-  where
-    countHelp = "The number of types to generate."
-
 {-
  - TODO:
  -    - allowed prototypes
@@ -27,7 +20,7 @@ optParser :: Parser Options
 optParser = Options
   <$> subparser
       ( command "generate"
-        ( info genOptions
+        ( info (fmap GenerateCom genOptions)
           ( progDesc "Generate a random schema." ) ) )
 
 options :: ParserInfo Options

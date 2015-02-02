@@ -3,8 +3,6 @@ module Cauterize.Schema.Arbitrary
  ( genTypeRuns
  , arbSchemaParam
  , ProtoParam(..)
- , parseProtoParam
- , allProtoParams
  ) where
 
 import Test.QuickCheck.Arbitrary
@@ -26,22 +24,6 @@ data ProtoParam = ParamScalar
                 | ParamEnum
                 | ParamPad
   deriving (Show, Eq, Ord)
-
-allProtoParams :: S.Set ProtoParam
-allProtoParams = S.fromList [ ParamScalar, ParamConst, ParamArray
-                            , ParamVector, ParamStruct, ParamSet
-                            , ParamEnum, ParamPad ]
-
-parseProtoParam :: String -> Either String ProtoParam
-parseProtoParam "scalar" = Right ParamScalar
-parseProtoParam "const" = Right ParamConst
-parseProtoParam "array" = Right ParamArray
-parseProtoParam "vector" = Right ParamVector
-parseProtoParam "struct" = Right ParamStruct
-parseProtoParam "set" = Right ParamSet
-parseProtoParam "enum" = Right ParamEnum
-parseProtoParam "pad" = Right ParamPad
-parseProtoParam s = Left s
 
 maxFields, maxRunTypes :: (Num a) => a
 maxRunTypes = 3
