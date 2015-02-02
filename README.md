@@ -105,7 +105,7 @@ From this goal, we can extract the following more specific goals:
 #### BuiltIn
 
 There are several types that represent the foundation of the Cauterize types.
-These are the funadmental types available for creating your own more complex
+These are the fundamental types available for creating your own more complex
 types.
 
 Integral types are assumed to be little endian in their encoded form.
@@ -135,7 +135,7 @@ A single boolean type:
 Floating point types are hard. Their definitions can be different (or missing
 entirely!) across CPU architectures. Therefor, we only define the two most
 commonly used floating point representations. They both have unambiguous binary
-represntation. The `ieee754s` is a single-precision IEEE 754 single-precision
+representation. The `ieee754s` is a single-precision IEEE 754 single-precision
 32 bit floating point value. The `ieee754d` is is a double-precision IEEE 754
 double-precision 64-bit floating point value.
 
@@ -268,14 +268,14 @@ storage service:
                 (field setKey keyValuePair)))
 ```
 
-Noe that the `getKeyCount` variant does not contain any assocaited data while
+Noe that the `getKeyCount` variant does not contain any associated data while
 the `getKey` variant specifies a type that encodes the name of the key to get.
 
 #### Sets
 
 Sets are a closed collection of key-type pairs. The difference between Sets and
 Structures is that the Set can, at any given time, only include *some* of its
-possible members. The presense of encoded members is stored as a bitfield
+possible members. The presence of encoded members is stored as a bitfield
 encoded before any contained data.
 
 ```scheme
@@ -311,7 +311,7 @@ can be used to indicate which lights on a car are currently powered/lit:
 ```
 
 This set defines 5 fields, but none of the fields have associated data. This
-allows cauterize to express the entirey of this structure in a single word at
+allows cauterize to express the entirety of this structure in a single word at
 least 5 bits wide.
 
 #### Padding
@@ -355,11 +355,8 @@ TBD
 
 * Exhaustive checking for hash-collisions.
 * Hash algorithm selection.
-* Prune unused builtins out of specifications.
-* Note that specifications must list their dependencies in topographical order.
 * Add a "ranged" type that's similar to a scalar but only accepts n..m values in a builtin.
 * Prove hashes are on the expected content.
-* Ensure that const values will fit inside the specified builtin type.
 
 ## Generic Interface
 
