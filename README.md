@@ -1,41 +1,102 @@
 # Cauterize
 
-## Alternatives to Cauterize
+Cauterize is a _schema language_ for describing ordinary data and a compiler to
+translate a schema into an unambiguous intermediate representation known as a
+_specification_.
 
-Hey, there's a lot of software in the world and none of its perfect. If
-Cauterize isn't for you, maybe one of these projects will do what you need!
+This specification describes all inferrable information from the schema to make
+the creation of _code generators_ easier. These generators consume the
+specification and output a library capable of reading and writing data
+represented by the schema.
 
-* [Cap'n Proto](https://capnproto.org/)
+Cauterize is _first_ intended to serve the constraints systems and embedded
+systems programming, but is still suitable for a wide variety of other
+situations. All Cauterize specifications have the following properties:
+
+  * Encoded messages have a maximum and minimum size known at compile time
+  * All types have a maximum referential depth
+  * All types are neither directly nor indirectly recursive
+  * All types are listed in a topographically sorted order (all types that
+    depend on other types will follow those types in the specification output)
+  * The specification has a version-hash that is based on all possible
+    variation in the schema. This can be used to detect incidental (as opposed
+    to adversarial) protocol drift with a very high probability.
+  * All types have a type-hash based on the structure of that type and all
+    types it depends on
+  * All length, field, and type tags have their representation optimized to use
+    as little space as possible while still maintaining a minimum alignment of
+    8 bits
+
+Cauterize was first designed to work on a small embedded system that required
+all memory to be allocated ahead of time (no dynamic memory allocation) yet
+still needed to interface with a Ruby and C# environment. The prototype was a
+Ruby DSL that, when executed, would emit C, C#, and Ruby libraries that were
+all capable of reading and writing the schema described by the DSL.
+
+This project is a successor to the original Ruby DSL prototype with a goals of
+being safer, being more complete, and including features making it easier to
+add new code generators.
+
+In order to better frame the context at which Cauterize is targeted, here's a
+incomplete list of other tools that attempt to perform some or all of the
+functions Cauterize is capable of performing. If Cauterize is not right for
+your purposes, perhaps one of these tools is. These are listed alphabetically.
+
 * [Abstract Syntax Notation One (ASN.1)](http://en.wikipedia.org/wiki/Abstract_Syntax_Notation_One)
-* [Concise Binary Object Representation (CBOR)](http://cbor.io/)
-* [Apache Thrift](https://thrift.apache.org/)
 * [Apache Avro](http://avro.apache.org/docs/current/)
+* [Apache Thrift](https://thrift.apache.org/)
 * [BERT-RPC](http://bert-rpc.org/)
-* [Protocol Buffers](https://developers.google.com/protocol-buffers/)
-* [Message Pack](http://msgpack.org/)
 * [Binary JSON (BSON)](http://bsonspec.org/)
-* [Fressian (Datomic)](https://github.com/Datomic/fressian)
+* [Cap'n Proto](https://capnproto.org/)
+* [Concise Binary Object Representation (CBOR)](http://cbor.io/)
 * [Extensible Binary Meta Language (EBML)](http://ebml.sourceforge.net/)
-* [extprot](https://github.com/mfp/extprot)
 * [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
-* [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
+* [Fressian (Datomic)](https://github.com/Datomic/fressian)
+* [Message Pack](http://msgpack.org/)
 * [Piqi](http://piqi.org/)
+* [Protocol Buffers](https://developers.google.com/protocol-buffers/)
+* [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
 * [Transit](https://github.com/cognitect/transit-format)
 * [XDR](http://en.wikipedia.org/wiki/External_Data_Representation)
 * [bond](https://github.com/Microsoft/bond)
+* [extprot](https://github.com/mfp/extprot)
+
+## Goals
+
+Cauterize has a single goal that informs all its other goals: Cauterize must
+always be suitable to target at a hard-real time embedded system without
+dynamic memory allocation.
 
 ## Primary Goals
 
-* Unambiguous
-* Upper-bound memory usage
-* Upper-bound execution time
-* Idioms native to target languages
-* Precise specifications
-* Suitable for small systems, busses, networks
-* Simplicity
-* Early detection of protocol drift
-* Structural protocol versioning
-* Easy to implement
+From this goal, we can extract the following more specific goals:
+
+* Must be achievable with static memory allocation - not all embedded systems
+  support dynamic allocation.
+* Must be achievable in bounded execution time - hard-real-time systems must
+  know how long each operation can possibly take.
+* Must have methods for detecting protocol drift early - embedded systems are
+  often harder to update than desktop systems. They have longer deployment in
+  more unusual conditions. Therefor, it is very important that the version of
+  the messages being used by the embedded systems is detectable by its partner
+  systems and that they be kept in sync.
+* Specifications must be precise in as many ways as possible - many embedded
+  systems vary from standard desktop and server systems in unusual ways. These
+  variations can can include things such as: the number of bits in a byte, the
+  amount of memory available on the system, the representation of pointers, the
+  endianness of the processor, and the format of floating point numbers.
+* Should not preclude other systems - though embedded systems are a primary
+  target, design choices for Cauterize should not preclude the use of Cauterize
+  on systems such as mobile, desktop, and web development.
+
+## Secondary Goals
+
+* Ease of implementation - code generators should be able to represent the
+  specification in idioms common in the target language. In C, this is structs,
+  enumerations, and unions. In Ruby, this would likely be classes.
+* Simplicity - code generators should not be expected to perform complicated
+  operations in order to emit code. Concepts should be simple in nature and
+  have at least one obvious method for implementation.
 
 ## Schemas
 
