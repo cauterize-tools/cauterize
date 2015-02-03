@@ -1,16 +1,25 @@
 # Cauterize
 
-Cauterize is a _schema language_ for describing ordinary data and a compiler to
-translate a schema into an unambiguous intermediate representation known as a
-_specification_.
+Cauterize is a data-description language that must always be able to target a
+hard-real time embedded system without dynamic memory allocation.
 
-This specification describes all inferrable information from the schema to make
-the creation of _code generators_ easier. These generators consume the
-specification and output a library capable of reading and writing data
-represented by the schema.
+Cauterize consists of several parts: a _schema language_ for describing
+ordinary data, a compiler to translate a schema into an intermediate
+representation known as a _specification_, and code generators that translate
+specifications into encoders and decoders.
 
-Cauterize is _first_ intended to serve the constraints systems and embedded
-systems programming, but is still suitable for a wide variety of other
+A schema is written by humans and it describes the semantic meaning in all
+types.
+
+The specification is created by the cauterize compiler and it describes all
+inferrable information from the schema in order to make the creation of _code
+generators_ easier.
+
+Code generators consume the specification and output a library capable of
+encoding and decoding data represented by the schema.
+
+Cauterize is _first_ intended to serve the constraints of hard-real-time
+embedded systems programming, but is still suitable for a variety of other
 situations. All Cauterize specifications have the following properties:
 
   * Encoded messages have a maximum and minimum size known at compile time
@@ -35,7 +44,7 @@ all capable of reading and writing the schema described by the DSL.
 
 This project is a successor to the original Ruby DSL prototype with a goals of
 being safer, being more complete, and including features making it easier to
-add new code generators.
+add new code generators beyond the original C, C# and Ruby generators.
 
 In order to better frame the context at which Cauterize is targeted, here's a
 incomplete list of other tools that attempt to perform some or all of the
@@ -60,12 +69,6 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [XDR](http://en.wikipedia.org/wiki/External_Data_Representation)
 * [bond](https://github.com/Microsoft/bond)
 * [extprot](https://github.com/mfp/extprot)
-
-## Goals
-
-Cauterize has a single goal that informs all its other goals: Cauterize must
-always be suitable to target at a hard-real time embedded system without
-dynamic memory allocation.
 
 ## Primary Goals
 
