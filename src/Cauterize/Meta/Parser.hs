@@ -27,15 +27,15 @@ parseMeta = do
 pMeta :: Parser Meta
 pMeta = parens $ do
   _ <- string "meta-interface"
-  n <- spacedQuoted
-  sv <- spacedQuoted
+  n <- spacedSchemaName
+  sv <- spacedSchemaVersion
   sh <- spacedFormHash
   av <- spaces1 >> pMetaVariant
   tl <- spaces1 >> pMetaTypeLength
   dl <- spaces1 >> pMetaDataLength
   ts <- spaces1 >> pMetaTypes
 
-  return $ Meta n av tl dl sh sv ts 
+  return $ Meta n av tl dl sh sv ts
 
 pMetaVariant :: Parser Integer
 pMetaVariant = pNamedNumber "meta-variant"

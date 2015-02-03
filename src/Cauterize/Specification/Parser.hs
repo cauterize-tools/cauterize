@@ -16,7 +16,7 @@ parseFile :: FilePath -> IO (Either ParseError Spec)
 parseFile path = liftM (parseString path) $ readFile path
 
 parseString :: FilePath -> String -> Either ParseError Spec
-parseString path str = 
+parseString path str =
   case parse parseSpec path str of
      Left e -> Left e
      Right s -> Right s
@@ -28,12 +28,12 @@ parseSpec = do
   return s
   where
     pSpec = pSexp "specification" $ do
-      qname <- spacedQuoted
-      qver <- spacedQuoted
+      qname <- spacedSchemaName
+      qver <- spacedSchemaVersion
       qhash <- spacedFormHash
       sz <- parseRangeSize
-      types <- pTypes
       depth <- parseDepth
+      types <- pTypes
       return $ Spec qname qver qhash sz depth types
     pTypes :: Parser [SpType]
     pTypes = option [] $ do
@@ -141,7 +141,7 @@ parseRangeSize :: Parser RangeSize
 parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumber spacedNumber
 
 parseDepth :: Parser Depth
-parseDepth = pSexp "depth" (liftM Depth spacedNumber)
+parseDepth = (>>) spaces1 $ pSexp "depth" (liftM Depth spacedNumber)
 
 parseField :: Parser Field
 parseField = pSexp "field" $ do

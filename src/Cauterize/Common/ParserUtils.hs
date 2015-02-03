@@ -1,7 +1,8 @@
 module Cauterize.Common.ParserUtils
   ( pSexp
   , parens
-  , spacedQuoted
+  , spacedSchemaName
+  , spacedSchemaVersion
   , spaces1
   , spacedName
   , spacedNumber
@@ -31,22 +32,32 @@ parens a = do
   _ <- char ')'
   return a'
 
-quoted :: Parser String
-quoted = do
-  _ <- char '"'
-  manyTill anyToken (char '"')
+parseManyStartingWith :: String -> String -> Parser String
+parseManyStartingWith s r = do
+  s' <- oneOf s
+  r' <- many . oneOf $ r
+  return $ s':r'
+
+schemaName :: Parser String
+schemaName = parseManyStartingWith start rest
+  where
+    start = ['a'..'z']
+    rest = start ++ "_" ++ ['0'..'9']
+
+schemaVersion :: Parser String
+schemaVersion = parseManyStartingWith start rest
+  where
+    start = ['a'..'z'] ++ ['0'..'9']
+    rest = start ++ "_.-"
 
 spaces1 :: Parser ()
 spaces1 = space >> spaces
 
 validName :: Parser String
-validName = do
-  f <- oneOf chars
-  r <- many $ oneOf $ chars ++ digits
-  return $ f:r
+validName = parseManyStartingWith start rest
   where
-    chars = ['a'..'z'] ++ ['A'..'Z']
-    digits = ['0'..'9']
+    start = ['a'..'z']
+    rest = start ++ "_" ++ ['0'..'9']
 
 validNumber :: Parser Integer
 validNumber = do
@@ -60,7 +71,7 @@ validNumber = do
 parseFormHash :: Parser FormHash
 parseFormHash = pSexp "sha1" $ do
   spaces1
-  liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['A'..'F'] ++ ['0'..'9'])
+  liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['a'..'f'] ++ ['0'..'9'])
 
 spacedName :: Parser String
 spacedName = spaces1 >> validName
@@ -68,8 +79,11 @@ spacedName = spaces1 >> validName
 spacedNumber :: Parser Integer
 spacedNumber = spaces1 >> validNumber
 
-spacedQuoted :: Parser String
-spacedQuoted = spaces1 >> quoted
+spacedSchemaName :: Parser String
+spacedSchemaName = spaces1 >> schemaName
+
+spacedSchemaVersion :: Parser String
+spacedSchemaVersion = spaces1 >> schemaVersion
 
 spacedFormHash :: Parser FormHash
 spacedFormHash = spaces1 >> parseFormHash

@@ -17,7 +17,7 @@ parseFile :: FilePath -> IO (Either ParseError Schema)
 parseFile path = readFile path >>= parseString path
 
 parseString :: FilePath -> String -> IO (Either ParseError Schema)
-parseString path str = 
+parseString path str =
   return $ case parse parseSchema path str of
               Left e -> Left e
               Right s -> Right s
@@ -29,11 +29,11 @@ parseSchema = do
   return s
   where
     pSchema = pSexp "schema" $ do
-      qname <- spacedQuoted
-      qver <- spacedQuoted
+      qname <- spacedSchemaName
+      qver <- spacedSchemaVersion
       forms <- pTypes
       return $ Schema qname qver (bis ++ forms)
-    pTypes = option [] $ spaces1 >> parseType `sepBy` spaces1 
+    pTypes = option [] $ spaces1 >> parseType `sepBy` spaces1
     bis = map (BuiltIn . TBuiltIn) [minBound .. maxBound]
 
 parseType :: Parser ScType

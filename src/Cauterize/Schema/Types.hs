@@ -118,7 +118,7 @@ pShow = text . show
 instance Pretty Schema where
   pretty (Schema n v fs) = parens $ hang ps 1 pfs
     where
-      ps = text "schema" <+> (doubleQuotes . text) n <+> (doubleQuotes . text) v
+      ps = text "schema" <+> text n <+> text v
       pfs = vcat $ map pretty fs
 
 instance Pretty ScType where

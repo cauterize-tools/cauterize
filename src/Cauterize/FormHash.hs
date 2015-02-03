@@ -14,7 +14,6 @@ module Cauterize.FormHash
 import qualified Crypto.Hash.SHA1 as C
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
-import Data.Char
 import Data.Data
 import Data.Word
 import Numeric
@@ -46,10 +45,9 @@ instance Show FormHash where
   show (FormHash bs) = concatMap showByte $ B.unpack bs
     where
       showByte b = case showHex b "" of
-                    [x,y] -> [toUpper x, toUpper y]
-                    [x]   -> ['0', toUpper x]
+                    [x,y] -> [x, y]
+                    [x]   -> ['0', x]
                     _     -> error "This should be impossible."
 
 instance Pretty FormHash where
   pretty f = parens $ text "sha1" <+> (text . show $ f)
-

@@ -401,13 +401,10 @@ prettyPrint = show . pretty
 pShow :: (Show a) => a -> Doc
 pShow = text . show
 
-pDQText :: String -> Doc
-pDQText = doubleQuotes . text
-
 instance Pretty Spec where
   pretty (Spec n v h sz d fs) = parens $ hang ps 1 pfs
     where
-      ps = text "specification" <+> pDQText n <+> pDQText v <+> pretty h <+> pretty sz <+> pretty d
+      ps = text "specification" <+> text n <+> text v <+> pretty h <+> pretty sz <+> pretty d
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields

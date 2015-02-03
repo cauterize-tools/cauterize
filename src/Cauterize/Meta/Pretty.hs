@@ -10,10 +10,10 @@ import Numeric
 prettyMeta :: Meta -> Doc
 prettyMeta (Meta n v tl dl sh  sv ts) =
   let banner = "meta-interface"
-      n'  = dquotes $ text (T.pack n)
-      sv' = dquotes $ text (T.pack sv)
+      n'  = text (T.pack n)
+      sv' = text (T.pack sv)
       h'  = parens $ "sha1" <+> text (T.pack $ show sh)
-      ts' = parens $ "types" <$> (indent 2 $ vcat $ map prettyType ts)
+      ts' = parens $ "types" <$> indent 2 (vcat $ map prettyType ts)
       rest = indent 2 $ vcat [ parens $ "meta-variant" <+> integer v
                              , parens $ "type-length" <+> integer tl
                              , parens $ "data-length" <+> integer dl
@@ -23,7 +23,7 @@ prettyMeta (Meta n v tl dl sh  sv ts) =
   where
 
 prettyType :: MetaType -> Doc
-prettyType (MetaType n p) = parens $ "type" <+> (text $ T.pack n)
+prettyType (MetaType n p) = parens $ "type" <+> text (T.pack n)
                                             <+> prettyPrefix p
 
 prettyPrefix :: [Word8] -> Doc
