@@ -123,6 +123,12 @@ level expression defines the outer details for the Cauterize schema.
 * `schema_name` - `[a-z]([a-z]|[0-9]|_)*`
 * `schema_version` - `([a-z]|[0-9])([a-z]|[0-9]|_|.|-)*`
 
+NOTE: The reason the name and version patterns are restrictive is to ease the
+burden on code generators. Some languages, such as Haskell and Ruby, have
+specific rules about capitalization. Without the restrictive name pattern
+Cauterize uses, code generators would have to do a lot more work to emit code
+that is readable and matches the target language's normal conventions.
+
 ### Built-In Types
 
 There are several types that represent the foundation of the Cauterize types.
