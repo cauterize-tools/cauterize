@@ -252,135 +252,111 @@ The following example defines a generic byte buffer with a maximum length of
   (vector byte_buffer_4k u8 4096))
 ```
 
-TODO JVE finish README from here.
 
-#### Structures
+#### Field Lists
 
-Structures are like C structures in every way. They allow the description of a
-type that has an ordered list of name-type pairs. These allow the expression of
-more complex structures that are only meaningful with multiple values.
+Field lists cannot be defined on their own; they can only be used as the last
+parameter to a `record`, `union`, or `combination` expression (which are
+defined later in this document). Field lists are used to designate a set of
+(name/type) pairs.
 
-The description of a Structure follows the following pattern:
-
-```
-(struct [type name] [field list])
-```
-
-This allows us to define types like the following `user` type:
+Field lists are defined like this:
 
 ```
-(struct user (fields
-               (field name string64)
-               (field yearOfBirth u16)
-               (field monthOfBirth u8)
-               (field dayOfBirth u8)))
+(fields
+  (field [field name] [optional type])
+  (field ...))
 ```
 
-#### Enumerations
+A type is not required. The behavior of a type-less field is dependent on the
+enclosing expression.
 
-Enumerations are more akin to Enumerations one might find in Haskell or Rust.
-That is, they are able to express a possible value in a type, but they are also
-able to express values that can contain another value. Each instance of an
-enumeration type can only ever contain one of its possible value variants at
-any given time.
+#### Records
 
-Enumerations, in C, are represented as tagged unions. That is, a struct that
-associates a type tag together with a union type. The type tag needs to be
-checked at runtime to determine which type variant is currently instantiated.
+Records are a collection of named fields where each field has a distinct type.
 
 ```
-(enum [type name] [field list])
-```
-Consider the following example for a 'request message' to some key-value
-storage service:
-
-```
-(enum request (fields
-                (field getKeyCount)
-                (field checkKeyExists keyName)
-                (field getKey keyName)
-                (field eraseKey keyName)
-                (field setKey keyValuePair)))
+(record [type name] [field list])
 ```
 
-Noe that the `getKeyCount` variant does not contain any associated data while
-the `getKey` variant specifies a type that encodes the name of the key to get.
+An empty field in a record lacks any semantic meaning. It can neither be
+encoded or represented by code generators.
 
-#### Sets
-
-Sets are a closed collection of key-type pairs. The difference between Sets and
-Structures is that the Set can, at any given time, only include *some* of its
-possible members. The presence of encoded members is stored as a bitfield
-encoded before any contained data.
+This is an example of a record describing a person's age, height, and whether or
+not they like cats:
 
 ```
-(set [type name] [field list])
+(record person (fields (field age u8)
+                       (field height u8))
+                       (field likes_cats bool))
+```
+
+#### Union
+
+Unions encode a set of possible values and some associated sub-value.  Like
+records, their schema entries specify a list of fields, but, unlike records,
+only one of those fields can represented in a union at any given time.
+
+Unions in Cauterize are very similar to algebraic data types found in other
+languages such as OCaml, Haskell, and Rust.
+
+```
+(union [type name] [field list])
+```
+
+An empty field in a union represents that a variant of the union is set. This
+has meaning even if there is no associated data. A union where all fields lack
+associated data behaves similarly to a C enumeration.
+
+This example shows a `request` type for some key-value storage system. The
+system stores `u64` values according to names that are up to 128 bytes long.
+
+```
+(schema example 1.0.0
+  (vector key_name cu8 128)
+  (record key_pair (fields
+                     (field name key_name)
+                     (field value u64)))
+
+  (union request (fields
+                   (field get_key_count)
+                   (field check_key_exists key_name)
+                   (field get_key key_name)
+                   (field erase_key key_name)
+                   (field set_key key_pair))))
+```
+
+The `get_key_count` variant does not contain any associated data while the
+`get_key` variant specifies a type that encodes the name of the key to get.
+Note: the `response` type is not defined in this example.
+
+#### Combination
+
+Combinations, like records, are a collection of named fields where each field
+has a distinct type. The difference is that each field in the combination can
+either be present or not present in the encoded output.
+
+```
+(combination [type name] [field list])
 ```
 As an example, consider the following description of a type capable of storing
 changes in some observed values in a sensor rig:
 
-```
-(set sensed (fields
-              (field ambientTemp u16)
-              (field ambientLight u16)
-              (field airPressure u16)
-              (field positionX u32)
-              (field positionY u32)
-              (field positionZ u32)))
-```
-
-If no sensor difference is detected in a specific sensor in a given time slice,
-the value won't be included in the serialized value. This allows users to
-encode values that only have deltas in a space-efficient way.
-
-Sets can also be used as bitfields. Consider the following set definition that
-can be used to indicate which lights on a car are currently powered/lit:
+An empty field in a Combination behaves like a boolean flag.
 
 ```
-(set poweredLights (fields
-                     (field headlights)
-                     (field taillights)
-                     (field leftblinkers)
-                     (field rightblinkers)
-                     (field breaklights)))
+(combination sensed (fields
+                      (field ambient_temp u16)
+                      (field ambient_light u16)
+                      (field air_pressure u16)
+                      (field position_x u32)
+                      (field position_y u32)
+                      (field position_z u32)))
 ```
 
-This set defines 5 fields, but none of the fields have associated data. This
-allows cauterize to express the entirety of this structure in a single word at
-least 5 bits wide.
-
-#### Padding
-
-Padding types can be used to insert null bytes into a payload. Padding types
-must be 0 in the stream. Any other value will result in a pack/unpack error.
-
-```
-(pad [type name] [padding width in bytes])
-```
-
-The following defines a type that can only be represented by 8 null bytes.
-
-```
-(pad p8 8)
-```
-
-### Field Lists
-
-Field lists are used to designate a set of (name/type) pairs. These pairs are
-used in any of the types that are created out of other types. This includes:
-structs, enums, sets, and partials.
-
-They are defined like this:
-
-```
-(fields
-  (field [field name] [optional target type])
-  (field ...))
-```
-
-If the target type is not specified in the schema, code generators will only
-define a field index and will not attempt to associate the field with a
-contained type.
+If a sensor value hasn't changed since the last time the message was sent, the
+message is able to omit that reading since there isn't new information to
+share.
 
 ## Specifications
 
