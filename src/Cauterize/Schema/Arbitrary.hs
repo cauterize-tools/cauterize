@@ -163,8 +163,10 @@ arbBiVal b = case b of
                BIs16 -> liftM fromIntegral (arbitrary :: Gen Int16)
                BIs32 -> liftM fromIntegral (arbitrary :: Gen Int32)
                BIs64 -> liftM fromIntegral (arbitrary :: Gen Int64)
-               BIieee754s -> liftM fromIntegral (arbitrary :: Gen Int32)
-               BIieee754d -> liftM fromIntegral (arbitrary :: Gen Int32)
+               -- TODO: Figure out what it will take to use Float and Double
+               -- here instead of Int32
+               BIf32 -> liftM fromIntegral (arbitrary :: Gen Int32)
+               BIf64 -> liftM fromIntegral (arbitrary :: Gen Int32)
                BIbool -> liftM fromIntegral (choose (0,1) :: Gen Word8)
 
 -- TODO: Eventually, I need to be able to generate float values too.

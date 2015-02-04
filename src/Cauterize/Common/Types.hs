@@ -39,7 +39,7 @@ type Version = String
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
-             | BIieee754s | BIieee754d
+             | BIf32 | BIf64
              | BIbool
   deriving (Enum, Bounded, Ord, Eq, Data, Typeable)
 
@@ -58,8 +58,6 @@ minimalExpression v | 0 > v' && v' >= -128 = BIs8
                        $ "Cannot express value '" ++ show v' ++ "' as a builtin."
   where
     v' = fromIntegral v :: Integer
-
-                        
 
 minimalBitField :: Integral a => a -> BuiltIn
 minimalBitField v | 0 <= v' && v' <= 8 = BIu8
@@ -81,8 +79,8 @@ builtInSize BIs16      = 2
 builtInSize BIs32      = 4
 builtInSize BIs64      = 8
 builtInSize BIbool     = 1
-builtInSize BIieee754s = 4
-builtInSize BIieee754d = 8
+builtInSize BIf32      = 4
+builtInSize BIf64      = 8
 
 instance Show BuiltIn where
   show BIu8       = "u8"
@@ -94,8 +92,8 @@ instance Show BuiltIn where
   show BIs32      = "s32"
   show BIs64      = "s64"
   show BIbool     = "bool"
-  show BIieee754s = "ieee754s"
-  show BIieee754d = "ieee754d"
+  show BIf32      = "f32"
+  show BIf64      = "f64"
 
 instance Read BuiltIn where
   readsPrec _ "u8"       = [ (BIu8, "") ]
@@ -107,8 +105,8 @@ instance Read BuiltIn where
   readsPrec _ "s32"      = [ (BIs32, "") ]
   readsPrec _ "s64"      = [ (BIs64, "") ]
   readsPrec _ "bool"     = [ (BIbool, "") ]
-  readsPrec _ "ieee754s" = [ (BIieee754s, "") ]
-  readsPrec _ "ieee754d" = [ (BIieee754d, "") ]
+  readsPrec _ "f32"      = [ (BIf32, "") ]
+  readsPrec _ "f64"      = [ (BIf64, "") ]
   readsPrec _ s = error $ "ERROR: \"" ++ s ++ "\" is not a BuiltIn."
 
 data TBuiltIn = TBuiltIn { unTBuiltIn :: BuiltIn }
