@@ -365,13 +365,6 @@ share.
 
 TODO: Write about specifications.
 
-# TODO List
-
-* Exhaustive checking for hash-collisions... just in case.
-* Hash algorithm selection.
-* Add a "ranged" type that's similar to a scalar but only accepts n..m values in a builtin.
-
-
 # Answers to Obvious Questions
 
 In this section, we'll try and justify a few of the obvious questions that come
@@ -443,3 +436,13 @@ struct multi_type_field {
 There's no good way to express the names for different elements in the field.
 We could come up with something, but it's not an obvious or clear path forward.
 For this reason, we've chosen to omit multiple types per field in unions.
+
+# TODO List
+
+* Exhaustive checking for hash-collisions... just in case
+* Hash algorithm selection
+* Add a "ranged" type that's similar to a scalar but only accepts n..m values in a builtin
+* Add ability to load schemas into other schemas
+* Add small expression language to schemas for computing sizes or sharing numeric information
+* Consider addition of generics to the schema
+
