@@ -46,7 +46,7 @@ parseType = choice $ map try
   , parseSynonym
   , parseArray
   , parseVector
-  , parseStruct
+  , parseRecord
   , parseSet
   , parseEnum
   ]
@@ -85,13 +85,13 @@ parseVector = pSexp "vector" $ do
   t <- spacedName
   return $ Vector (TVector n t len) hs sz repr
 
-parseStruct :: Parser SpType
-parseStruct = pSexp "struct" $ do
+parseRecord :: Parser SpType
+parseRecord = pSexp "record" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseRangeSize
   fs <- spaces1 >> parseFields
-  return $ Struct (TStruct n fs) hs sz
+  return $ Record (TRecord n fs) hs sz
 
 parseSet :: Parser SpType
 parseSet = pSexp "set" $ do

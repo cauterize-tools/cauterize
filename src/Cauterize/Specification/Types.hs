@@ -129,7 +129,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spRangeSize :: RangeSize
                            , lenRepr     :: LengthRepr }
 
-            | Struct       { unStruct    :: TStruct
+            | Record       { unRecord    :: TRecord
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize }
 
@@ -149,7 +149,7 @@ instance Sized SpType where
   minSize (Synonym { spFixedSize = s}) = minSize s
   minSize (Array { spRangeSize = s}) = minSize s
   minSize (Vector { spRangeSize = s}) = minSize s
-  minSize (Struct { spRangeSize = s}) = minSize s
+  minSize (Record { spRangeSize = s}) = minSize s
   minSize (Set { spRangeSize = s}) = minSize s
   minSize (Enum { spRangeSize = s}) = minSize s
 
@@ -157,7 +157,7 @@ instance Sized SpType where
   maxSize (Synonym { spFixedSize = s}) = maxSize s
   maxSize (Array { spRangeSize = s}) = maxSize s
   maxSize (Vector { spRangeSize = s}) = maxSize s
-  maxSize (Struct { spRangeSize = s}) = maxSize s
+  maxSize (Record { spRangeSize = s}) = maxSize s
   maxSize (Set { spRangeSize = s}) = maxSize s
   maxSize (Enum { spRangeSize = s}) = maxSize s
 
@@ -166,7 +166,7 @@ typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
 typeName (Synonym { unSynonym = (TSynonym n _)}) = n
 typeName (Array { unFixed = (TArray n _ _)}) = n
 typeName (Vector { unBounded = (TVector n _ _)}) = n
-typeName (Struct { unStruct = (TStruct n _)}) = n
+typeName (Record { unRecord = (TRecord n _)}) = n
 typeName (Set { unSet = (TSet n _)}) = n
 typeName (Enum { unEnum = (TEnum n _)}) = n
 
@@ -273,7 +273,7 @@ typeHashMap s = m
                   SC.Synonym (TSynonym n b) -> ["synonym", n, show b]
                   SC.Array (TArray n r i) -> ["array", n, lu r, showNumSigned i]
                   SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
-                  SC.Struct (TStruct n (Fields fs)) -> ["struct", n] ++ concatMap fieldStr fs
+                  SC.Record (TRecord n (Fields fs)) -> ["record", n] ++ concatMap fieldStr fs
                   SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
                   SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
       in hashString . unwords $ str
@@ -298,7 +298,7 @@ typeDepthMap s = m
         SC.Synonym (TSynonym {}) -> 2
         SC.Array (TArray _ r _) -> 1 + lu r
         SC.Vector (TVector _ r _) -> 1 + lu r
-        SC.Struct (TStruct _ (Fields fs)) -> 1 + maxFieldsDepth fs
+        SC.Record (TRecord _ (Fields fs)) -> 1 + maxFieldsDepth fs
         SC.Set (TSet _ (Fields fs)) -> 1 + maxFieldsDepth fs
         SC.Enum (TEnum _ (Fields fs)) -> 1 + maxFieldsDepth fs
 
@@ -336,11 +336,11 @@ mkSpecType m p =
           repr' = LengthRepr repr
           reprSz = builtInSize repr
       in \h -> Vector t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr'
-    (SC.Struct t@(TStruct _ rs)) ->
+    (SC.Record t@(TRecord _ rs)) ->
       let refs = lookupRefs rs
           sumMin = sumOfMinimums refs
           sumMax = sumOfMaximums refs
-      in \h -> Struct t h (mkRangeSize sumMin sumMax)
+      in \h -> Record t h (mkRangeSize sumMin sumMax)
     (SC.Set t@(TSet _ rs)) ->
       let refs = lookupRefs rs
           sumMax = sumOfMaximums refs
@@ -367,7 +367,7 @@ instance References SpType where
   referencesOf (Synonym s _ _) = referencesOf s
   referencesOf (Array f _ _) = referencesOf f
   referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
-  referencesOf (Struct s _ _) = referencesOf s
+  referencesOf (Record s _ _) = referencesOf s
   referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
   referencesOf (Enum e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
 
@@ -402,7 +402,7 @@ instance Pretty SpType where
     where
       pt = text "vector" <+> text n <+> pretty h
       pa = pretty sz $$ pretty bi $$ integer i $$ text m
-  pretty (Struct (TStruct n rs) h sz) = prettyFieldedB0 "struct" n rs sz h
+  pretty (Record (TRecord n rs) h sz) = prettyFieldedB0 "record" n rs sz h
   pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
   pretty (Enum (TEnum n rs) h sz bi) = prettyFieldedB1 "enum" n rs sz bi h
 

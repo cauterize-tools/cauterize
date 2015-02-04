@@ -3,16 +3,16 @@
         (synonym unsigned8 u8)
         (array somearray number64 64)
         (vector somevector number64 64)
-        (struct astruct
+        (record arecord
                 (fields
                   (field z somevector)
                   (field a s8)
-                  (field d bstruct)))
-        (struct bstruct
+                  (field d brecord)))
+        (record brecord
                 (fields
                   (field a s8)
-                  (field d cstruct)))
-        (struct cstruct
+                  (field d crecord)))
+        (record crecord
                 (fields
                   (field a s8)
                   (field b s8)))

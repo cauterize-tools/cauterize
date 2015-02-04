@@ -12,7 +12,7 @@ module Cauterize.Common.Types
   , TSynonym(..)
   , TArray(..)
   , TVector(..)
-  , TStruct(..)
+  , TRecord(..)
   , TSet(..)
   , TEnum(..)
 
@@ -152,11 +152,11 @@ instance References TSynonym where
   referencesOf (TSynonym _ b) = [show b]
 
 
-data TStruct = TStruct { structName :: Name, structFields :: Fields }
+data TRecord = TRecord { recordName :: Name, recordFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References TStruct where
-  referencesOf (TStruct _ (Fields rs)) = nub $ mapMaybe refRef rs
+instance References TRecord where
+  referencesOf (TRecord _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TEnum = TEnum { enumName :: Name, enumFields :: Fields }

@@ -16,7 +16,7 @@ import Cauterize.Schema.Types
 data ProtoParam = ParamSynonym
                 | ParamArray
                 | ParamVector
-                | ParamStruct
+                | ParamRecord
                 | ParamSet
                 | ParamEnum
   deriving (Show, Eq, Ord)
@@ -67,7 +67,7 @@ protoToArb :: ProtoParam -> ([Name] -> Name -> Gen ScType)
 protoToArb ParamSynonym = arbSynonym
 protoToArb ParamArray = arbArray
 protoToArb ParamVector = arbVector
-protoToArb ParamStruct = arbStruct
+protoToArb ParamRecord = arbRecord
 protoToArb ParamSet = arbSet
 protoToArb ParamEnum = arbEnum
 
@@ -75,7 +75,7 @@ arbs :: [[Name] -> Name -> Gen ScType]
 arbs = [ arbSynonym
        , arbArray
        , arbVector
-       , arbStruct
+       , arbRecord
        , arbSet
        , arbEnum
        ]
@@ -89,8 +89,8 @@ arbArray ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize
 arbVector :: [Name] -> Name -> Gen ScType
 arbVector ts n = liftM2 (\t s -> Vector $ TVector n t s) (elements ts) arbArraySize
 
-arbStruct :: [Name] -> Name -> Gen ScType
-arbStruct ts n = arbFielded arbContainerField ts n (\n' fs -> Struct $ TStruct n' fs)
+arbRecord :: [Name] -> Name -> Gen ScType
+arbRecord ts n = arbFielded arbContainerField ts n (\n' fs -> Record $ TRecord n' fs)
 
 arbSet ::  [Name] -> Name -> Gen ScType
 arbSet ts n = arbFielded arbField ts n (\n' fs -> Set $ TSet n' fs)

@@ -41,7 +41,7 @@ parseType = choice $ map try
   [ parseSynonym
   , parseArray
   , parseVector
-  , parseStruct
+  , parseRecord
   , parseEnum
   , parseSet
   ]
@@ -76,11 +76,11 @@ parseField = pSexp "field" $ do
 parseSpacedFields :: Parser [Integer -> Field]
 parseSpacedFields = many $ spaces1 >> parseField
 
-parseStruct :: Parser ScType
-parseStruct = pSexp "struct" $ do
+parseRecord :: Parser ScType
+parseRecord = pSexp "record" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields
-  return $ Struct $ TStruct n fs
+  return $ Record $ TRecord n fs
 
 parseEnum :: Parser ScType
 parseEnum = pSexp "enum" $ do

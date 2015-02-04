@@ -33,7 +33,7 @@ data ScType = BuiltIn TBuiltIn
             | Synonym TSynonym
             | Array   TArray
             | Vector  TVector
-            | Struct  TStruct
+            | Record  TRecord
             | Set     TSet
             | Enum    TEnum
   deriving (Show, Ord, Eq)
@@ -46,7 +46,7 @@ typeName (BuiltIn (TBuiltIn b)) = show b
 typeName (Synonym (TSynonym n _)) = n
 typeName (Array (TArray n _ _)) = n
 typeName (Vector (TVector n _ _)) = n
-typeName (Struct (TStruct n _)) = n
+typeName (Record (TRecord n _)) = n
 typeName (Set (TSet n _)) = n
 typeName (Enum (TEnum n _)) = n
 
@@ -55,7 +55,7 @@ referredNames (BuiltIn t) = referencesOf t
 referredNames (Synonym t) = referencesOf t
 referredNames (Array t) = referencesOf t
 referredNames (Vector t) = referencesOf t
-referredNames (Struct t) = referencesOf t
+referredNames (Record t) = referencesOf t
 referredNames (Set t) = referencesOf t
 referredNames (Enum t) = referencesOf t
 
@@ -120,7 +120,7 @@ instance Pretty ScType where
   pretty (Synonym (TSynonym n b)) = parens $ text "synonym" <+> text n <+> pShow b
   pretty (Array (TArray n m s)) = parens $ text "array" <+> text n <+> text m <+> integer s
   pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
-  pretty (Struct (TStruct n fs)) = prettyFielded "struct" n fs
+  pretty (Record (TRecord n fs)) = prettyFielded "record" n fs
   pretty (Set (TSet n fs)) = prettyFielded "set" n fs
   pretty (Enum (TEnum n fs)) = prettyFielded "enum" n fs
 

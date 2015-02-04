@@ -1,9 +1,9 @@
 (schema loop 0.0.1
-        (struct a
+        (record a
                 (fields (field a b)))
-        (struct b
+        (record b
                 (fields (field a a)))
-        (struct c
+        (record c
                 (fields (field a d)))
-        (struct d
+        (record d
                 (fields (field a c))))
