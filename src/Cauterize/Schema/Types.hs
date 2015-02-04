@@ -29,13 +29,13 @@ type Cycle = [Name]
 data Schema = Schema Name Version [ScType]
   deriving (Show)
 
-data ScType = BuiltIn TBuiltIn
-            | Synonym TSynonym
-            | Array   TArray
-            | Vector  TVector
-            | Record  TRecord
-            | Set     TSet
-            | Union   TUnion
+data ScType = BuiltIn     TBuiltIn
+            | Synonym     TSynonym
+            | Array       TArray
+            | Vector      TVector
+            | Record      TRecord
+            | Combination TCombination
+            | Union       TUnion
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema -> M.Map Name ScType
@@ -47,7 +47,7 @@ typeName (Synonym (TSynonym n _)) = n
 typeName (Array (TArray n _ _)) = n
 typeName (Vector (TVector n _ _)) = n
 typeName (Record (TRecord n _)) = n
-typeName (Set (TSet n _)) = n
+typeName (Combination (TCombination n _)) = n
 typeName (Union (TUnion n _)) = n
 
 referredNames :: ScType -> [Name]
@@ -56,7 +56,7 @@ referredNames (Synonym t) = referencesOf t
 referredNames (Array t) = referencesOf t
 referredNames (Vector t) = referencesOf t
 referredNames (Record t) = referencesOf t
-referredNames (Set t) = referencesOf t
+referredNames (Combination t) = referencesOf t
 referredNames (Union t) = referencesOf t
 
 data SchemaErrors = DuplicateNames [Name]
@@ -121,7 +121,7 @@ instance Pretty ScType where
   pretty (Array (TArray n m s)) = parens $ text "array" <+> text n <+> text m <+> integer s
   pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
   pretty (Record (TRecord n fs)) = prettyFielded "record" n fs
-  pretty (Set (TSet n fs)) = prettyFielded "set" n fs
+  pretty (Combination (TCombination n fs)) = prettyFielded "combination" n fs
   pretty (Union (TUnion n fs)) = prettyFielded "union" n fs
 
 prettyFielded :: String -> Name -> Fields -> Doc

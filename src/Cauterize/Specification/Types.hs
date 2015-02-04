@@ -133,10 +133,10 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize }
 
-            | Set          { unSet       :: TSet
-                           , spHash      :: FormHash
-                           , spRangeSize :: RangeSize
-                           , flagsRepr   :: FlagsRepr }
+            | Combination  { unCombination :: TCombination
+                           , spHash        :: FormHash
+                           , spRangeSize   :: RangeSize
+                           , flagsRepr     :: FlagsRepr }
 
             | Union         { unUnion    :: TUnion
                            , spHash      :: FormHash
@@ -150,7 +150,7 @@ instance Sized SpType where
   minSize (Array { spRangeSize = s}) = minSize s
   minSize (Vector { spRangeSize = s}) = minSize s
   minSize (Record { spRangeSize = s}) = minSize s
-  minSize (Set { spRangeSize = s}) = minSize s
+  minSize (Combination { spRangeSize = s}) = minSize s
   minSize (Union { spRangeSize = s}) = minSize s
 
   maxSize (BuiltIn { spFixedSize = s}) = maxSize s
@@ -158,7 +158,7 @@ instance Sized SpType where
   maxSize (Array { spRangeSize = s}) = maxSize s
   maxSize (Vector { spRangeSize = s}) = maxSize s
   maxSize (Record { spRangeSize = s}) = maxSize s
-  maxSize (Set { spRangeSize = s}) = maxSize s
+  maxSize (Combination { spRangeSize = s}) = maxSize s
   maxSize (Union { spRangeSize = s}) = maxSize s
 
 typeName :: SpType -> Name
@@ -167,7 +167,7 @@ typeName (Synonym { unSynonym = (TSynonym n _)}) = n
 typeName (Array { unFixed = (TArray n _ _)}) = n
 typeName (Vector { unBounded = (TVector n _ _)}) = n
 typeName (Record { unRecord = (TRecord n _)}) = n
-typeName (Set { unSet = (TSet n _)}) = n
+typeName (Combination { unCombination = (TCombination n _)}) = n
 typeName (Union { unUnion = (TUnion n _)}) = n
 
 pruneBuiltIns :: [SpType] -> [SpType]
@@ -274,7 +274,7 @@ typeHashMap s = m
                   SC.Array (TArray n r i) -> ["array", n, lu r, showNumSigned i]
                   SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
                   SC.Record (TRecord n (Fields fs)) -> ["record", n] ++ concatMap fieldStr fs
-                  SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
+                  SC.Combination (TCombination n (Fields fs)) -> ["combination", n] ++ concatMap fieldStr fs
                   SC.Union (TUnion n (Fields fs)) -> ["union", n] ++ concatMap fieldStr fs
       in hashString . unwords $ str
 
@@ -299,7 +299,7 @@ typeDepthMap s = m
         SC.Array (TArray _ r _) -> 1 + lu r
         SC.Vector (TVector _ r _) -> 1 + lu r
         SC.Record (TRecord _ (Fields fs)) -> 1 + maxFieldsDepth fs
-        SC.Set (TSet _ (Fields fs)) -> 1 + maxFieldsDepth fs
+        SC.Combination (TCombination _ (Fields fs)) -> 1 + maxFieldsDepth fs
         SC.Union (TUnion _ (Fields fs)) -> 1 + maxFieldsDepth fs
 
 maximumTypeDepth :: SC.Schema -> Depth
@@ -341,13 +341,13 @@ mkSpecType m p =
           sumMin = sumOfMinimums refs
           sumMax = sumOfMaximums refs
       in \h -> Record t h (mkRangeSize sumMin sumMax)
-    (SC.Set t@(TSet _ rs)) ->
+    (SC.Combination t@(TCombination _ rs)) ->
       let refs = lookupRefs rs
           sumMax = sumOfMaximums refs
           repr = minimalBitField (fieldsLength rs)
           repr' = FlagsRepr repr
           reprSz = builtInSize repr
-      in \h -> Set t h (mkRangeSize reprSz (reprSz + sumMax)) repr'
+      in \h -> Combination t h (mkRangeSize reprSz (reprSz + sumMax)) repr'
     (SC.Union t@(TUnion _ rs)) ->
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
@@ -368,7 +368,7 @@ instance References SpType where
   referencesOf (Array f _ _) = referencesOf f
   referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
   referencesOf (Record s _ _) = referencesOf s
-  referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
+  referencesOf (Combination s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
   referencesOf (Union e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
 
 prettyPrint :: Spec -> String
@@ -403,7 +403,7 @@ instance Pretty SpType where
       pt = text "vector" <+> text n <+> pretty h
       pa = pretty sz $$ pretty bi $$ integer i $$ text m
   pretty (Record (TRecord n rs) h sz) = prettyFieldedB0 "record" n rs sz h
-  pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
+  pretty (Combination (TCombination n rs) h sz bi) = prettyFieldedB1 "combination" n rs sz bi h
   pretty (Union (TUnion n rs) h sz bi) = prettyFieldedB1 "union" n rs sz bi h
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on

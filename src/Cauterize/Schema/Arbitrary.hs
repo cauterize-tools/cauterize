@@ -17,7 +17,7 @@ data ProtoParam = ParamSynonym
                 | ParamArray
                 | ParamVector
                 | ParamRecord
-                | ParamSet
+                | ParamCombination
                 | ParamUnion
   deriving (Show, Eq, Ord)
 
@@ -68,7 +68,7 @@ protoToArb ParamSynonym = arbSynonym
 protoToArb ParamArray = arbArray
 protoToArb ParamVector = arbVector
 protoToArb ParamRecord = arbRecord
-protoToArb ParamSet = arbSet
+protoToArb ParamCombination = arbCombination
 protoToArb ParamUnion = arbUnion
 
 arbs :: [[Name] -> Name -> Gen ScType]
@@ -76,7 +76,7 @@ arbs = [ arbSynonym
        , arbArray
        , arbVector
        , arbRecord
-       , arbSet
+       , arbCombination
        , arbUnion
        ]
 
@@ -92,8 +92,8 @@ arbVector ts n = liftM2 (\t s -> Vector $ TVector n t s) (elements ts) arbArrayS
 arbRecord :: [Name] -> Name -> Gen ScType
 arbRecord ts n = arbFielded arbContainerField ts n (\n' fs -> Record $ TRecord n' fs)
 
-arbSet ::  [Name] -> Name -> Gen ScType
-arbSet ts n = arbFielded arbField ts n (\n' fs -> Set $ TSet n' fs)
+arbCombination ::  [Name] -> Name -> Gen ScType
+arbCombination ts n = arbFielded arbField ts n (\n' fs -> Combination $ TCombination n' fs)
 
 arbUnion ::  [Name] -> Name -> Gen ScType
 arbUnion ts n = arbFielded arbField ts n (\n' fs -> Union $ TUnion n' fs)

@@ -22,7 +22,7 @@
                 (field b)
                 (field c s8)
                 (field d number64)))
-        (set aset
+        (combination a_combination
                 (fields
                   (field a number64)
                   (field b s8)

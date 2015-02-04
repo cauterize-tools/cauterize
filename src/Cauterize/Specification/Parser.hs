@@ -47,7 +47,7 @@ parseType = choice $ map try
   , parseArray
   , parseVector
   , parseRecord
-  , parseSet
+  , parseCombination
   , parseUnion
   ]
 
@@ -93,14 +93,14 @@ parseRecord = pSexp "record" $ do
   fs <- spaces1 >> parseFields
   return $ Record (TRecord n fs) hs sz
 
-parseSet :: Parser SpType
-parseSet = pSexp "set" $ do
+parseCombination :: Parser SpType
+parseCombination = pSexp "combination" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseRangeSize
   repr <- spaces1 >> parseFlagsRepr
   fs <- spaces1 >> parseFields
-  return $ Set (TSet n fs) hs sz repr
+  return $ Combination (TCombination n fs) hs sz repr
 
 parseUnion :: Parser SpType
 parseUnion = pSexp "union" $ do

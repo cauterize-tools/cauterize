@@ -13,7 +13,7 @@ module Cauterize.Common.Types
   , TArray(..)
   , TVector(..)
   , TRecord(..)
-  , TSet(..)
+  , TCombination(..)
   , TUnion(..)
 
   , Fields(..)
@@ -166,11 +166,11 @@ instance References TUnion where
   referencesOf (TUnion _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
-data TSet = TSet { setName :: Name, setFields :: Fields }
+data TCombination = TCombination { combinationName :: Name, combinationFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References TSet where
-  referencesOf (TSet _ (Fields rs)) = nub $ mapMaybe refRef rs
+instance References TCombination where
+  referencesOf (TCombination _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data Fields = Fields { unFields :: [Field] }

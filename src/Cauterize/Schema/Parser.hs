@@ -43,7 +43,7 @@ parseType = choice $ map try
   , parseVector
   , parseRecord
   , parseUnion
-  , parseSet
+  , parseCombination
   ]
 
 parseSynonym :: Parser ScType
@@ -88,11 +88,11 @@ parseUnion = pSexp "union" $ do
   fs <- spaces1 >> parseFields
   return $ Union $ TUnion n fs
 
-parseSet :: Parser ScType
-parseSet = pSexp "set" $ do
+parseCombination :: Parser ScType
+parseCombination = pSexp "combination" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields
-  return $ Set $ TSet n fs
+  return $ Combination $ TCombination n fs
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]
