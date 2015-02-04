@@ -120,10 +120,6 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash       :: FormHash
                            , spFixedSize  :: FixedSize }
 
-            | Const        { unConst     :: TConst
-                           , spHash      :: FormHash
-                           , spFixedSize :: FixedSize }
-
             | Array        { unFixed     :: TArray
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize }
@@ -146,43 +142,33 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize
                            , tagRepr     :: TagRepr }
-
-            | Pad          { unPad       :: TPad
-                           , spHash      :: FormHash
-                           , spFixedSize :: FixedSize }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance Sized SpType where
   minSize (BuiltIn { spFixedSize = s}) = minSize s
   minSize (Scalar { spFixedSize = s}) = minSize s
-  minSize (Const { spFixedSize = s}) = minSize s
   minSize (Array { spRangeSize = s}) = minSize s
   minSize (Vector { spRangeSize = s}) = minSize s
   minSize (Struct { spRangeSize = s}) = minSize s
   minSize (Set { spRangeSize = s}) = minSize s
   minSize (Enum { spRangeSize = s}) = minSize s
-  minSize (Pad { spFixedSize = s}) = minSize s
 
   maxSize (BuiltIn { spFixedSize = s}) = maxSize s
   maxSize (Scalar { spFixedSize = s}) = maxSize s
-  maxSize (Const { spFixedSize = s}) = maxSize s
   maxSize (Array { spRangeSize = s}) = maxSize s
   maxSize (Vector { spRangeSize = s}) = maxSize s
   maxSize (Struct { spRangeSize = s}) = maxSize s
   maxSize (Set { spRangeSize = s}) = maxSize s
   maxSize (Enum { spRangeSize = s}) = maxSize s
-  maxSize (Pad { spFixedSize = s}) = maxSize s
 
 typeName :: SpType -> Name
 typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
 typeName (Scalar { unScalar = (TScalar n _)}) = n
-typeName (Const { unConst = (TConst n _ _)}) = n
 typeName (Array { unFixed = (TArray n _ _)}) = n
 typeName (Vector { unBounded = (TVector n _ _)}) = n
 typeName (Struct { unStruct = (TStruct n _)}) = n
 typeName (Set { unSet = (TSet n _)}) = n
 typeName (Enum { unEnum = (TEnum n _)}) = n
-typeName (Pad { unPad = (TPad n _)}) = n
 
 pruneBuiltIns :: [SpType] -> [SpType]
 pruneBuiltIns fs = refBis ++ topLevel
@@ -285,13 +271,11 @@ typeHashMap s = m
       let str = case t of
                   SC.BuiltIn (TBuiltIn b) -> [show b]
                   SC.Scalar (TScalar n b) -> ["scalar", n, show b]
-                  SC.Const (TConst n b i) -> ["const", n, show b, showNumSigned i]
                   SC.Array (TArray n r i) -> ["array", n, lu r, showNumSigned i]
                   SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
                   SC.Struct (TStruct n (Fields fs)) -> ["struct", n] ++ concatMap fieldStr fs
                   SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
                   SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
-                  SC.Pad (TPad n i) -> ["pad", n, showNumSigned i]
       in hashString . unwords $ str
 
 typeDepthMap :: SC.Schema -> M.Map Name Integer
@@ -312,13 +296,11 @@ typeDepthMap s = m
       case t of
         SC.BuiltIn (TBuiltIn {}) -> 1
         SC.Scalar (TScalar {}) -> 2
-        SC.Const (TConst {}) -> 2
         SC.Array (TArray _ r _) -> 1 + lu r
         SC.Vector (TVector _ r _) -> 1 + lu r
         SC.Struct (TStruct _ (Fields fs)) -> 1 + maxFieldsDepth fs
         SC.Set (TSet _ (Fields fs)) -> 1 + maxFieldsDepth fs
         SC.Enum (TEnum _ (Fields fs)) -> 1 + maxFieldsDepth fs
-        SC.Pad (TPad {}) -> 1
 
 maximumTypeDepth :: SC.Schema -> Depth
 maximumTypeDepth s = let m = typeDepthMap s
@@ -345,9 +327,6 @@ mkSpecType m p =
     (SC.Scalar  t@(TScalar _ b)) ->
       let s = builtInSize b
       in \h -> Scalar t h (FixedSize s)
-    (SC.Const   t@(TConst _ b _)) ->
-      let s = builtInSize b
-      in \h -> Const t h (FixedSize s)
     (SC.Array t@(TArray _ r i)) ->
       let ref = lookupRef r
       in \h -> Array t h (mkRangeSize (i * minSize ref) (i * maxSize ref))
@@ -377,7 +356,6 @@ mkSpecType m p =
           repr' = TagRepr repr
           reprSz = builtInSize repr
       in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
-    (SC.Pad t@(TPad _ l)) -> \h -> Pad t h (FixedSize l)
   where
     lookupRef r = fromJust $ r `M.lookup` m
     lookupField (Field _ r _) = Just $ lookupRef r
@@ -387,13 +365,11 @@ mkSpecType m p =
 instance References SpType where
   referencesOf (BuiltIn {..}) = []
   referencesOf (Scalar s _ _) = referencesOf s
-  referencesOf (Const  c _ _) = referencesOf c
   referencesOf (Array f _ _) = referencesOf f
   referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
   referencesOf (Struct s _ _) = referencesOf s
   referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
   referencesOf (Enum e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
-  referencesOf (Pad {..}) = []
 
 prettyPrint :: Spec -> String
 prettyPrint = show . pretty
@@ -418,10 +394,6 @@ instance Pretty SpType where
     where
       pt = text "scalar" <+> text n <+> pretty h
       pa = pretty sz $$ pShow b
-  pretty (Const (TConst n b i) h sz) = parens $ pt $+$ nest 1 pa
-    where
-      pt = text "const" <+> text n <+> pretty h
-      pa = pretty sz $$ pShow b $$ integer i
   pretty (Array (TArray n m i) h sz) = parens $ pt $+$ nest 1 pa
     where
       pt = text "array" <+> text n <+> pretty h
@@ -433,10 +405,6 @@ instance Pretty SpType where
   pretty (Struct (TStruct n rs) h sz) = prettyFieldedB0 "struct" n rs sz h
   pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
   pretty (Enum (TEnum n rs) h sz bi) = prettyFieldedB1 "enum" n rs sz bi h
-  -- when printing/parsing padding, the length of the padding is always the min/max
-  pretty (Pad (TPad n _) h sz) = parens pt
-    where
-      pt = text "pad" <+> text n <+> pretty h <+> pretty sz
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.

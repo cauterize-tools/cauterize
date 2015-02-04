@@ -10,13 +10,11 @@ module Cauterize.Common.Types
 
   , TBuiltIn(..)
   , TScalar(..)
-  , TConst(..)
   , TArray(..)
   , TVector(..)
   , TStruct(..)
   , TSet(..)
   , TEnum(..)
-  , TPad(..)
 
   , Fields(..)
   , Field(..)
@@ -116,16 +114,6 @@ instance References TBuiltIn where
   referencesOf _ = []
 
 
-data TConst = TConst { constName :: Name
-                     , constRepr :: BuiltIn
-                     , constValue :: Integer
-                     }
-  deriving (Show, Ord, Eq, Data, Typeable)
-
-instance References TConst where
-  referencesOf (TConst _ b _) = [show b]
-
-
 data TArray = TArray { arrayName :: Name
                      , arrayRef :: Name
                      , arrayLen :: Integer
@@ -173,15 +161,6 @@ data TSet = TSet { setName :: Name, setFields :: Fields }
 
 instance References TSet where
   referencesOf (TSet _ (Fields rs)) = nub $ mapMaybe refRef rs
-
-
-data TPad = TPad { padName :: Name, padLength :: Integer }
-  deriving (Show, Ord, Eq, Data, Typeable)
-
-instance References TPad where
-  referencesOf (TPad _ _) = []
-
-
 
 
 data Fields = Fields { unFields :: [Field] }

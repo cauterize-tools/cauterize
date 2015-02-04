@@ -31,13 +31,11 @@ data Schema = Schema Name Version [ScType]
 
 data ScType = BuiltIn TBuiltIn
             | Scalar  TScalar
-            | Const   TConst
             | Array   TArray
             | Vector  TVector
             | Struct  TStruct
             | Set     TSet
             | Enum    TEnum
-            | Pad     TPad
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema -> M.Map Name ScType
@@ -46,24 +44,20 @@ schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\t -> (typeName t, t)) fs
 typeName :: ScType -> Name
 typeName (BuiltIn (TBuiltIn b)) = show b
 typeName (Scalar (TScalar n _)) = n
-typeName (Const (TConst n _ _)) = n
 typeName (Array (TArray n _ _)) = n
 typeName (Vector (TVector n _ _)) = n
 typeName (Struct (TStruct n _)) = n
 typeName (Set (TSet n _)) = n
 typeName (Enum (TEnum n _)) = n
-typeName (Pad (TPad n _)) = n
 
 referredNames :: ScType -> [Name]
 referredNames (BuiltIn t) = referencesOf t
 referredNames (Scalar t) = referencesOf t
-referredNames (Const t) = referencesOf t
 referredNames (Array t) = referencesOf t
 referredNames (Vector t) = referencesOf t
 referredNames (Struct t) = referencesOf t
 referredNames (Set t) = referencesOf t
 referredNames (Enum t) = referencesOf t
-referredNames (Pad t) = referencesOf t
 
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]
@@ -82,7 +76,7 @@ checkSchema s@(Schema _ _ ts) = catMaybes [duplicateNames, cycles, nonExistent]
     cycles = case schemaCycles s of
                 [] -> Nothing
                 cs -> Just $ Cycles cs
-    nonExistent = let rSet = L.fromList $ concatMap referredNames ts 
+    nonExistent = let rSet = L.fromList $ concatMap referredNames ts
                       tnSet = L.fromList tns
                   in case L.toList $ rSet `L.difference` tnSet of
                       [] -> Nothing
@@ -106,14 +100,14 @@ duplicates ins = map fst $ M.toList dups
     dups = M.filter (>1) counts
     counts = foldl insertWith M.empty ins
     insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
-  
+
 -- Instances
 
 prettyPrint :: Schema -> String
 prettyPrint = show . pretty
 
 pShow :: (Show a) => a -> Doc
-pShow = text . show 
+pShow = text . show
 
 instance Pretty Schema where
   pretty (Schema n v fs) = parens $ hang ps 1 pfs
@@ -124,13 +118,11 @@ instance Pretty Schema where
 instance Pretty ScType where
   pretty (BuiltIn _) = empty
   pretty (Scalar (TScalar n b)) = parens $ text "scalar" <+> text n <+> pShow b
-  pretty (Const (TConst n b i)) = parens $ text "const" <+> text n <+> pShow b <+> integer i
   pretty (Array (TArray n m s)) = parens $ text "array" <+> text n <+> text m <+> integer s
   pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
   pretty (Struct (TStruct n fs)) = prettyFielded "struct" n fs
   pretty (Set (TSet n fs)) = prettyFielded "set" n fs
   pretty (Enum (TEnum n fs)) = prettyFielded "enum" n fs
-  pretty (Pad (TPad n i)) = parens $ text "pad" <+> text n <+> integer i
 
 prettyFielded :: String -> Name -> Fields -> Doc
 prettyFielded t n fs = parens $ hang pt 1 pfs

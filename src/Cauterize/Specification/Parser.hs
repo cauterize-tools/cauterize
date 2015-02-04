@@ -44,13 +44,11 @@ parseType :: Parser SpType
 parseType = choice $ map try
   [ parseBuiltin
   , parseScalar
-  , parseConst
   , parseArray
   , parseVector
   , parseStruct
   , parseSet
   , parseEnum
-  , parsePad
   ]
 
 parseBuiltin :: Parser SpType
@@ -67,15 +65,6 @@ parseScalar = pSexp "scalar" $ do
   sz <- parseFixedSize
   bi <- spacedBuiltIn
   return $ Scalar (TScalar n bi) hs sz
-
-parseConst :: Parser SpType
-parseConst = pSexp "const" $ do
-  n <- spacedName
-  hs <- spacedFormHash
-  sz <- parseFixedSize
-  bi <- spacedBuiltIn
-  v <- spacedNumber
-  return $ Const (TConst n bi v) hs sz
 
 parseArray :: Parser SpType
 parseArray = pSexp "array" $ do
@@ -121,13 +110,6 @@ parseEnum = pSexp "enum" $ do
   repr <- spaces1 >> parseTagRepr
   fs <- spaces1 >> parseFields
   return $ Enum (TEnum n fs) hs sz repr
-
-parsePad :: Parser SpType
-parsePad = pSexp "pad" $ do
-  n <- spacedName
-  hs <- spacedFormHash
-  sz <- parseFixedSize
-  return $ Pad (TPad n (unFixedSize sz)) hs sz
 
 parseFieldList :: Parser [Field]
 parseFieldList = option [] $ do

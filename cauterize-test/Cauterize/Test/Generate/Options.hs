@@ -22,16 +22,14 @@ genOptions = GenerateOpts
 
 parseProtoParam :: String -> Either String ProtoParam
 parseProtoParam "scalar" = Right ParamScalar
-parseProtoParam "const" = Right ParamConst
 parseProtoParam "array" = Right ParamArray
 parseProtoParam "vector" = Right ParamVector
 parseProtoParam "struct" = Right ParamStruct
 parseProtoParam "set" = Right ParamSet
 parseProtoParam "enum" = Right ParamEnum
-parseProtoParam "pad" = Right ParamPad
 parseProtoParam s = Left s
 
 allProtoParams :: S.Set ProtoParam
-allProtoParams = S.fromList [ ParamScalar, ParamConst, ParamArray
-                            , ParamVector, ParamStruct, ParamSet
-                            , ParamEnum, ParamPad ]
+allProtoParams = S.fromList [ ParamScalar, ParamArray
+                            , ParamVector, ParamStruct
+                            , ParamSet , ParamEnum ]

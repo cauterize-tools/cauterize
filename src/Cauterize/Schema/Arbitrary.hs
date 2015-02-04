@@ -5,24 +5,20 @@ module Cauterize.Schema.Arbitrary
  , ProtoParam(..)
  ) where
 
-import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 import Control.Monad
 import Data.Word
-import Data.Int
 import qualified Data.Set as S
 
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
 data ProtoParam = ParamScalar
-                | ParamConst
                 | ParamArray
                 | ParamVector
                 | ParamStruct
                 | ParamSet
                 | ParamEnum
-                | ParamPad
   deriving (Show, Eq, Ord)
 
 maxFields, maxRunTypes :: (Num a) => a
@@ -69,30 +65,23 @@ genTypes (thisName:restNames) ex = do
 
 protoToArb :: ProtoParam -> ([Name] -> Name -> Gen ScType)
 protoToArb ParamScalar = arbScalar
-protoToArb ParamConst = arbConst
 protoToArb ParamArray = arbArray
 protoToArb ParamVector = arbVector
 protoToArb ParamStruct = arbStruct
 protoToArb ParamSet = arbSet
 protoToArb ParamEnum = arbEnum
-protoToArb ParamPad = arbPad
 
 arbs :: [[Name] -> Name -> Gen ScType]
 arbs = [ arbScalar
-       , arbConst
        , arbArray
        , arbVector
        , arbStruct
        , arbSet
        , arbEnum
-       , arbPad
        ]
 
 arbScalar :: [Name] -> Name -> Gen ScType
 arbScalar _ n = liftM (Scalar . TScalar n) arbBi
-
-arbConst :: [Name] -> Name -> Gen ScType
-arbConst _ n = liftM (\(b,i) -> Const $ TConst n b i) arbBiAndVal
 
 arbArray :: [Name] -> Name -> Gen ScType
 arbArray ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize
@@ -108,9 +97,6 @@ arbSet ts n = arbFielded arbField ts n (\n' fs -> Set $ TSet n' fs)
 
 arbEnum ::  [Name] -> Name -> Gen ScType
 arbEnum ts n = arbFielded arbField ts n (\n' fs -> Enum $ TEnum n' fs)
-
-arbPad :: [Name] -> Name -> Gen ScType
-arbPad _ n = liftM (Pad . TPad n) (elements [1..8])
 
 arbFielded :: ([Name] -> Name -> Gen (Integer -> Field))
            -> [Name] -> Name -> (Name -> Fields -> b) -> Gen b
@@ -152,25 +138,3 @@ biTys = map (BuiltIn . TBuiltIn) bis
 
 arbBi :: Gen BuiltIn
 arbBi = elements bis
-
-arbBiVal :: Integral a => BuiltIn -> Gen a
-arbBiVal b = case b of
-               BIu8 -> liftM fromIntegral (arbitrary :: Gen Word8)
-               BIu16 -> liftM fromIntegral (arbitrary :: Gen Word16)
-               BIu32 -> liftM fromIntegral (arbitrary :: Gen Word32)
-               BIu64 -> liftM fromIntegral (arbitrary :: Gen Word64)
-               BIs8 -> liftM fromIntegral (arbitrary :: Gen Int8)
-               BIs16 -> liftM fromIntegral (arbitrary :: Gen Int16)
-               BIs32 -> liftM fromIntegral (arbitrary :: Gen Int32)
-               BIs64 -> liftM fromIntegral (arbitrary :: Gen Int64)
-               -- TODO: Figure out what it will take to use Float and Double
-               -- here instead of Int32
-               BIf32 -> liftM fromIntegral (arbitrary :: Gen Int32)
-               BIf64 -> liftM fromIntegral (arbitrary :: Gen Int32)
-               BIbool -> liftM fromIntegral (choose (0,1) :: Gen Word8)
-
--- TODO: Eventually, I need to be able to generate float values too.
-arbBiAndVal :: Gen (BuiltIn, Integer)
-arbBiAndVal = do b <- arbBi
-                 v' <- arbBiVal b
-                 return $ (,) b v'

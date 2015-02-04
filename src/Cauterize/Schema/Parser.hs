@@ -39,13 +39,11 @@ parseSchema = do
 parseType :: Parser ScType
 parseType = choice $ map try
   [ parseScalar
-  , parseConst
   , parseArray
   , parseVector
   , parseStruct
   , parseEnum
   , parseSet
-  , parsePad
   ]
 
 parseScalar :: Parser ScType
@@ -53,13 +51,6 @@ parseScalar = pSexp "scalar" $ do
   n <- spacedName
   b <- spacedBuiltIn
   return $ Scalar $ TScalar n b
-
-parseConst :: Parser ScType
-parseConst = pSexp "const" $ do
-  n <- spacedName
-  b <- spacedBuiltIn
-  i <- spacedNumber
-  return $ Const $ TConst n b i
 
 parseArray :: Parser ScType
 parseArray = parseArr "array" (\n m i -> Array $ TArray n m i)
@@ -100,14 +91,8 @@ parseEnum = pSexp "enum" $ do
 parseSet :: Parser ScType
 parseSet = pSexp "set" $ do
   n <- spacedName
-  fs <- spaces1 >> parseFields 
+  fs <- spaces1 >> parseFields
   return $ Set $ TSet n fs
-
-parsePad :: Parser ScType
-parsePad = pSexp "pad" $ do
-  n <- spacedName
-  i <- spacedNumber
-  return $ Pad $ TPad n i
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]
 tagWithIndex rs = zipWith ($) rs [0..]
