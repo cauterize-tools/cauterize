@@ -440,6 +440,6 @@ struct multi_type_field {
 };
 ```
 
-There's no good way to express the names for the different types in the field.
+There's no good way to express the names for different elements in the field.
 We could come up with something, but it's not an obvious or clear path forward.
 For this reason, we've chosen to omit multiple types per field in unions.
