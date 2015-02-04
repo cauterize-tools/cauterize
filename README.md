@@ -445,4 +445,5 @@ For this reason, we've chosen to omit multiple types per field in unions.
 * Add ability to load schemas into other schemas
 * Add small expression language to schemas for computing sizes or sharing numeric information
 * Consider addition of generics to the schema
+* Expand the things synonyms can refer to.
 
