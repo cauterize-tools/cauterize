@@ -3,6 +3,8 @@
 Cauterize is a data-description language that must always be able to target a
 hard-real time embedded system without dynamic memory allocation.
 
+## Introduction
+
 Cauterize consists of several parts: a _schema language_ for describing
 ordinary data, a compiler to translate a schema into an intermediate
 representation known as a _specification_, and code generators that translate
@@ -12,7 +14,7 @@ A schema is written by humans and it describes the semantic meaning in all
 types.
 
 The specification is created by the cauterize compiler and it describes all
-inferrable information from the schema in order to make the creation of _code
+inferable information from the schema in order to make the creation of _code
 generators_ easier.
 
 Code generators consume the specification and output a library capable of
@@ -70,7 +72,7 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [bond](https://github.com/Microsoft/bond)
 * [extprot](https://github.com/mfp/extprot)
 
-## Primary Goals
+### Primary Goals
 
 From this goal, we can extract the following more specific goals:
 
@@ -92,7 +94,7 @@ From this goal, we can extract the following more specific goals:
   target, design choices for Cauterize should not preclude the use of Cauterize
   on systems such as mobile, desktop, and web development.
 
-## Secondary Goals
+### Secondary Goals
 
 * Ease of implementation - code generators should be able to represent the
   specification in idioms common in the target language. In C, this is structs,
@@ -101,126 +103,148 @@ From this goal, we can extract the following more specific goals:
   operations in order to emit code. Concepts should be simple in nature and
   have at least one obvious method for implementation.
 
-## Schemas
+## Conventions
 
-### Types
+In this document the following terms have concrete meanings:
 
-#### BuiltIn
+  * byte - an array of 8 bits of data
+
+## Schema Language
+
+The schema language uses parentheses to enclose each of its expressions. All
+expressions have an assigned order for any and all arguments. Each expression
+defines a new type with the exception of the top level expression. This top
+level expression defines the outer details for the Cauterize schema.
+
+```
+(schema schema_name schema_version ...)
+```
+
+* `schema_name` - `[a-z]([a-z]|[0-9]|_)*`
+* `schema_version` - `([a-z]|[0-9])([a-z]|[0-9]|_|.|-)*`
+
+### Built-In Types
 
 There are several types that represent the foundation of the Cauterize types.
 These are the fundamental types available for creating your own more complex
-types.
+types. It is not possible to define new built-in types in a schema.
 
-Integral types are assumed to be little endian in their encoded form.
+#### Unsigned Types
 
-Unsigned integer types:
+Unsigned values are encoded as little endian.
 
-  * `u8`
-  * `u16`
-  * `u32`
-  * `u64`
+  * `u8` - 8 bits wide
+  * `u16` - 16 bits wide
+  * `u32` - 32 bits wide
+  * `u64` - 64 bits wide
 
-Signed values are assumed to be two's complement and little endian.
+#### Signed Types
 
-Signed integer types:
+Signed values are encoded as [two's
+complement](http://en.wikipedia.org/wiki/Two%27s_complement) [little
+endian](http://en.wikipedia.org/wiki/Endianness) values.
 
-  * `s8`
-  * `s16`
-  * `s32`
-  * `s64`
+  * `s8` - 8 bits wide
+  * `s16` - 16 bits wide
+  * `s32` - 32 bits wide
+  * `s64` - 64 bits wide
 
-Booleans are always encoded as a single byte.
 
-A single boolean type:
+#### Boolean Type
 
-  * `bool`
+Booleans are encoded with a single byte. The only valid values are 0 and 1
+where 0 represents `false` and 1 represents `true`.
+
+  * `bool` - 8 bits wide
 
 Floating point types are hard. Their definitions can be different (or missing
-entirely!) across CPU architectures. Therefor, we only define the two most
-commonly used floating point representations. They both have unambiguous binary
-representation. The `ieee754s` is a single-precision IEEE 754 single-precision
-32 bit floating point value. The `ieee754d` is is a double-precision IEEE 754
-double-precision 64-bit floating point value.
+entirely!) across CPU architectures. Therefor, Cauterize only defines the
+`f32`  and `f64` types. These are the [IEEE 754 single and double
+precision floating point
+values](http://en.wikipedia.org/wiki/IEEE_floating_point). The single precision
+value uses 32 bits while the double-precision value uses 64 bits.
 
 Floating point types:
 
-  * `ieee754s`
-  * `ieee754d`
+  * `f32` - 32 bits wide, IEEE754 Single Precision
+  * `f64` - 64 bits wide, IEEE754 Double Precision
 
-New built-in types cannot be defined in a schema.
+#### UTF Code Units
 
-#### Scalars
+There are three UTF Code Unit built-in types defined. *These types do not
+enforce their content to be valid UTF data. They merely act as a hint to
+code-generators that the contents may be UTF data.* It is the responsibility of
+the code generator to decide whether to validate any UTF data stored in
+collections of code units.
 
-Scalars are exactly the same as `BuiltIn` types except that they have a custom
-name. In generated code, they are represented logically as if they were the
-referenced `BuiltIn` type. They simply create a new name for an existing
-BuiltIn type.
+  * `utf8` - 8 bit wide UTF code unit
+  * `utf16` - 16 bit wide UTF code unit
+  * `utf32` - 32 bit wide UTF code unit
 
-Declaring a `Scalar` takes on the following form:
+### Prototypes
 
-```scheme
-(scalar [type name] [built-in type name])
+Cauterize provides several prototypes that act as templates out of which other
+types can be created.
+
+All types must list a name. That name follows the following rule:
+
+```
+[a-z]([a-z]|[0-9]|_)*
 ```
 
-#### Constants
+#### Synonyms
 
-Constants are designed to allow the explicit placement of a literal value
-inside of a type. These literal values are (currently) limited to being one of
-the built-in types. In the future, it may be possible to include
-user-defined-type literals in a schema, but not yet.
+Synonyms are used to give one of the built-in types a new name. Their encoded
+representation is identical to that of the built-in value they wrap.
 
-Constants allow schemas to include explicit values.
-
-The general pattern is as follows:
-
-```scheme
-(const [type name] [built-in type] [value])
+```
+(synonym [type name] [built-in type name])
 ```
 
-This allows us to express literal values like the following:
+The following example defines the type `age` that has the same representation
+as a `u8`.
 
-```scheme
-(const specialNumber u64 4993)
 ```
-
-When constants are written into the serialization stream, they are represented
-as the specified built-in type would have been specified, but with the
-prescribed value.
+(schema example 1.0
+  (synonym age u8))
+```
 
 #### Arrays
 
-Arrays are types that allow the expression of a sequence of identical
-types where the sequence only ever makes sense with a fixed number of members.
-Consider a MAC address (always 6 bytes) or CAN-bus message payload ((almost)
-always 8 bytes).
+Arrays are fixed-length sequences of identially typed objects. These are to be
+used when the sequence only makes sense with a fixed number of elements.
 
-```scheme
-(array [type name] [target type] [array length)
+```
+(array [type name] [element type] [array length)
 ```
 
-As an example, consider this definition of a Array describing a MAC
-address:
+Consider the following example that defines a type `mac` that encodes a Media
+Access Control address (which is always 6 bytes long).
 
-```scheme
-(array macAddress u8 6)
+```
+(schema example 1.0
+  (array mac u8 6))
 ```
 
 #### Vector
 
-Vector are types that allow the expression of a sequence of identical
-types up to a maximum length. Vector are like FixedArrays in every way
-except that their length must be checked in packing and unpacking.
+Vectors are variable-lengthed sequences of identically typed objects. These are
+to be used when a sequence of elements has a maximum length, but may contain
+fewer elements.
 
 ```scheme
 (vector [type name] [target type] [maximum array length])
 ```
 
-Consider this definition for a generic byte buffer with a maximum length of
+The following example defines a generic byte buffer with a maximum length of
 4096 bytes.
 
 ```scheme
-(vector byteBuffer4k u8 4096)
+(schema example 1.0
+  (vector byte_buffer_4k u8 4096))
 ```
+
+TODO: JVE finish README from here.
 
 #### Structures
 
@@ -446,7 +470,7 @@ Reading this length from the stream will read out the data used to encode the ca
 Data
 ```
 
-This is the encoded catuerize data.
+This is the encoded cauterize data.
 
 
 ```
