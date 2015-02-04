@@ -1,4 +1,4 @@
-(schema "aName" "0.0.1"
+(schema loop 0.0.1
         (struct a
                 (fields (field a b)))
         (struct b
