@@ -144,8 +144,8 @@ instance References TVector where
   referencesOf (TVector _ n _) = [n]
 
 
-data TSynonym = TSynonym { synName :: Name
-                         , synRepr :: BuiltIn }
+data TSynonym = TSynonym { synonymName :: Name
+                         , synonymRepr :: BuiltIn }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TSynonym where
