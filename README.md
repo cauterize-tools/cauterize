@@ -234,14 +234,14 @@ Vectors are variable-lengthed sequences of identically typed objects. These are
 to be used when a sequence of elements has a maximum length, but may contain
 fewer elements.
 
-```scheme
+```
 (vector [type name] [target type] [maximum array length])
 ```
 
 The following example defines a generic byte buffer with a maximum length of
 4096 bytes.
 
-```scheme
+```
 (schema example 1.0
   (vector byte_buffer_4k u8 4096))
 ```
@@ -256,13 +256,13 @@ more complex structures that are only meaningful with multiple values.
 
 The description of a Structure follows the following pattern:
 
-```scheme
+```
 (struct [type name] [field list])
 ```
 
 This allows us to define types like the following `user` type:
 
-```scheme
+```
 (struct user (fields
                (field name string64)
                (field yearOfBirth u16)
@@ -282,13 +282,13 @@ Enumerations, in C, are represented as tagged unions. That is, a struct that
 associates a type tag together with a union type. The type tag needs to be
 checked at runtime to determine which type variant is currently instantiated.
 
-```scheme
+```
 (enum [type name] [field list])
 ```
 Consider the following example for a 'request message' to some key-value
 storage service:
 
-```scheme
+```
 (enum request (fields
                 (field getKeyCount)
                 (field checkKeyExists keyName)
@@ -307,13 +307,13 @@ Structures is that the Set can, at any given time, only include *some* of its
 possible members. The presence of encoded members is stored as a bitfield
 encoded before any contained data.
 
-```scheme
+```
 (set [type name] [field list])
 ```
 As an example, consider the following description of a type capable of storing
 changes in some observed values in a sensor rig:
 
-```scheme
+```
 (set sensed (fields
               (field ambientTemp u16)
               (field ambientLight u16)
@@ -330,7 +330,7 @@ encode values that only have deltas in a space-efficient way.
 Sets can also be used as bitfields. Consider the following set definition that
 can be used to indicate which lights on a car are currently powered/lit:
 
-```scheme
+```
 (set poweredLights (fields
                      (field headlights)
                      (field taillights)
@@ -348,13 +348,13 @@ least 5 bits wide.
 Padding types can be used to insert null bytes into a payload. Padding types
 must be 0 in the stream. Any other value will result in a pack/unpack error.
 
-```scheme
+```
 (pad [type name] [padding width in bytes])
 ```
 
 The following defines a type that can only be represented by 8 null bytes.
 
-```scheme
+```
 (pad p8 8)
 ```
 
@@ -366,7 +366,7 @@ structs, enums, sets, and partials.
 
 They are defined like this:
 
-```scheme
+```
 (fields
   (field [field name] [optional target type])
   (field ...))
