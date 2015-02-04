@@ -98,7 +98,10 @@ From this goal, we can extract the following more specific goals:
 
 * Ease of implementation - code generators should be able to represent the
   specification in idioms common in the target language. In C, this is structs,
-  enumerations, and unions. In Ruby, this would likely be classes.
+  enumerations, and unions. In Ruby, this would likely be classes. Furthermore,
+  code generators should not have to generate any overly-complicated structures
+  to conform to a specification. When a Cauterize feature is proposed, it must
+  be implementable in simple terms in a variety of languages.
 * Simplicity - code generators should not be expected to perform complicated
   operations in order to emit code. Concepts should be simple in nature and
   have at least one obvious method for implementation.
@@ -367,3 +370,77 @@ TODO: Write about specifications.
 * Exhaustive checking for hash-collisions... just in case.
 * Hash algorithm selection.
 * Add a "ranged" type that's similar to a scalar but only accepts n..m values in a builtin.
+
+
+# Answers to Obvious Questions
+
+In this section, we'll try and justify a few of the obvious questions that come
+up when reading this document. Cauterize has some odd restrictions, but they
+are conscious decisions. If you have a question
+
+## What's up with the weird UTF built-in types?
+
+Good question: we could have the schema definition force code generators to
+validate their UTF data. We could even have included a native string type in
+the native schema types. We didn't do this precisely because of the load it
+puts on code generation. It's unreasonable to expect that small embedded
+systems should validate UTF data.
+
+If your schema needs a string type, consider defining your own like this:
+
+```
+(schema string_example 1.0.0
+  (vector utf8str8k cu8 8192))
+```
+
+This is a vector of `cu8` values. While this isn't forced to be UTF8 data, it
+is likely a valid assumption that it should be. Code generators for different
+targets are free to validate this data on their own OR have the programs that
+use the generated code do the validation.
+```
+
+## Why don't unions support multiple types per alternative?
+
+In languages like Haskell, Rust, and OCaml, we're able to define union
+types/sum types/algebraic alternative types that can contain multiple types per
+constructor.
+
+This behavior has not yet been supported in Cauterize because it adds
+complexity to the C code that would need to be generated.
+
+Take this hypothetical (but invalid) example:
+
+```
+(schema multi_data_union_example 1.0.0
+  (union multi_type_field
+    (fields
+      (field a u8 u16 u32))))
+```
+
+In Haskell, we might be able to expand this union expression into the following type:
+
+```haskell
+data MultiTypeField = A U8 U16 U32
+```
+
+In C, we'd need to do something like this:
+
+```c
+struct multi_type_field {
+  enum multi_type_field_tag {
+    multi_type_field_tag_a,
+  } _tag;
+
+  union {
+    struct {
+      u8 ix0;
+      u16 ix1;
+      u32 ix2;
+    } a;
+  };
+};
+```
+
+There's no good way to express the names for the different types in the field.
+We could come up with something, but it's not an obvious or clear path forward.
+For this reason, we've chosen to omit multiple types per field in unions.
