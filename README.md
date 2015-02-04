@@ -185,9 +185,9 @@ code-generators that the contents may be UTF data.* It is the responsibility of
 the code generator to decide whether to validate any UTF data stored in
 collections of code units.
 
-  * `utf8` - 8 bit wide UTF code unit
-  * `utf16` - 16 bit wide UTF code unit
-  * `utf32` - 32 bit wide UTF code unit
+  * `cu8` - 8 bit wide UTF code unit
+  * `cu16` - 16 bit wide UTF code unit
+  * `cu32` - 32 bit wide UTF code unit
 
 ### Prototypes
 
