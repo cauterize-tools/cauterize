@@ -16,7 +16,7 @@
                 (fields
                   (field a s8)
                   (field b s8)))
-        (enum anenum
+        (union a_union
               (fields
                 (field a)
                 (field b)
@@ -26,4 +26,4 @@
                 (fields
                   (field a number64)
                   (field b s8)
-                  (field c anenum))))
+                  (field c a_union))))

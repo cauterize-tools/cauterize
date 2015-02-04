@@ -14,7 +14,7 @@ module Cauterize.Common.Types
   , TVector(..)
   , TRecord(..)
   , TSet(..)
-  , TEnum(..)
+  , TUnion(..)
 
   , Fields(..)
   , Field(..)
@@ -159,11 +159,11 @@ instance References TRecord where
   referencesOf (TRecord _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
-data TEnum = TEnum { enumName :: Name, enumFields :: Fields }
+data TUnion = TUnion { unionName :: Name, unionFields :: Fields }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References TEnum where
-  referencesOf (TEnum _ (Fields rs)) = nub $ mapMaybe refRef rs
+instance References TUnion where
+  referencesOf (TUnion _ (Fields rs)) = nub $ mapMaybe refRef rs
 
 
 data TSet = TSet { setName :: Name, setFields :: Fields }

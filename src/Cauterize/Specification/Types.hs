@@ -138,7 +138,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spRangeSize :: RangeSize
                            , flagsRepr   :: FlagsRepr }
 
-            | Enum         { unEnum      :: TEnum
+            | Union         { unUnion    :: TUnion
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize
                            , tagRepr     :: TagRepr }
@@ -151,7 +151,7 @@ instance Sized SpType where
   minSize (Vector { spRangeSize = s}) = minSize s
   minSize (Record { spRangeSize = s}) = minSize s
   minSize (Set { spRangeSize = s}) = minSize s
-  minSize (Enum { spRangeSize = s}) = minSize s
+  minSize (Union { spRangeSize = s}) = minSize s
 
   maxSize (BuiltIn { spFixedSize = s}) = maxSize s
   maxSize (Synonym { spFixedSize = s}) = maxSize s
@@ -159,7 +159,7 @@ instance Sized SpType where
   maxSize (Vector { spRangeSize = s}) = maxSize s
   maxSize (Record { spRangeSize = s}) = maxSize s
   maxSize (Set { spRangeSize = s}) = maxSize s
-  maxSize (Enum { spRangeSize = s}) = maxSize s
+  maxSize (Union { spRangeSize = s}) = maxSize s
 
 typeName :: SpType -> Name
 typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
@@ -168,7 +168,7 @@ typeName (Array { unFixed = (TArray n _ _)}) = n
 typeName (Vector { unBounded = (TVector n _ _)}) = n
 typeName (Record { unRecord = (TRecord n _)}) = n
 typeName (Set { unSet = (TSet n _)}) = n
-typeName (Enum { unEnum = (TEnum n _)}) = n
+typeName (Union { unUnion = (TUnion n _)}) = n
 
 pruneBuiltIns :: [SpType] -> [SpType]
 pruneBuiltIns fs = refBis ++ topLevel
@@ -275,7 +275,7 @@ typeHashMap s = m
                   SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
                   SC.Record (TRecord n (Fields fs)) -> ["record", n] ++ concatMap fieldStr fs
                   SC.Set (TSet n (Fields fs)) -> ["set", n] ++ concatMap fieldStr fs
-                  SC.Enum (TEnum n (Fields fs)) -> ["enum", n] ++ concatMap fieldStr fs
+                  SC.Union (TUnion n (Fields fs)) -> ["union", n] ++ concatMap fieldStr fs
       in hashString . unwords $ str
 
 typeDepthMap :: SC.Schema -> M.Map Name Integer
@@ -300,7 +300,7 @@ typeDepthMap s = m
         SC.Vector (TVector _ r _) -> 1 + lu r
         SC.Record (TRecord _ (Fields fs)) -> 1 + maxFieldsDepth fs
         SC.Set (TSet _ (Fields fs)) -> 1 + maxFieldsDepth fs
-        SC.Enum (TEnum _ (Fields fs)) -> 1 + maxFieldsDepth fs
+        SC.Union (TUnion _ (Fields fs)) -> 1 + maxFieldsDepth fs
 
 maximumTypeDepth :: SC.Schema -> Depth
 maximumTypeDepth s = let m = typeDepthMap s
@@ -348,14 +348,14 @@ mkSpecType m p =
           repr' = FlagsRepr repr
           reprSz = builtInSize repr
       in \h -> Set t h (mkRangeSize reprSz (reprSz + sumMax)) repr'
-    (SC.Enum t@(TEnum _ rs)) ->
+    (SC.Union t@(TUnion _ rs)) ->
       let refs = lookupRefs rs
           minMin = minimumOfSizes refs
           maxMax = maximumOfSizes refs
           repr = minimalExpression (fieldsLength rs)
           repr' = TagRepr repr
           reprSz = builtInSize repr
-      in \h -> Enum t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
+      in \h -> Union t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
   where
     lookupRef r = fromJust $ r `M.lookup` m
     lookupField (Field _ r _) = Just $ lookupRef r
@@ -369,7 +369,7 @@ instance References SpType where
   referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
   referencesOf (Record s _ _) = referencesOf s
   referencesOf (Set s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
-  referencesOf (Enum e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
+  referencesOf (Union e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
 
 prettyPrint :: Spec -> String
 prettyPrint = show . pretty
@@ -404,7 +404,7 @@ instance Pretty SpType where
       pa = pretty sz $$ pretty bi $$ integer i $$ text m
   pretty (Record (TRecord n rs) h sz) = prettyFieldedB0 "record" n rs sz h
   pretty (Set (TSet n rs) h sz bi) = prettyFieldedB1 "set" n rs sz bi h
-  pretty (Enum (TEnum n rs) h sz bi) = prettyFieldedB1 "enum" n rs sz bi h
+  pretty (Union (TUnion n rs) h sz bi) = prettyFieldedB1 "union" n rs sz bi h
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.

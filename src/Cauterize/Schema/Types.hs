@@ -35,7 +35,7 @@ data ScType = BuiltIn TBuiltIn
             | Vector  TVector
             | Record  TRecord
             | Set     TSet
-            | Enum    TEnum
+            | Union   TUnion
   deriving (Show, Ord, Eq)
 
 schemaTypeMap :: Schema -> M.Map Name ScType
@@ -48,7 +48,7 @@ typeName (Array (TArray n _ _)) = n
 typeName (Vector (TVector n _ _)) = n
 typeName (Record (TRecord n _)) = n
 typeName (Set (TSet n _)) = n
-typeName (Enum (TEnum n _)) = n
+typeName (Union (TUnion n _)) = n
 
 referredNames :: ScType -> [Name]
 referredNames (BuiltIn t) = referencesOf t
@@ -57,7 +57,7 @@ referredNames (Array t) = referencesOf t
 referredNames (Vector t) = referencesOf t
 referredNames (Record t) = referencesOf t
 referredNames (Set t) = referencesOf t
-referredNames (Enum t) = referencesOf t
+referredNames (Union t) = referencesOf t
 
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]
@@ -122,7 +122,7 @@ instance Pretty ScType where
   pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
   pretty (Record (TRecord n fs)) = prettyFielded "record" n fs
   pretty (Set (TSet n fs)) = prettyFielded "set" n fs
-  pretty (Enum (TEnum n fs)) = prettyFielded "enum" n fs
+  pretty (Union (TUnion n fs)) = prettyFielded "union" n fs
 
 prettyFielded :: String -> Name -> Fields -> Doc
 prettyFielded t n fs = parens $ hang pt 1 pfs

@@ -42,7 +42,7 @@ parseType = choice $ map try
   , parseArray
   , parseVector
   , parseRecord
-  , parseEnum
+  , parseUnion
   , parseSet
   ]
 
@@ -82,11 +82,11 @@ parseRecord = pSexp "record" $ do
   fs <- spaces1 >> parseFields
   return $ Record $ TRecord n fs
 
-parseEnum :: Parser ScType
-parseEnum = pSexp "enum" $ do
+parseUnion :: Parser ScType
+parseUnion = pSexp "union" $ do
   n <- spacedName
   fs <- spaces1 >> parseFields
-  return $ Enum $ TEnum n fs
+  return $ Union $ TUnion n fs
 
 parseSet :: Parser ScType
 parseSet = pSexp "set" $ do

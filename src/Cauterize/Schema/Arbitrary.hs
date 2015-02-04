@@ -18,7 +18,7 @@ data ProtoParam = ParamSynonym
                 | ParamVector
                 | ParamRecord
                 | ParamSet
-                | ParamEnum
+                | ParamUnion
   deriving (Show, Eq, Ord)
 
 maxFields, maxRunTypes :: (Num a) => a
@@ -69,7 +69,7 @@ protoToArb ParamArray = arbArray
 protoToArb ParamVector = arbVector
 protoToArb ParamRecord = arbRecord
 protoToArb ParamSet = arbSet
-protoToArb ParamEnum = arbEnum
+protoToArb ParamUnion = arbUnion
 
 arbs :: [[Name] -> Name -> Gen ScType]
 arbs = [ arbSynonym
@@ -77,7 +77,7 @@ arbs = [ arbSynonym
        , arbVector
        , arbRecord
        , arbSet
-       , arbEnum
+       , arbUnion
        ]
 
 arbSynonym :: [Name] -> Name -> Gen ScType
@@ -95,8 +95,8 @@ arbRecord ts n = arbFielded arbContainerField ts n (\n' fs -> Record $ TRecord n
 arbSet ::  [Name] -> Name -> Gen ScType
 arbSet ts n = arbFielded arbField ts n (\n' fs -> Set $ TSet n' fs)
 
-arbEnum ::  [Name] -> Name -> Gen ScType
-arbEnum ts n = arbFielded arbField ts n (\n' fs -> Enum $ TEnum n' fs)
+arbUnion ::  [Name] -> Name -> Gen ScType
+arbUnion ts n = arbFielded arbField ts n (\n' fs -> Union $ TUnion n' fs)
 
 arbFielded :: ([Name] -> Name -> Gen (Integer -> Field))
            -> [Name] -> Name -> (Name -> Fields -> b) -> Gen b

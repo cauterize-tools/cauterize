@@ -26,10 +26,10 @@ parseProtoParam "array" = Right ParamArray
 parseProtoParam "vector" = Right ParamVector
 parseProtoParam "record" = Right ParamRecord
 parseProtoParam "set" = Right ParamSet
-parseProtoParam "enum" = Right ParamEnum
+parseProtoParam "union" = Right ParamUnion
 parseProtoParam s = Left s
 
 allProtoParams :: S.Set ProtoParam
 allProtoParams = S.fromList [ ParamSynonym, ParamArray
                             , ParamVector, ParamRecord
-                            , ParamSet , ParamEnum ]
+                            , ParamSet , ParamUnion ]

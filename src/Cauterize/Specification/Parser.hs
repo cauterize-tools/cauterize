@@ -48,7 +48,7 @@ parseType = choice $ map try
   , parseVector
   , parseRecord
   , parseSet
-  , parseEnum
+  , parseUnion
   ]
 
 parseBuiltin :: Parser SpType
@@ -102,14 +102,14 @@ parseSet = pSexp "set" $ do
   fs <- spaces1 >> parseFields
   return $ Set (TSet n fs) hs sz repr
 
-parseEnum :: Parser SpType
-parseEnum = pSexp "enum" $ do
+parseUnion :: Parser SpType
+parseUnion = pSexp "union" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseRangeSize
   repr <- spaces1 >> parseTagRepr
   fs <- spaces1 >> parseFields
-  return $ Enum (TEnum n fs) hs sz repr
+  return $ Union (TUnion n fs) hs sz repr
 
 parseFieldList :: Parser [Field]
 parseFieldList = option [] $ do
