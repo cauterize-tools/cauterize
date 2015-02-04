@@ -397,7 +397,6 @@ This is a vector of `cu8` values. While this isn't forced to be UTF8 data, it
 is likely a valid assumption that it should be. Code generators for different
 targets are free to validate this data on their own OR have the programs that
 use the generated code do the validation.
-```
 
 ## Why don't unions support multiple types per alternative?
 
