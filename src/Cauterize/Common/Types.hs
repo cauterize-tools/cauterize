@@ -39,6 +39,7 @@ data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
              | BIf32 | BIf64
              | BIbool
+             | BIcu8 | BIcu16 | BIcu32
   deriving (Enum, Bounded, Ord, Eq, Data, Typeable)
 
 -- | Returns the smallest BuiltIn that is capable of representing the provided
@@ -79,6 +80,9 @@ builtInSize BIs64      = 8
 builtInSize BIbool     = 1
 builtInSize BIf32      = 4
 builtInSize BIf64      = 8
+builtInSize BIcu8      = 1
+builtInSize BIcu16     = 2
+builtInSize BIcu32     = 4
 
 instance Show BuiltIn where
   show BIu8       = "u8"
@@ -92,6 +96,9 @@ instance Show BuiltIn where
   show BIbool     = "bool"
   show BIf32      = "f32"
   show BIf64      = "f64"
+  show BIcu8      = "cu8"
+  show BIcu16     = "cu16"
+  show BIcu32     = "cu32"
 
 instance Read BuiltIn where
   readsPrec _ "u8"       = [ (BIu8, "") ]
@@ -105,6 +112,9 @@ instance Read BuiltIn where
   readsPrec _ "bool"     = [ (BIbool, "") ]
   readsPrec _ "f32"      = [ (BIf32, "") ]
   readsPrec _ "f64"      = [ (BIf64, "") ]
+  readsPrec _ "cu8"      = [ (BIcu8, "") ]
+  readsPrec _ "cu16"     = [ (BIcu16, "") ]
+  readsPrec _ "cu32"     = [ (BIcu32, "") ]
   readsPrec _ s = error $ "ERROR: \"" ++ s ++ "\" is not a BuiltIn."
 
 data TBuiltIn = TBuiltIn { unTBuiltIn :: BuiltIn }
