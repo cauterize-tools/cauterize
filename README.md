@@ -164,6 +164,8 @@ precision floating point
 values](http://en.wikipedia.org/wiki/IEEE_floating_point). The single precision
 value uses 32 bits while the double-precision value uses 64 bits.
 
+#### Floating Point Types
+
 Floating point types:
 
   * `f32` - 32 bits wide, IEEE754 Single Precision
@@ -244,7 +246,7 @@ The following example defines a generic byte buffer with a maximum length of
   (vector byte_buffer_4k u8 4096))
 ```
 
-TODO: JVE finish README from here.
+TODO JVE finish README from here.
 
 #### Structures
 
