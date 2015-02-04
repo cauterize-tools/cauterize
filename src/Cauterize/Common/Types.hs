@@ -9,7 +9,7 @@ module Cauterize.Common.Types
   , builtInSize
 
   , TBuiltIn(..)
-  , TScalar(..)
+  , TSynonym(..)
   , TArray(..)
   , TVector(..)
   , TStruct(..)
@@ -144,12 +144,12 @@ instance References TVector where
   referencesOf (TVector _ n _) = [n]
 
 
-data TScalar = TScalar { scalarName :: Name
-                       , scalarRepr :: BuiltIn }
+data TSynonym = TSynonym { synName :: Name
+                         , synRepr :: BuiltIn }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-instance References TScalar where
-  referencesOf (TScalar _ b) = [show b]
+instance References TSynonym where
+  referencesOf (TSynonym _ b) = [show b]
 
 
 data TStruct = TStruct { structName :: Name, structFields :: Fields }

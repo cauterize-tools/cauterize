@@ -1,6 +1,6 @@
 (schema a_name 0.0.1
-        (scalar number64 s64)
-        (scalar unsigned8 u8)
+        (synonym number64 s64)
+        (synonym unsigned8 u8)
         (array somearray number64 64)
         (vector somevector number64 64)
         (struct astruct

@@ -38,7 +38,7 @@ parseSchema = do
 
 parseType :: Parser ScType
 parseType = choice $ map try
-  [ parseScalar
+  [ parseSynonym
   , parseArray
   , parseVector
   , parseStruct
@@ -46,11 +46,11 @@ parseType = choice $ map try
   , parseSet
   ]
 
-parseScalar :: Parser ScType
-parseScalar = pSexp "scalar" $ do
+parseSynonym :: Parser ScType
+parseSynonym = pSexp "synonym" $ do
   n <- spacedName
   b <- spacedBuiltIn
-  return $ Scalar $ TScalar n b
+  return $ Synonym $ TSynonym n b
 
 parseArray :: Parser ScType
 parseArray = parseArr "array" (\n m i -> Array $ TArray n m i)

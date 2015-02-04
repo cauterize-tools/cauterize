@@ -13,7 +13,7 @@ import qualified Data.Set as S
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
-data ProtoParam = ParamScalar
+data ProtoParam = ParamSynonym
                 | ParamArray
                 | ParamVector
                 | ParamStruct
@@ -64,7 +64,7 @@ genTypes (thisName:restNames) ex = do
   return $ t:r
 
 protoToArb :: ProtoParam -> ([Name] -> Name -> Gen ScType)
-protoToArb ParamScalar = arbScalar
+protoToArb ParamSynonym = arbSynonym
 protoToArb ParamArray = arbArray
 protoToArb ParamVector = arbVector
 protoToArb ParamStruct = arbStruct
@@ -72,7 +72,7 @@ protoToArb ParamSet = arbSet
 protoToArb ParamEnum = arbEnum
 
 arbs :: [[Name] -> Name -> Gen ScType]
-arbs = [ arbScalar
+arbs = [ arbSynonym
        , arbArray
        , arbVector
        , arbStruct
@@ -80,8 +80,8 @@ arbs = [ arbScalar
        , arbEnum
        ]
 
-arbScalar :: [Name] -> Name -> Gen ScType
-arbScalar _ n = liftM (Scalar . TScalar n) arbBi
+arbSynonym :: [Name] -> Name -> Gen ScType
+arbSynonym _ n = liftM (Synonym . TSynonym n) arbBi
 
 arbArray :: [Name] -> Name -> Gen ScType
 arbArray ts n = liftM2 (\t s -> Array $ TArray n t s) (elements ts) arbArraySize

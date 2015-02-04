@@ -21,7 +21,7 @@ genOptions = GenerateOpts
     countHelp = "The number of types to generate."
 
 parseProtoParam :: String -> Either String ProtoParam
-parseProtoParam "scalar" = Right ParamScalar
+parseProtoParam "syn" = Right ParamSynonym
 parseProtoParam "array" = Right ParamArray
 parseProtoParam "vector" = Right ParamVector
 parseProtoParam "struct" = Right ParamStruct
@@ -30,6 +30,6 @@ parseProtoParam "enum" = Right ParamEnum
 parseProtoParam s = Left s
 
 allProtoParams :: S.Set ProtoParam
-allProtoParams = S.fromList [ ParamScalar, ParamArray
+allProtoParams = S.fromList [ ParamSynonym, ParamArray
                             , ParamVector, ParamStruct
                             , ParamSet , ParamEnum ]

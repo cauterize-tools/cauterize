@@ -116,7 +116,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash      :: FormHash
                            , spFixedSize :: FixedSize }
 
-            | Scalar       { unScalar     :: TScalar
+            | Synonym      { unSynonym    :: TSynonym
                            , spHash       :: FormHash
                            , spFixedSize  :: FixedSize }
 
@@ -146,7 +146,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
 
 instance Sized SpType where
   minSize (BuiltIn { spFixedSize = s}) = minSize s
-  minSize (Scalar { spFixedSize = s}) = minSize s
+  minSize (Synonym { spFixedSize = s}) = minSize s
   minSize (Array { spRangeSize = s}) = minSize s
   minSize (Vector { spRangeSize = s}) = minSize s
   minSize (Struct { spRangeSize = s}) = minSize s
@@ -154,7 +154,7 @@ instance Sized SpType where
   minSize (Enum { spRangeSize = s}) = minSize s
 
   maxSize (BuiltIn { spFixedSize = s}) = maxSize s
-  maxSize (Scalar { spFixedSize = s}) = maxSize s
+  maxSize (Synonym { spFixedSize = s}) = maxSize s
   maxSize (Array { spRangeSize = s}) = maxSize s
   maxSize (Vector { spRangeSize = s}) = maxSize s
   maxSize (Struct { spRangeSize = s}) = maxSize s
@@ -163,7 +163,7 @@ instance Sized SpType where
 
 typeName :: SpType -> Name
 typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
-typeName (Scalar { unScalar = (TScalar n _)}) = n
+typeName (Synonym { unSynonym = (TSynonym n _)}) = n
 typeName (Array { unFixed = (TArray n _ _)}) = n
 typeName (Vector { unBounded = (TVector n _ _)}) = n
 typeName (Struct { unStruct = (TStruct n _)}) = n
@@ -270,7 +270,7 @@ typeHashMap s = m
     typeHash t =
       let str = case t of
                   SC.BuiltIn (TBuiltIn b) -> [show b]
-                  SC.Scalar (TScalar n b) -> ["scalar", n, show b]
+                  SC.Synonym (TSynonym n b) -> ["synonym", n, show b]
                   SC.Array (TArray n r i) -> ["array", n, lu r, showNumSigned i]
                   SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
                   SC.Struct (TStruct n (Fields fs)) -> ["struct", n] ++ concatMap fieldStr fs
@@ -295,7 +295,7 @@ typeDepthMap s = m
     typeDepth t =
       case t of
         SC.BuiltIn (TBuiltIn {}) -> 1
-        SC.Scalar (TScalar {}) -> 2
+        SC.Synonym (TSynonym {}) -> 2
         SC.Array (TArray _ r _) -> 1 + lu r
         SC.Vector (TVector _ r _) -> 1 + lu r
         SC.Struct (TStruct _ (Fields fs)) -> 1 + maxFieldsDepth fs
@@ -324,9 +324,9 @@ mkSpecType m p =
     (SC.BuiltIn t@(TBuiltIn b)) ->
       let s = builtInSize b
       in \h -> BuiltIn t h (FixedSize s)
-    (SC.Scalar  t@(TScalar _ b)) ->
+    (SC.Synonym  t@(TSynonym _ b)) ->
       let s = builtInSize b
-      in \h -> Scalar t h (FixedSize s)
+      in \h -> Synonym t h (FixedSize s)
     (SC.Array t@(TArray _ r i)) ->
       let ref = lookupRef r
       in \h -> Array t h (mkRangeSize (i * minSize ref) (i * maxSize ref))
@@ -364,7 +364,7 @@ mkSpecType m p =
 
 instance References SpType where
   referencesOf (BuiltIn {..}) = []
-  referencesOf (Scalar s _ _) = referencesOf s
+  referencesOf (Synonym s _ _) = referencesOf s
   referencesOf (Array f _ _) = referencesOf f
   referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
   referencesOf (Struct s _ _) = referencesOf s
@@ -390,9 +390,9 @@ instance Pretty SpType where
     where
       pt = text "builtin" <+> pShow b <+> pretty h
       pa = pretty sz
-  pretty (Scalar (TScalar n b) h sz) = parens $ pt $+$ nest 1 pa
+  pretty (Synonym (TSynonym n b) h sz) = parens $ pt $+$ nest 1 pa
     where
-      pt = text "scalar" <+> text n <+> pretty h
+      pt = text "synonym" <+> text n <+> pretty h
       pa = pretty sz $$ pShow b
   pretty (Array (TArray n m i) h sz) = parens $ pt $+$ nest 1 pa
     where

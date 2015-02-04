@@ -43,7 +43,7 @@ parseSpec = do
 parseType :: Parser SpType
 parseType = choice $ map try
   [ parseBuiltin
-  , parseScalar
+  , parseSynonym
   , parseArray
   , parseVector
   , parseStruct
@@ -58,13 +58,13 @@ parseBuiltin = pSexp "builtin" $ do
   sz <- parseFixedSize
   return $ BuiltIn bi hs sz
 
-parseScalar :: Parser SpType
-parseScalar = pSexp "scalar" $ do
+parseSynonym :: Parser SpType
+parseSynonym = pSexp "synonym" $ do
   n <- spacedName
   hs <- spacedFormHash
   sz <- parseFixedSize
   bi <- spacedBuiltIn
-  return $ Scalar (TScalar n bi) hs sz
+  return $ Synonym (TSynonym n bi) hs sz
 
 parseArray :: Parser SpType
 parseArray = pSexp "array" $ do

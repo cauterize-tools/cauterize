@@ -30,7 +30,7 @@ data Schema = Schema Name Version [ScType]
   deriving (Show)
 
 data ScType = BuiltIn TBuiltIn
-            | Scalar  TScalar
+            | Synonym TSynonym
             | Array   TArray
             | Vector  TVector
             | Struct  TStruct
@@ -43,7 +43,7 @@ schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\t -> (typeName t, t)) fs
 
 typeName :: ScType -> Name
 typeName (BuiltIn (TBuiltIn b)) = show b
-typeName (Scalar (TScalar n _)) = n
+typeName (Synonym (TSynonym n _)) = n
 typeName (Array (TArray n _ _)) = n
 typeName (Vector (TVector n _ _)) = n
 typeName (Struct (TStruct n _)) = n
@@ -52,7 +52,7 @@ typeName (Enum (TEnum n _)) = n
 
 referredNames :: ScType -> [Name]
 referredNames (BuiltIn t) = referencesOf t
-referredNames (Scalar t) = referencesOf t
+referredNames (Synonym t) = referencesOf t
 referredNames (Array t) = referencesOf t
 referredNames (Vector t) = referencesOf t
 referredNames (Struct t) = referencesOf t
@@ -117,7 +117,7 @@ instance Pretty Schema where
 
 instance Pretty ScType where
   pretty (BuiltIn _) = empty
-  pretty (Scalar (TScalar n b)) = parens $ text "scalar" <+> text n <+> pShow b
+  pretty (Synonym (TSynonym n b)) = parens $ text "synonym" <+> text n <+> pShow b
   pretty (Array (TArray n m s)) = parens $ text "array" <+> text n <+> text m <+> integer s
   pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
   pretty (Struct (TStruct n fs)) = prettyFielded "struct" n fs
