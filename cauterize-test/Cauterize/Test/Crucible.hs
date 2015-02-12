@@ -55,7 +55,7 @@ runCrucible opts = inTmpDir $ do
                    }
 
   outputs <- dependentCommands [ genCmd opts', buildCmd opts', runCmd opts' ]
-  print outputs
+  mapM_ print outputs
 
 shellCmd :: T.Text -> IO RunOutput
 shellCmd cmd = do
