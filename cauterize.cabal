@@ -67,7 +67,10 @@ executable cauterize-test
                        containers,
                        QuickCheck >=2.7,
                        pretty,
-                       pretty-class >= 0.1
+                       pretty-class >= 0.1,
+                       text,
+                       time,
+                       directory
   default-language:    Haskell2010
 
 executable cauterize-meta

@@ -9,6 +9,13 @@ import Cauterize.Schema.Arbitrary
 import qualified Data.Set as S
 import Options.Applicative
 
+{-
+ - TODO:
+ -    - allowed prototypes
+ -    - maximum length
+ -    - minimum length
+ -}
+
 data GenerateOpts = GenerateOpts
   { count :: Int
   } deriving (Show)
