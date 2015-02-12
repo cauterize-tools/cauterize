@@ -12,6 +12,7 @@ data CrucibleOpts = CrucibleOpts
   , runCmd :: T.Text
   , schemaCount :: Int
   , instanceCount :: Int
+  , schemaSize :: Int
   } deriving (Show)
 
 -- Generate a number of schemas, insert their schemas and meta files into a
@@ -28,6 +29,7 @@ data CrucibleOpts = CrucibleOpts
 --                         --run-cmd="%d/dist/build/cmd/cmd"
 --                         --schema-count=5
 --                         --instance-count=100
+--                         --schema-size=50
 
 crucibleOptions :: Parser CrucibleOpts
 crucibleOptions = CrucibleOpts
@@ -41,12 +43,15 @@ crucibleOptions = CrucibleOpts
     ( long "schema-count" <> metavar "SCMCNT" <> help schemaCountHelp )
   <*> option auto
     ( long "instance-count" <> metavar "INSCNT" <> help instanceCountHelp )
+  <*> option auto
+    ( long "schema-size" <> metavar "SCMSIZE" <> help schemaSizeHelp )
   where
     genCmdHelp = "The command to convert from a specification and meta file into an encoding test client."
     buildCmdHelp = "The command to build the generated test client."
     runCmdHelp = "The command to run the built test client."
     schemaCountHelp = "The number of schemas to test."
     instanceCountHelp = "The number of instances of each schema to test."
+    schemaSizeHelp = "The number of types to generate in each schema."
 
     toText :: String -> ReadM T.Text
     toText = return . T.pack
