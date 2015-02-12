@@ -80,7 +80,7 @@ dependentCommands (c:cmds) = do
   c' <- shellCmd c
   if runWasSuccessful c'
     then liftM (c':) (dependentCommands cmds)
-    else return $ c':[]
+    else return [c']
 
 expandCmd :: Context -> T.Text -> T.Text
 expandCmd ctx cmd = repSpecPath . repMetaPath . repDirPath $ cmd
