@@ -7,17 +7,18 @@ import Cauterize.Schema.Arbitrary
 import Cauterize.Test.Crucible.Options
 import Control.Monad
 import Data.Time.Clock.POSIX
+import Data.Maybe
 import System.Directory
-import System.Process
 import System.Exit
+import System.Process
 import Test.QuickCheck.Gen
+import Text.PrettyPrint.Class
+import qualified Cauterize.Meta as ME
 import qualified Cauterize.Schema as SC
 import qualified Cauterize.Specification as SP
-import qualified Cauterize.Meta as ME
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Text.PrettyPrint.Class
 
 data Context = Context
   { specificationPath :: T.Text
@@ -36,26 +37,38 @@ runWasSuccessful :: RunOutput -> Bool
 runWasSuccessful RunOutput { runExitCode = e } = e == ExitSuccess
 
 runCrucible :: CrucibleOpts -> IO ()
-runCrucible opts = inTmpDir $ do
-  schema <- aSchema (schemaSize opts)
-  let spec = SP.fromSchema schema
-  let meta = ME.metaFromSpec spec
+runCrucible opts = do
+  t <- round `fmap` getPOSIXTime :: IO Integer
+  inNewDir ("crucible-" ++ show t) $
+    forM_ ([0..runCount-1] :: [Int]) $
+      \ix -> inNewDir ("run-" ++ show ix) go
+  where
+    runCount = fromMaybe defaultSchemaCount (schemaCount opts)
+    go = do
+          -- Generate a schema. From this, also compile a specification file and a meta
+          -- file. Write them to disk.
+          schema <- aSchema $ fromMaybe defaultSchemaSize (schemaSize opts)
+          let spec = SP.fromSchema schema
+          let meta = ME.metaFromSpec spec
 
-  T.writeFile "schema.txt" $ T.pack . show . pretty $ schema
-  T.writeFile "specification.txt" $ T.pack . show . pretty $ spec
-  T.writeFile "meta.txt" $ T.pack . show . ME.prettyMeta $ meta
+          T.writeFile "schema.txt" $ T.pack . show . pretty $ schema
+          T.writeFile "specification.txt" $ T.pack . show . pretty $ spec
+          T.writeFile "meta.txt" $ T.pack . show . ME.prettyMeta $ meta
 
-  ctx <- liftM3 Context (return "specification.txt")
-                        (return "meta.txt")
-                        (liftM T.pack getCurrentDirectory)
+          -- Construct a context with the paths to the specification and meta files
+          -- along with the current directory.
+          ctx <- liftM3 Context (return "specification.txt")
+                                (return "meta.txt")
+                                (liftM T.pack getCurrentDirectory)
 
-  let opts' = opts { genCmd = expandCmd ctx . genCmd $ opts
-                   , buildCmd = expandCmd ctx . buildCmd $ opts
-                   , runCmd = expandCmd ctx . runCmd $ opts
-                   }
-
-  outputs <- dependentCommands [ genCmd opts', buildCmd opts', runCmd opts' ]
-  mapM_ print outputs
+          -- Chain together the commands specified on the command line after expanding
+          -- their variables. Print summaries of the commands.
+          let mExpCtx = map (expandCmd ctx)
+          outputs <- dependentCommands $ concat [ mExpCtx . genCmds $ opts
+                                                , mExpCtx . buildCmds $ opts
+                                                , mExpCtx . runCmds $ opts
+                                                ]
+          mapM_ printResult outputs
 
 shellCmd :: T.Text -> IO RunOutput
 shellCmd cmd = do
@@ -89,13 +102,11 @@ expandCmd ctx cmd = repSpecPath . repMetaPath . repDirPath $ cmd
     repMetaPath = T.replace "%m" (metaPath ctx)
     repDirPath = T.replace "%d" (currentDir ctx)
 
-inTmpDir :: IO a -> IO a
-inTmpDir a = do
+inNewDir :: String -> IO a -> IO a
+inNewDir name a = do
   cd <- getCurrentDirectory
-  t <- round `fmap` getPOSIXTime :: IO Integer
-  let td = "crucible-" ++ show t
-  createDirectory td
-  setCurrentDirectory td
+  createDirectory name
+  setCurrentDirectory name
   a' <- a
   setCurrentDirectory cd
   return a'
@@ -106,3 +117,15 @@ aSchema c = generate $ arbSchemaParam allProtoParams c
     allProtoParams = S.fromList [ ParamSynonym, ParamArray
                                 , ParamVector, ParamRecord
                                 , ParamCombination , ParamUnion ]
+
+printResult :: RunOutput -> IO ()
+printResult RunOutput { runCmdStr = cs, runStdOut = so, runStdErr = se, runExitCode = ec } =
+  case ec of
+    ExitSuccess -> T.putStrLn "SUCCESS"
+    ExitFailure c -> do
+      T.putStrLn $ "FAILED: " `T.append` (T.pack . show) c
+      T.putStrLn $ "## Command String: " `T.append` cs
+      T.putStrLn "## Standard output:"
+      T.putStr so
+      T.putStrLn "## Standard error:"
+      T.putStr se

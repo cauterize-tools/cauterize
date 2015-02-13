@@ -1,19 +1,26 @@
 module Cauterize.Test.Crucible.Options
   ( CrucibleOpts(..)
   , crucibleOptions
+  , defaultSchemaCount, defaultInstanceCount, defaultSchemaSize
   ) where
 
+import Control.Monad (liftM)
 import Options.Applicative
 import qualified Data.Text as T
 
 data CrucibleOpts = CrucibleOpts
-  { genCmd :: T.Text
-  , buildCmd :: T.Text
-  , runCmd :: T.Text
-  , schemaCount :: Int
-  , instanceCount :: Int
-  , schemaSize :: Int
+  { genCmds :: [T.Text]
+  , buildCmds :: [T.Text]
+  , runCmds :: [T.Text]
+  , schemaCount :: Maybe Int
+  , instanceCount :: Maybe Int
+  , schemaSize :: Maybe Int
   } deriving (Show)
+
+defaultSchemaCount, defaultInstanceCount, defaultSchemaSize :: Int
+defaultSchemaCount = 1
+defaultInstanceCount = 100
+defaultSchemaSize = 10
 
 -- Generate a number of schemas, insert their schemas and meta files into a
 -- target generator, run the generator in the test loop, report the exit codes
@@ -33,25 +40,37 @@ data CrucibleOpts = CrucibleOpts
 
 crucibleOptions :: Parser CrucibleOpts
 crucibleOptions = CrucibleOpts
-  <$> option (str >>= toText)
-    ( long "generate-cmd" <> metavar "GENCMD" <> help genCmdHelp )
-  <*> option (str >>= toText)
-    ( long "build-cmd" <> metavar "BLDCMD" <> help buildCmdHelp )
-  <*> option (str >>= toText)
-    ( long "run-cmd" <> metavar "RUNCMD" <> help runCmdHelp )
-  <*> option auto
-    ( long "schema-count" <> metavar "SCMCNT" <> help schemaCountHelp )
-  <*> option auto
-    ( long "instance-count" <> metavar "INSCNT" <> help instanceCountHelp )
-  <*> option auto
-    ( long "schema-size" <> metavar "SCMSIZE" <> help schemaSizeHelp )
+  <$> parseGen
+  <*> parseBuild
+  <*> parseRun
+  <*> parseSchemaCount
+  <*> parseInstanceCount
+  <*> parseSchemaSize
   where
-    genCmdHelp = "The command to convert from a specification and meta file into an encoding test client."
-    buildCmdHelp = "The command to build the generated test client."
-    runCmdHelp = "The command to run the built test client."
+    parseGen = some $ option txt ( long "generate-cmd"
+                                <> metavar "GENCMD"
+                                <> help genCmdHelp )
+    parseBuild = some $ option txt ( long "build-cmd"
+                                  <> metavar "BLDCMD"
+                                  <> help buildCmdHelp )
+    parseRun = some $ option txt ( long "run-cmd"
+                                <> metavar "RUNCMD"
+                                <> help runCmdHelp )
+    parseSchemaCount = optional $ option auto ( long "schema-count"
+                                             <> metavar "SCMCNT"
+                                             <> help schemaCountHelp )
+    parseInstanceCount = optional $ option auto ( long "instance-count"
+                                               <> metavar "INSCNT"
+                                               <> help instanceCountHelp )
+    parseSchemaSize = optional $ option auto ( long "schema-size"
+                                            <> metavar "SCMSIZE"
+                                            <> help schemaSizeHelp )
+
+    genCmdHelp = "The command to convert from a specification and meta file into an encoding test client. Can be specified more than once."
+    buildCmdHelp = "The command to build the generated test client. Can be specified more than once."
+    runCmdHelp = "The command to run the built test client. Can be specified more than once."
     schemaCountHelp = "The number of schemas to test."
     instanceCountHelp = "The number of instances of each schema to test."
     schemaSizeHelp = "The number of types to generate in each schema."
 
-    toText :: String -> ReadM T.Text
-    toText = return . T.pack
+    txt = liftM T.pack str
