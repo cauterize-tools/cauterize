@@ -39,6 +39,9 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
   -- u8 is not a synonym
   pdpE s $ CautType { ctName = "u8", ctDetails = CDSynonym (BDu8 1) }
 
+  -- u8 is not an array
+  pdpE s $ CautType { ctName = "u8", ctDetails = CDArray { cdArrayElems = [CDSynonym (BDu8 1)] } }
+
   -- a_u8 doesn't hold a u16
   pdpE s $ CautType { ctName = "a_u8" , ctDetails = CDSynonym (BDu16 1) }
 
