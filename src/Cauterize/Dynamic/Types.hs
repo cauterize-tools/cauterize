@@ -49,6 +49,8 @@ data BIDetails = BDu8 Word8
 type TyMap = M.Map String S.SpType
 
 data Exceptions = TypeMisMatch String
+                | IncorrectArrayLength String
+                | InvalidType String
   deriving (Show, Data, Typeable)
 
 instance Exception Exceptions

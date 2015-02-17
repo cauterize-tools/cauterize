@@ -1,9 +1,18 @@
 module Cauterize.Dynamic.Common
   ( isNameOf
   , lu
+
   , throwTM
+  , throwIAL
+  , throwIT
 
   , isBuiltIn
+  , isSynonym
+  , isArray
+  , isVector
+  , isRecord
+  , isCombination
+  , isUnion
   ) where
 
 import Cauterize.Dynamic.Types
@@ -29,14 +38,43 @@ isNameOf "cu16" (BDcu16 _) = True
 isNameOf "cu32" (BDcu32 _) = True
 isNameOf _ _ = False
 
-lu :: String -> TyMap -> S.SpType
-lu n m = fromMaybe (error $ "ERROR: '" ++ n ++ "' is not a valid type in the provided map.")
-                   (n `M.lookup` m)
-
-
 isBuiltIn :: S.SpType -> Bool
 isBuiltIn (S.BuiltIn {}) = True
 isBuiltIn _ = False
 
+isSynonym :: S.SpType -> Bool
+isSynonym (S.Synonym {}) = True
+isSynonym _ = False
+
+isArray :: S.SpType -> Bool
+isArray (S.Array {}) = True
+isArray _ = False
+
+isVector :: S.SpType -> Bool
+isVector (S.Vector {}) = True
+isVector _ = False
+
+isRecord :: S.SpType -> Bool
+isRecord (S.Record {}) = True
+isRecord _ = False
+
+isCombination :: S.SpType -> Bool
+isCombination (S.Combination {}) = True
+isCombination _ = False
+
+isUnion :: S.SpType -> Bool
+isUnion (S.Union {}) = True
+isUnion _ = False
+
+lu :: String -> TyMap -> S.SpType
+lu n m = fromMaybe (throwIT $ "'" ++ n ++ "' is not a valid type in the provided map.")
+                   (n `M.lookup` m)
+
 throwTM :: String -> c
 throwTM = throw . TypeMisMatch
+
+throwIAL :: String -> c
+throwIAL = throw . IncorrectArrayLength
+
+throwIT :: String -> c
+throwIT = throw . InvalidType

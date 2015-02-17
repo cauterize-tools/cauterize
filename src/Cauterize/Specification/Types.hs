@@ -120,11 +120,11 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spHash       :: FormHash
                            , spFixedSize  :: FixedSize }
 
-            | Array        { unFixed     :: TArray
+            | Array        { unArray     :: TArray
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize }
 
-            | Vector       { unBounded   :: TVector
+            | Vector       { unVector    :: TVector
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize
                            , lenRepr     :: LengthRepr }
@@ -164,8 +164,8 @@ instance Sized SpType where
 typeName :: SpType -> Name
 typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
 typeName (Synonym { unSynonym = (TSynonym n _)}) = n
-typeName (Array { unFixed = (TArray n _ _)}) = n
-typeName (Vector { unBounded = (TVector n _ _)}) = n
+typeName (Array { unArray = (TArray n _ _)}) = n
+typeName (Vector { unVector = (TVector n _ _)}) = n
 typeName (Record { unRecord = (TRecord n _)}) = n
 typeName (Combination { unCombination = (TCombination n _)}) = n
 typeName (Union { unUnion = (TUnion n _)}) = n

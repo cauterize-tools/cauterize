@@ -15,17 +15,20 @@ import Debug.Trace
 dynamicPack :: S.Spec -> CautType -> B.ByteString
 dynamicPack s (CautType { ctName = n, ctDetails = d }) =
   let m = S.specTypeMap s
-      b = case d of
-            CDBuiltIn bd -> dynamicPackBuiltIn m n bd
-            CDSynonym bd -> dynamicPackSynonym m n bd
-            CDArray es -> dynamicPackArray m n es
-            _ -> error "UNHANDLED"
-  in runPut b
+  in runPut $ dynamicPackDetails m n d
+
+dynamicPackDetails :: TyMap -> String -> CautDetails -> Put
+dynamicPackDetails m n det =
+  case det of
+    CDBuiltIn bd -> dynamicPackBuiltIn m n bd
+    CDSynonym bd -> dynamicPackSynonym m n bd
+    CDArray es -> dynamicPackArray m n es
+    _ -> error "UNHANDLED"
 
 dynamicPackBuiltIn :: TyMap -> String -> BIDetails -> Put
 dynamicPackBuiltIn _ n det =
   if not (n `isNameOf` det)
-  then throwTM $ "Type mismatch: (" ++ show det ++ ") is not a '" ++ n ++ "'."
+  then throwTM $ "(" ++ show det ++ ") is not a '" ++ n ++ "'."
   else case det of
          BDu8 d -> putWord8 d
          BDu16 d -> putWord16le d
@@ -47,10 +50,33 @@ dynamicPackSynonym m n det =
   let trn = show $ C.synonymRepr . S.unSynonym $ n `lu` m
   in if isNameOf trn det
       then dynamicPackBuiltIn m trn det
-      else throwTM $ concat [ "Type mismatch: '"
-                            , n, "' expects a builtin of type '", trn
+      else throwTM $ concat [ "'" , n, "' expects a builtin of type '", trn
                             , "', but was given the following: (" ++ show det ++ ")."
                             ]
 
 dynamicPackArray :: TyMap -> String -> [CautDetails] -> Put
-dynamicPackArray = undefined
+dynamicPackArray m n elems =
+  let t = checkedTypeLookup m n isArray "array"
+      a = S.unArray t
+      el = length elems
+      al = C.arrayLen a
+      etype = C.arrayRef a
+  in if al /= fromIntegral el
+       then throwIAL $ concat [ "'", n, "' expects a length of ", show al
+                              , ", but was given a list of elements ", show el, " long."
+                              ]
+       else sequence_ $ map (dynamicPackDetails m etype) elems
+
+-- Retrieve a type from the map while also ensuring that its type matches some
+-- expected condition. If the type does not match an exception is thrown.
+checkedTypeLookup :: TyMap -- the map of types from the schema
+                  -> String -- the name of the type to check
+                  -> (S.SpType -> Bool) -- a checking function: isArray, isRecord, etc
+                  -> String -- a name to use for the expected type (THIS IS SUPER HACKY)
+                  -> S.SpType
+checkedTypeLookup m n checker expectedStr =
+  let t = n `lu` m
+  in if not (checker t)
+        then throwTM $ concat ["'", n, "' does not name an instance of the expected prototype: '"
+                              , expectedStr, "'."]
+        else t
