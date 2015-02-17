@@ -50,7 +50,9 @@ type TyMap = M.Map String S.SpType
 
 data Exceptions = TypeMisMatch String
                 | IncorrectArrayLength String
+                | IncorrectVectorLength String
                 | InvalidType String
+                | InvalidTag String
   deriving (Show, Data, Typeable)
 
 instance Exception Exceptions

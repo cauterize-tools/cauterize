@@ -23,6 +23,7 @@ dynamicPackDetails m n det =
     CDBuiltIn bd -> dynamicPackBuiltIn m n bd
     CDSynonym bd -> dynamicPackSynonym m n bd
     CDArray es -> dynamicPackArray m n es
+    CDVector es -> dynamicPackVector m n es
     _ -> error "UNHANDLED"
 
 dynamicPackBuiltIn :: TyMap -> String -> BIDetails -> Put
@@ -59,14 +60,29 @@ dynamicPackArray :: TyMap -> String -> [CautDetails] -> Put
 dynamicPackArray m n elems =
   let t = checkedTypeLookup m n isArray "array"
       a = S.unArray t
-      el = length elems
+      el = fromIntegral $ length elems
       al = C.arrayLen a
       etype = C.arrayRef a
-  in if al /= fromIntegral el
+  in if al /= el
        then throwIAL $ concat [ "'", n, "' expects a length of ", show al
                               , ", but was given a list of elements ", show el, " long."
                               ]
        else sequence_ $ map (dynamicPackDetails m etype) elems
+
+dynamicPackVector :: TyMap -> String -> [CautDetails] -> Put
+dynamicPackVector m n elems =
+  let t = checkedTypeLookup m n isVector "vector"
+      v = S.unVector t
+      el = fromIntegral $ length elems
+      vl = C.vectorMaxLen v
+      etype = C.vectorRef v
+      vlr = S.unLengthRepr $ S.lenRepr t
+  in if el > vl
+       then throwIVL $ concat [ "'", n, "' expects a length less than ", show vl
+                              , ", but was given a list of elements ", show el, " long."
+                              ]
+       else do dynamicPackTag vlr el
+               sequence_ $ map (dynamicPackDetails m etype) elems
 
 -- Retrieve a type from the map while also ensuring that its type matches some
 -- expected condition. If the type does not match an exception is thrown.
@@ -81,3 +97,18 @@ checkedTypeLookup m n checker expectedStr =
         then throwTM $ concat ["'", n, "' does not name an instance of the expected prototype: '"
                               , expectedStr, "'."]
         else t
+
+dynamicPackTag :: C.BuiltIn -> Integer -> Put
+dynamicPackTag b v =
+  case b of
+    C.BIu8  | v >= 0 && v <= u8Max  -> putWord8    (fromIntegral v)
+    C.BIu16 | v >= 0 && v <= u16Max -> putWord16le (fromIntegral v)
+    C.BIu32 | v >= 0 && v <= u32Max -> putWord32le (fromIntegral v)
+    C.BIu64 | v >= 0 && v <= u64Max -> putWord64le (fromIntegral v)
+    _ -> throwInvTag $ "'" ++ show b ++ " cannot be used to represent the tag value " ++ show v ++ "."
+  where
+    u8Max, u16Max, u32Max, u64Max :: Integer
+    u8Max = 2^(8 :: Integer) - 1
+    u16Max = 2^(16 :: Integer) - 1
+    u32Max = 2^(32 :: Integer) - 1
+    u64Max = 2^(64 :: Integer) - 1

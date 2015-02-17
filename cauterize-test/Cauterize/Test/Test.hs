@@ -33,6 +33,16 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
                                                    , CDSynonym (BDu8 108) ] }
                         ] } }
 
+  pdp s $ CautType { ctName = "vec_of_u32"
+                   , ctDetails = CDVector { cdVectorelems =
+                      [ CDBuiltIn (BDu32 150)
+                      , CDBuiltIn (BDu32 151)
+                      , CDBuiltIn (BDu32 152)
+                      ] } }
+
+  pdp s $ CautType { ctName = "vec_of_u32"
+                   , ctDetails = CDVector { cdVectorelems = [] } }
+
   -- a_u8 is not a builtin
   pdpE s $ CautType { ctName = "a_u8" , ctDetails = CDBuiltIn (BDu8 1) }
 
@@ -71,10 +81,21 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
                          , CDBuiltIn (BDu16 101)
                          , CDBuiltIn (BDu16 102)
                          ] } }
+
+  -- vector is too long
+  pdpE s $ CautType { ctName = "vec_of_u32"
+                    , ctDetails = CDVector { cdVectorelems =
+                       [ CDBuiltIn (BDu32 150)
+                       , CDBuiltIn (BDu32 151)
+                       , CDBuiltIn (BDu32 152)
+                       , CDBuiltIn (BDu32 153)
+                       ] } }
   where
     pdp s t = putStrLn $ "OK " ++ (show $ dynamicPack s t)
     pdpE s t = pdp s t `catch` handleEx
 
     handleEx (TypeMisMatch s) = putStrLn $ "EXCEPTION type mismatch: " ++ s
     handleEx (IncorrectArrayLength s) = putStrLn $ "EXCEPTION incorrect array length: " ++ s
+    handleEx (IncorrectVectorLength s) = putStrLn $ "EXCEPTION incorrect vector length: " ++ s
     handleEx (InvalidType s) = putStrLn $ "EXCEPTION invalid type: " ++ s
+    handleEx (InvalidTag s) = putStrLn $ "EXCEPTION invalid tag: " ++ s

@@ -4,7 +4,9 @@ module Cauterize.Dynamic.Common
 
   , throwTM
   , throwIAL
-  , throwIT
+  , throwIVL
+  , throwInvType
+  , throwInvTag
 
   , isBuiltIn
   , isSynonym
@@ -67,7 +69,7 @@ isUnion (S.Union {}) = True
 isUnion _ = False
 
 lu :: String -> TyMap -> S.SpType
-lu n m = fromMaybe (throwIT $ "'" ++ n ++ "' is not a valid type in the provided map.")
+lu n m = fromMaybe (throwInvType $ "'" ++ n ++ "' is not a valid type in the provided map.")
                    (n `M.lookup` m)
 
 throwTM :: String -> c
@@ -76,5 +78,11 @@ throwTM = throw . TypeMisMatch
 throwIAL :: String -> c
 throwIAL = throw . IncorrectArrayLength
 
-throwIT :: String -> c
-throwIT = throw . InvalidType
+throwIVL :: String -> c
+throwIVL = throw . IncorrectVectorLength
+
+throwInvType :: String -> c
+throwInvType = throw . InvalidType
+
+throwInvTag :: String -> c
+throwInvTag = throw . InvalidTag
