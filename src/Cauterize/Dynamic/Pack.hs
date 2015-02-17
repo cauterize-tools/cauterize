@@ -47,7 +47,8 @@ dynamicPackBuiltIn _ n det =
 
 dynamicPackSynonym :: TyMap -> String -> BIDetails -> Put
 dynamicPackSynonym m n det =
-  let trn = show $ C.synonymRepr . S.unSynonym $ n `lu` m
+  let t = checkedTypeLookup m n isSynonym "synonym"
+      trn = show $ C.synonymRepr . S.unSynonym $ t
   in if isNameOf trn det
       then dynamicPackBuiltIn m trn det
       else throwTM $ concat [ "'" , n, "' expects a builtin of type '", trn
