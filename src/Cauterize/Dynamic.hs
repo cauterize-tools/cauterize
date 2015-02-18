@@ -3,6 +3,7 @@ module Cauterize.Dynamic
   , CautDetails(..)
   , BIDetails(..)
   , Exceptions(..)
+  , FieldValue(..)
 
   , dynamicPack
   , dynamicUnpack

@@ -88,7 +88,7 @@ dynamicPackVector m n elems =
        else do dynamicPackTag vlr el
                mapM_ (dynamicPackDetails m etype) elems
 
-dynamicPackRecord :: TyMap -> String -> M.Map String CautDetails -> Put
+dynamicPackRecord :: TyMap -> String -> M.Map String FieldValue -> Put
 dynamicPackRecord m n fields = checkedDynamicFields fs fields go
   where
     t = checkedTypeLookup m n isRecord "record"
@@ -96,7 +96,7 @@ dynamicPackRecord m n fields = checkedDynamicFields fs fields go
     fs = C.unFields . C.recordFields $ r
     go fields' = mapM_ (dynamicPackRecordField m fields') fs
 
-dynamicPackCombination :: TyMap -> String -> M.Map String CautDetails -> Put
+dynamicPackCombination :: TyMap -> String -> M.Map String FieldValue -> Put
 dynamicPackCombination m n fields = checkedDynamicFields fs fields go
   where
     t = checkedTypeLookup m n isCombination "combination"
@@ -104,22 +104,24 @@ dynamicPackCombination m n fields = checkedDynamicFields fs fields go
     fs = C.unFields . C.combinationFields $ c
     tr = S.unFlagsRepr . S.flagsRepr $ t
     go fields' =
-      let fm = fieldsToMap fs
+      let fm = fieldsToNameMap fs
           ixs = map (fromIntegral . C.fIndex . fromJust . (`M.lookup` fm)) (M.keys fields')
           ixbits = foldl setBit (0 :: Int) ixs
       in do dynamicPackTag tr (fromIntegral ixbits)
             mapM_ (dynamicPackCombinationField m fields') fs
 
-dynamicPackUnion :: TyMap -> String -> String -> CautDetails -> Put
-dynamicPackUnion m n fn fd = do
+dynamicPackUnion :: TyMap -> String -> String -> FieldValue -> Put
+dynamicPackUnion m n fn fv = do
   dynamicPackTag fir (C.fIndex field)
-  case field of
-    C.EmptyField {} -> return ()
-    C.Field { C.fRef = r } -> dynamicPackDetails m r fd
+  case (field, fv) of
+    (C.EmptyField {}, EmptyField) -> return ()
+    (C.EmptyField { C.fName = efn }, DataField _) -> unexpectedData efn
+    (C.Field { C.fRef = r }, DataField fd) -> dynamicPackDetails m r fd
+    (C.Field { C.fName = dfn }, EmptyField) -> unexpectedEmpty dfn
   where
     t = checkedTypeLookup m n isUnion "union"
     u = S.unUnion t
-    fm = fieldsToMap . C.unFields . C.unionFields $ u
+    fm = fieldsToNameMap . C.unFields . C.unionFields $ u
     fir = S.unTagRepr . S.tagRepr $ t
     field = fromMaybe (throwUF $ "the following field is not allowed: " ++ fn)
                       (fn `M.lookup` fm)
@@ -142,8 +144,8 @@ checkedTypeLookup m n checker expectedStr =
 -- The passed function can assume that there are no extra fields. There may
 -- still be *missing* fields.
 checkedDynamicFields :: [C.Field] -- input fields to compare againts
-                     -> M.Map String CautDetails -- the dynamic fields that need checking
-                     -> (M.Map String CautDetails -> Put) -- a function to accept the checked dynamic fields
+                     -> M.Map String FieldValue -- the dynamic fields that need checking
+                     -> (M.Map String FieldValue -> Put) -- a function to accept the checked dynamic fields
                      -> Put -- the result of the passed function
 checkedDynamicFields fs dfs a =
   let fset = fieldNameSet fs
@@ -163,7 +165,7 @@ dynamicPackTag b v =
     C.BIu16 | v >= 0 && v <= u16Max -> putWord16le (fromIntegral v)
     C.BIu32 | v >= 0 && v <= u32Max -> putWord32le (fromIntegral v)
     C.BIu64 | v >= 0 && v <= u64Max -> putWord64le (fromIntegral v)
-    _ -> throwInvTag $ "'" ++ show b ++ " cannot be used to represent the tag value " ++ show v ++ "."
+    _ -> throwInvTag $ "'" ++ show b ++ "' cannot be used to represent the tag value " ++ show v ++ "."
   where
     u8Max, u16Max, u32Max, u64Max :: Integer
     u8Max = 2^(8 :: Integer) - 1
@@ -172,17 +174,34 @@ dynamicPackTag b v =
     u64Max = 2^(64 :: Integer) - 1
 
 -- Insists that the dynamic field map is complete.
-dynamicPackRecordField :: TyMap -> M.Map String CautDetails -> C.Field -> Put
-dynamicPackRecordField _ _ C.EmptyField {} = return ()
-dynamicPackRecordField tym fm C.Field { C.fName = n, C.fRef = r } =
+dynamicPackRecordField :: TyMap -> M.Map String FieldValue -> C.Field -> Put
+dynamicPackRecordField _ fm (C.EmptyField { C.fName = n }) = dynamicPackEmptyField fm n
+dynamicPackRecordField tym fm (C.Field { C.fName = n, C.fRef = r }) =
   let det = fromMaybe (throwMF $ "Field map is missing field '" ++ n ++ "'.")
                       (n `M.lookup` fm)
-  in dynamicPackDetails tym r det
+  in case det of
+    DataField det' -> dynamicPackDetails tym r det'
+    EmptyField -> unexpectedEmpty n
 
 -- Skips fields not present in the dynamic field map.
-dynamicPackCombinationField :: TyMap -> M.Map String CautDetails -> C.Field -> Put
-dynamicPackCombinationField _ _ C.EmptyField {} = return ()
-dynamicPackCombinationField tym fm C.Field { C.fName = n, C.fRef = r } =
+dynamicPackCombinationField :: TyMap -> M.Map String FieldValue -> C.Field -> Put
+dynamicPackCombinationField _ fm (C.EmptyField { C.fName = n }) = dynamicPackEmptyField fm n
+dynamicPackCombinationField tym fm (C.Field { C.fName = n, C.fRef = r }) =
   case n `M.lookup` fm of
-    Just det -> dynamicPackDetails tym r det
+    Just EmptyField -> unexpectedEmpty n
+    Just (DataField det) -> dynamicPackDetails tym r det
     Nothing -> return ()
+
+unexpectedEmpty :: String -> c
+unexpectedEmpty n = throwUEF $ "The field '" ++ n ++ "' expects to be a data field, but an empty field was provided."
+
+unexpectedData :: String -> c
+unexpectedData n = throwUDF $ "The field '" ++ n ++ "' does not have associated data, but data was provided."
+
+dynamicPackEmptyField :: M.Map String FieldValue -> String -> Put
+dynamicPackEmptyField fm n =
+  let det = fromMaybe (throwMF $ "Field map is missing field '" ++ n ++ "'.")
+                      (n `M.lookup` fm)
+  in case det of
+      EmptyField -> return ()
+      DataField _ -> unexpectedData n

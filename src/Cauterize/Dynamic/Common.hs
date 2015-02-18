@@ -1,7 +1,8 @@
 module Cauterize.Dynamic.Common
   ( isNameOf
   , lu
-  , fieldsToMap
+  , fieldsToNameMap
+  , fieldsToIndexMap
   , fieldNameSet
 
   , throwTM
@@ -11,6 +12,8 @@ module Cauterize.Dynamic.Common
   , throwInvTag
   , throwMF
   , throwUF
+  , throwUDF
+  , throwUEF
 
   , isBuiltIn
   , isSynonym
@@ -33,10 +36,15 @@ lu :: String -> TyMap -> S.SpType
 lu n m = fromMaybe (throwInvType $ "'" ++ n ++ "' is not a valid type in the provided map.")
                    (n `M.lookup` m)
 
-fieldsToMap :: [C.Field] -> M.Map String C.Field
-fieldsToMap fs = M.fromList $ map go fs
+fieldsToNameMap :: [C.Field] -> M.Map String C.Field
+fieldsToNameMap fs = M.fromList $ map go fs
   where
     go f = (C.fName f, f)
+
+fieldsToIndexMap :: [C.Field] -> M.Map Integer C.Field
+fieldsToIndexMap fs = M.fromList $ map go fs
+  where
+    go f = (C.fIndex f, f)
 
 fieldNameSet :: [C.Field] -> Set.Set String
 fieldNameSet fs = Set.fromList $ map C.fName fs
@@ -106,3 +114,9 @@ throwMF = throw . MissingField
 
 throwUF :: String -> c
 throwUF = throw . UnexpectedField
+
+throwUDF :: String -> c
+throwUDF = throw . UnexpectedDataField
+
+throwUEF :: String -> c
+throwUEF = throw . UnexpectedEmptyField

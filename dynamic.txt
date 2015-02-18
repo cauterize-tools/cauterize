@@ -19,4 +19,5 @@
   (union uthings
     (fields
       (field ix0 u8)
-      (field ix1 u16))))
+      (field ix1 u16)
+      (field ix2))))

@@ -3,6 +3,7 @@ module Cauterize.Dynamic.Types
   ( CautType(..)
   , CautDetails(..)
   , BIDetails(..)
+  , FieldValue(..)
   , TyMap
   , Exceptions(..)
   ) where
@@ -25,9 +26,9 @@ data CautDetails
   | CDSynonym BIDetails
   | CDArray { cdArrayElems :: [CautDetails] }
   | CDVector { cdVectorelems :: [CautDetails] }
-  | CDRecord { cdRecordFields :: M.Map String CautDetails }
-  | CDCombination { cdCombinationFields :: M.Map String CautDetails }
-  | CDUnion { cdUnionFieldName :: String, cdUnionFieldDetails :: CautDetails }
+  | CDRecord { cdRecordFields :: M.Map String FieldValue }
+  | CDCombination { cdCombinationFields :: M.Map String FieldValue }
+  | CDUnion { cdUnionFieldName :: String, cdUnionFieldDetails :: FieldValue }
   deriving (Show, Ord, Eq)
 
 data BIDetails = BDu8 Word8
@@ -46,6 +47,10 @@ data BIDetails = BDu8 Word8
                | BDcu32 Word32
   deriving (Show, Ord, Eq)
 
+data FieldValue = DataField CautDetails
+                | EmptyField
+  deriving (Show, Ord, Eq)
+
 type TyMap = M.Map String S.SpType
 
 data Exceptions = TypeMisMatch String
@@ -55,6 +60,8 @@ data Exceptions = TypeMisMatch String
                 | InvalidTag String
                 | MissingField String
                 | UnexpectedField String
+                | UnexpectedDataField String
+                | UnexpectedEmptyField String
   deriving (Show, Data, Typeable)
 
 instance Exception Exceptions
