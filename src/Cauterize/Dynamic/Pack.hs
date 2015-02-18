@@ -14,8 +14,6 @@ import qualified Data.ByteString as B
 import qualified Data.Map as M
 import qualified Data.Set as Set
 
-import Debug.Trace
-
 dynamicPack :: S.Spec -> CautType -> B.ByteString
 dynamicPack s (CautType { ctName = n, ctDetails = d }) =
   let m = S.specTypeMap s
@@ -30,7 +28,7 @@ dynamicPackDetails m n det =
     CDVector es -> dynamicPackVector m n es
     CDRecord fs -> dynamicPackRecord m n fs
     CDCombination fs -> dynamicPackCombination m n fs
-    _ -> error "UNHANDLED"
+    CDUnion fn fd -> dynamicPackUnion m n fn fd
 
 dynamicPackBuiltIn :: TyMap -> String -> BIDetails -> Put
 dynamicPackBuiltIn _ n det =
@@ -111,6 +109,20 @@ dynamicPackCombination m n fields = checkedDynamicFields fs fields go
           ixbits = foldl setBit (0 :: Int) ixs
       in do dynamicPackTag tr (fromIntegral ixbits)
             mapM_ (dynamicPackCombinationField m fields') fs
+
+dynamicPackUnion :: TyMap -> String -> String -> CautDetails -> Put
+dynamicPackUnion m n fn fd = do
+  dynamicPackTag fir (C.fIndex field)
+  case field of
+    C.EmptyField {} -> return ()
+    C.Field { C.fRef = r } -> dynamicPackDetails m r fd
+  where
+    t = checkedTypeLookup m n isUnion "union"
+    u = S.unUnion t
+    fm = fieldsToMap . C.unFields . C.unionFields $ u
+    fir = S.unTagRepr . S.tagRepr $ t
+    field = fromMaybe (throwUF $ "the following field is not allowed: " ++ fn)
+                      (fn `M.lookup` fm)
 
 -- Retrieve a type from the map while also ensuring that its type matches some
 -- expected condition. If the type does not match an exception is thrown.

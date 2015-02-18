@@ -138,7 +138,7 @@ data SpType = BuiltIn      { unBuiltIn   :: TBuiltIn
                            , spRangeSize   :: RangeSize
                            , flagsRepr     :: FlagsRepr }
 
-            | Union         { unUnion    :: TUnion
+           | Union         { unUnion    :: TUnion
                            , spHash      :: FormHash
                            , spRangeSize :: RangeSize
                            , tagRepr     :: TagRepr }

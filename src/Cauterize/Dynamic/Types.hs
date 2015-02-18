@@ -27,7 +27,7 @@ data CautDetails
   | CDVector { cdVectorelems :: [CautDetails] }
   | CDRecord { cdRecordFields :: M.Map String CautDetails }
   | CDCombination { cdCombinationFields :: M.Map String CautDetails }
-  | CDUnion { cdUnionFields :: M.Map String CautDetails }
+  | CDUnion { cdUnionFieldName :: String, cdUnionFieldDetails :: CautDetails }
   deriving (Show, Ord, Eq)
 
 data BIDetails = BDu8 Word8

@@ -63,6 +63,16 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
                                  , ( "ix2", CDBuiltIn (BDu32 0x0FFFFFFF) )
                                  ] } }
 
+  pdp s $ CautType { ctName = "uthings"
+                   , ctDetails = CDUnion { cdUnionFieldName = "ix0"
+                                         , cdUnionFieldDetails = CDBuiltIn ( BDu8 60 )
+                                         } }
+
+  pdp s $ CautType { ctName = "uthings"
+                   , ctDetails = CDUnion { cdUnionFieldName = "ix1"
+                                         , cdUnionFieldDetails = CDBuiltIn ( BDu16 61 )
+                                         } }
+
   -- a_u8 is not a builtin
   pdpE s $ CautType { ctName = "a_u8" , ctDetails = CDBuiltIn (BDu8 1) }
 
