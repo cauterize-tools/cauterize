@@ -1,0 +1,22 @@
+(schema dynamic 0.0.1
+  (synonym a_u8 u8)
+  (array array_of_a_u8 a_u8 3)
+  (array array_of_array_of_a_u8 array_of_a_u8 3)
+  (array array_of_u16 u16 3)
+  (vector vec_of_u32 u32 3)
+  (record rthings
+    (fields
+      (field ix0 u8)
+      (field ix1 u16)
+      (field ix2 u32)
+      (field ix3 u64)))
+  (combination cthings
+    (fields
+      (field ix0 u8)
+      (field ix1 u16)
+      (field ix2 u32)
+      (field ix3 u64)))
+  (union uthings
+    (fields
+      (field ix0 u8)
+      (field ix1 u16))))

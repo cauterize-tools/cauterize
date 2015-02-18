@@ -5,7 +5,14 @@ module Cauterize.Dynamic.Unpack
 import Cauterize.Dynamic.Types
 import qualified Cauterize.Specification as S
 import qualified Data.ByteString as B
-import qualified Data.Text as T
 
-dynamicUnpack :: S.Spec -> CautType -> Either T.Text B.ByteString
-dynamicUnpack = undefined
+import Data.Serialize.IEEE754
+import Data.Serialize.Get
+
+dynamicUnpack :: S.Spec -> B.ByteString -> String -> Either String CautType
+dynamicUnpack s b n =
+  let m = S.specTypeMap s
+  in runGet (dynamicUnpackDetails m n) b
+
+dynamicUnpackDetails :: TyMap -> String -> Get CautType
+dynamicUnpackDetails m n = undefined
