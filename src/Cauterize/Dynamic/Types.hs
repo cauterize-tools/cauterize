@@ -53,6 +53,8 @@ data Exceptions = TypeMisMatch String
                 | IncorrectVectorLength String
                 | InvalidType String
                 | InvalidTag String
+                | MissingField String
+                | UnexpectedField String
   deriving (Show, Data, Typeable)
 
 instance Exception Exceptions

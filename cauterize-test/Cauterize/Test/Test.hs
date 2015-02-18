@@ -3,15 +3,16 @@ module Cauterize.Test.Test
   ) where
 
 import qualified Cauterize.Test.Test.Options as O
-import qualified Cauterize.Specification as S
-import qualified Cauterize.Meta as M
+import qualified Cauterize.Specification as Spec
+import qualified Cauterize.Meta as Meta
+import qualified Data.Map as M
 import Cauterize.Dynamic
 import Control.Exception
 
 runTest :: O.TestOptions -> IO ()
 runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
-  Right s <- S.parseFile sn
-  Right m <- M.parseFile mn
+  Right s <- Spec.parseFile sn
+  Right m <- Meta.parseFile mn
 
   pdp s $ CautType { ctName = "u8" , ctDetails = CDBuiltIn (BDu8 1) }
   pdp s $ CautType { ctName = "a_u8" , ctDetails = CDSynonym (BDu8 1) }
@@ -42,6 +43,25 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
 
   pdp s $ CautType { ctName = "vec_of_u32"
                    , ctDetails = CDVector { cdVectorelems = [] } }
+
+  pdp s $ CautType { ctName = "rthings"
+                   , ctDetails = CDRecord { cdRecordFields =
+                      M.fromList [ ( "ix0", CDBuiltIn (BDu8 0x0F) )
+                                 , ( "ix1", CDBuiltIn (BDu16 0x0FFF) )
+                                 , ( "ix2", CDBuiltIn (BDu32 0x0FFFFFFF) )
+                                 , ( "ix3", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) )
+                                 ] } }
+
+  pdp s $ CautType { ctName = "cthings"
+                   , ctDetails = CDCombination { cdCombinationFields =
+                      M.fromList [ ( "ix3", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) )
+                                 ] } }
+
+  pdp s $ CautType { ctName = "cthings"
+                   , ctDetails = CDCombination { cdCombinationFields =
+                      M.fromList [ ( "ix3", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) )
+                                 , ( "ix2", CDBuiltIn (BDu32 0x0FFFFFFF) )
+                                 ] } }
 
   -- a_u8 is not a builtin
   pdpE s $ CautType { ctName = "a_u8" , ctDetails = CDBuiltIn (BDu8 1) }
@@ -88,8 +108,37 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
                        [ CDBuiltIn (BDu32 150)
                        , CDBuiltIn (BDu32 151)
                        , CDBuiltIn (BDu32 152)
-                       , CDBuiltIn (BDu32 153)
+                       , CDBuiltIn (BDu32 153) -- vector's max length is 3
                        ] } }
+
+  -- record is missing a field
+  pdpE s $ CautType { ctName = "rthings"
+                    , ctDetails = CDRecord { cdRecordFields =
+                       M.fromList [ ( "ix0", CDBuiltIn (BDu8 0x0F) )
+                                  -- missing ix1
+                                  , ( "ix2", CDBuiltIn (BDu32 0x0FFFFFFF) )
+                                  , ( "ix3", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) )
+                                  ] } }
+
+
+  -- record has a field of the wrong type
+  pdpE s $ CautType { ctName = "rthings"
+                    , ctDetails = CDRecord { cdRecordFields =
+                       M.fromList [ ( "ix0", CDBuiltIn (BDu16 0x0F) ) -- wrong type
+                                  , ( "ix1", CDBuiltIn (BDu16 0x0FFF) )
+                                  , ( "ix2", CDBuiltIn (BDu32 0x0FFFFFFF) )
+                                  , ( "ix3", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) )
+                                  ] } }
+
+  -- record has too many fields
+  pdpE s $ CautType { ctName = "rthings"
+                    , ctDetails = CDRecord { cdRecordFields =
+                       M.fromList [ ( "ix0", CDBuiltIn (BDu8  0x0F) )
+                                  , ( "ix1", CDBuiltIn (BDu16 0x0FFF) )
+                                  , ( "ix2", CDBuiltIn (BDu32 0x0FFFFFFF) )
+                                  , ( "ix3", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) )
+                                  , ( "bad", CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) ) -- not in the specification
+                                  ] } }
   where
     pdp s t = putStrLn $ "OK " ++ (show $ dynamicPack s t)
     pdpE s t = pdp s t `catch` handleEx
@@ -99,3 +148,5 @@ runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
     handleEx (IncorrectVectorLength s) = putStrLn $ "EXCEPTION incorrect vector length: " ++ s
     handleEx (InvalidType s) = putStrLn $ "EXCEPTION invalid type: " ++ s
     handleEx (InvalidTag s) = putStrLn $ "EXCEPTION invalid tag: " ++ s
+    handleEx (MissingField s) = putStrLn $ "EXCEPTION missing field: " ++ s
+    handleEx (UnexpectedField s) = putStrLn $ "EXCEPTION unexpected field: " ++ s

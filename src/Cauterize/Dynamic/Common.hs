@@ -1,12 +1,16 @@
 module Cauterize.Dynamic.Common
   ( isNameOf
   , lu
+  , fieldsToMap
+  , fieldNameSet
 
   , throwTM
   , throwIAL
   , throwIVL
   , throwInvType
   , throwInvTag
+  , throwMF
+  , throwUF
 
   , isBuiltIn
   , isSynonym
@@ -21,7 +25,21 @@ import Cauterize.Dynamic.Types
 import Control.Exception
 import Data.Maybe
 import qualified Cauterize.Specification as S
+import qualified Cauterize.Common.Types as C
 import qualified Data.Map as M
+import qualified Data.Set as Set
+
+lu :: String -> TyMap -> S.SpType
+lu n m = fromMaybe (throwInvType $ "'" ++ n ++ "' is not a valid type in the provided map.")
+                   (n `M.lookup` m)
+
+fieldsToMap :: [C.Field] -> M.Map String C.Field
+fieldsToMap fs = M.fromList $ map go fs
+  where
+    go f = (C.fName f, f)
+
+fieldNameSet :: [C.Field] -> Set.Set String
+fieldNameSet fs = Set.fromList $ map C.fName fs
 
 isNameOf :: String -> BIDetails -> Bool
 isNameOf "u8" (BDu8 _) = True
@@ -68,10 +86,6 @@ isUnion :: S.SpType -> Bool
 isUnion (S.Union {}) = True
 isUnion _ = False
 
-lu :: String -> TyMap -> S.SpType
-lu n m = fromMaybe (throwInvType $ "'" ++ n ++ "' is not a valid type in the provided map.")
-                   (n `M.lookup` m)
-
 throwTM :: String -> c
 throwTM = throw . TypeMisMatch
 
@@ -86,3 +100,9 @@ throwInvType = throw . InvalidType
 
 throwInvTag :: String -> c
 throwInvTag = throw . InvalidTag
+
+throwMF :: String -> c
+throwMF = throw . MissingField
+
+throwUF :: String -> c
+throwUF = throw . UnexpectedField

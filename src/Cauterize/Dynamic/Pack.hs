@@ -4,11 +4,15 @@ module Cauterize.Dynamic.Pack
 
 import Cauterize.Dynamic.Common
 import Cauterize.Dynamic.Types
+import Data.Maybe
 import Data.Serialize.IEEE754
 import Data.Serialize.Put
+import Data.Bits
 import qualified Cauterize.Common.Types as C
 import qualified Cauterize.Specification as S
 import qualified Data.ByteString as B
+import qualified Data.Map as M
+import qualified Data.Set as Set
 
 import Debug.Trace
 
@@ -24,6 +28,8 @@ dynamicPackDetails m n det =
     CDSynonym bd -> dynamicPackSynonym m n bd
     CDArray es -> dynamicPackArray m n es
     CDVector es -> dynamicPackVector m n es
+    CDRecord fs -> dynamicPackRecord m n fs
+    CDCombination fs -> dynamicPackCombination m n fs
     _ -> error "UNHANDLED"
 
 dynamicPackBuiltIn :: TyMap -> String -> BIDetails -> Put
@@ -67,7 +73,7 @@ dynamicPackArray m n elems =
        then throwIAL $ concat [ "'", n, "' expects a length of ", show al
                               , ", but was given a list of elements ", show el, " long."
                               ]
-       else sequence_ $ map (dynamicPackDetails m etype) elems
+       else mapM_ (dynamicPackDetails m etype) elems
 
 dynamicPackVector :: TyMap -> String -> [CautDetails] -> Put
 dynamicPackVector m n elems =
@@ -82,7 +88,29 @@ dynamicPackVector m n elems =
                               , ", but was given a list of elements ", show el, " long."
                               ]
        else do dynamicPackTag vlr el
-               sequence_ $ map (dynamicPackDetails m etype) elems
+               mapM_ (dynamicPackDetails m etype) elems
+
+dynamicPackRecord :: TyMap -> String -> M.Map String CautDetails -> Put
+dynamicPackRecord m n fields = checkedDynamicFields fs fields go
+  where
+    t = checkedTypeLookup m n isRecord "record"
+    r = S.unRecord t
+    fs = C.unFields . C.recordFields $ r
+    go fields' = mapM_ (dynamicPackRecordField m fields') fs
+
+dynamicPackCombination :: TyMap -> String -> M.Map String CautDetails -> Put
+dynamicPackCombination m n fields = checkedDynamicFields fs fields go
+  where
+    t = checkedTypeLookup m n isCombination "combination"
+    c = S.unCombination t
+    fs = C.unFields . C.combinationFields $ c
+    tr = S.unFlagsRepr . S.flagsRepr $ t
+    go fields' =
+      let fm = fieldsToMap fs
+          ixs = map (fromIntegral . C.fIndex . fromJust . (`M.lookup` fm)) (M.keys fields')
+          ixbits = foldl setBit (0 :: Int) ixs
+      in do dynamicPackTag tr (fromIntegral ixbits)
+            mapM_ (dynamicPackCombinationField m fields') fs
 
 -- Retrieve a type from the map while also ensuring that its type matches some
 -- expected condition. If the type does not match an exception is thrown.
@@ -98,6 +126,24 @@ checkedTypeLookup m n checker expectedStr =
                               , expectedStr, "'."]
         else t
 
+-- Validates that the dynamic fields are all found in the specification fields.
+-- The passed function can assume that there are no extra fields. There may
+-- still be *missing* fields.
+checkedDynamicFields :: [C.Field] -- input fields to compare againts
+                     -> M.Map String CautDetails -- the dynamic fields that need checking
+                     -> (M.Map String CautDetails -> Put) -- a function to accept the checked dynamic fields
+                     -> Put -- the result of the passed function
+checkedDynamicFields fs dfs a =
+  let fset = fieldNameSet fs
+      dset = M.keysSet dfs
+      diff = dset `Set.difference` fset -- the fields in dset that are not in fset
+  in if Set.empty /= diff
+      then throwUF $ "the following fields are not allowed: " ++ (show . Set.toList) diff
+      else a dfs
+
+-- There are 4 tag widths in Cauterize: 8, 16, 32, and 64 bits. This will pack
+-- an Integer as if it was one of those tag variants. If the specified Integer
+-- is out of range, an exception is thrown.
 dynamicPackTag :: C.BuiltIn -> Integer -> Put
 dynamicPackTag b v =
   case b of
@@ -112,3 +158,19 @@ dynamicPackTag b v =
     u16Max = 2^(16 :: Integer) - 1
     u32Max = 2^(32 :: Integer) - 1
     u64Max = 2^(64 :: Integer) - 1
+
+-- Insists that the dynamic field map is complete.
+dynamicPackRecordField :: TyMap -> M.Map String CautDetails -> C.Field -> Put
+dynamicPackRecordField _ _ C.EmptyField {} = return ()
+dynamicPackRecordField tym fm C.Field { C.fName = n, C.fRef = r } =
+  let det = fromMaybe (throwMF $ "Field map is missing field '" ++ n ++ "'.")
+                      (n `M.lookup` fm)
+  in dynamicPackDetails tym r det
+
+-- Skips fields not present in the dynamic field map.
+dynamicPackCombinationField :: TyMap -> M.Map String CautDetails -> C.Field -> Put
+dynamicPackCombinationField _ _ C.EmptyField {} = return ()
+dynamicPackCombinationField tym fm C.Field { C.fName = n, C.fRef = r } =
+  case n `M.lookup` fm of
+    Just det -> dynamicPackDetails tym r det
+    Nothing -> return ()
