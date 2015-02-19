@@ -24,7 +24,7 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
   testGet s
 
   putStrLn "GEN ############################################################################"
-  testGen s
+  replicateM_ 10 (isId s)
 
   where
     pdp s t = putStrLn $ "OK " ++ (show . B.unpack) (dynamicPack s t)
@@ -43,8 +43,10 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
       putStrLn $ case unpacked of
                     Left e -> "ERROR: unpack failed. " ++ e
                     Right t' -> if t' == t
-                                  then "OK id " ++ show t
-                                  else "ERROR id failed " ++ show t
+                                  then "OK id " ++ show t ++ "\n" ++
+                                       "   // " ++ show (B.unpack packed)
+                                  else "ERROR id failed " ++ show t ++ "\n" ++
+                                       "   // " ++ show (B.unpack packed)
 
     handleEx (TypeMisMatch s) = putStrLn $ "EXCEPTION type mismatch: " ++ s
     handleEx (IncorrectArrayLength s) = putStrLn $ "EXCEPTION incorrect array length: " ++ s
@@ -213,5 +215,3 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
         ,106,107,108]
       pdu s "uthings"
         [2]
-
-    testGen s = replicateM_ 10 (isId s)
