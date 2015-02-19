@@ -6,6 +6,7 @@ import qualified Cauterize.Test.Test.Options as O
 import qualified Cauterize.Specification as Spec
 -- import qualified Cauterize.Meta as Meta
 import qualified Data.Map as M
+import qualified Data.ByteString as B
 import Cauterize.Dynamic
 import Control.Exception
 
@@ -14,11 +15,19 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
   Right s <- Spec.parseFile sn
   -- Right m <- Meta.parseFile mn
 
+  putStrLn "PUT ############################################################################"
   testPut s
 
+  putStrLn "GET ############################################################################"
+  testGet s
+
   where
-    pdp s t = putStrLn $ "OK " ++ show (dynamicPack s t)
+    pdp s t = putStrLn $ "OK " ++ (show . B.unpack) (dynamicPack s t)
     pdpE s t = pdp s t `catch` handleEx
+
+    pdu s n bs = case dynamicUnpack s (B.pack bs) n of
+                  Left err -> putStrLn $ "ERROR " ++ err
+                  Right res -> putStrLn $ "OK " ++ show res
 
     handleEx (TypeMisMatch s) = putStrLn $ "EXCEPTION type mismatch: " ++ s
     handleEx (IncorrectArrayLength s) = putStrLn $ "EXCEPTION incorrect array length: " ++ s
@@ -172,3 +181,18 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
                                     , ( "bad", DataField $ CDBuiltIn (BDu64 0x0FFFFFFFFFFFFFFF) ) -- not in the specification
                                     ] } }
 
+    testGet s = do
+      pdu s "u8"
+        [0]
+      pdu s "u8"
+        [255]
+      pdu s "array_of_u16"
+        [1,0
+        ,2,0
+        ,3,0]
+      pdu s "array_of_array_of_a_u8"
+        [100,101,102
+        ,103,104,105
+        ,106,107,108]
+      pdu s "uthings"
+        [2]
