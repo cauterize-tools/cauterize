@@ -9,7 +9,7 @@ main :: IO ()
 main = runWithOptions $ \opts -> Sc.parseFile (schemaFile opts) >>= render
   where
     render (Left s) = print s
-    render (Right s) = 
+    render (Right s) =
       case checkSchema s of
         [] -> putStrLn $ Sp.prettyPrint $ fromSchema s
         es -> print es
