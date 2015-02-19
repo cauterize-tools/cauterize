@@ -43,6 +43,7 @@ library
                        Cauterize.Dynamic.Types,
                        Cauterize.Dynamic.Pack,
                        Cauterize.Dynamic.Unpack,
+                       Cauterize.Dynamic.Gen,
                        Cauterize.Common.ParserUtils,
                        Cauterize.Meta,
                        Cauterize.Meta.Parser,

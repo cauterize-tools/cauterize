@@ -2,13 +2,15 @@ module Cauterize.Test.Test
   ( runTest
   ) where
 
-import qualified Cauterize.Test.Test.Options as O
-import qualified Cauterize.Specification as Spec
 -- import qualified Cauterize.Meta as Meta
-import qualified Data.Map as M
-import qualified Data.ByteString as B
 import Cauterize.Dynamic
+import Cauterize.Dynamic.Gen
 import Control.Exception
+import Control.Monad
+import qualified Cauterize.Specification as Spec
+import qualified Cauterize.Test.Test.Options as O
+import qualified Data.ByteString as B
+import qualified Data.Map as M
 
 runTest :: O.TestOptions -> IO ()
 runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
@@ -21,6 +23,9 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
   putStrLn "GET ############################################################################"
   testGet s
 
+  putStrLn "GEN ############################################################################"
+  testGen s
+
   where
     pdp s t = putStrLn $ "OK " ++ (show . B.unpack) (dynamicPack s t)
     pdpE s t = pdp s t `catch` handleEx
@@ -28,6 +33,18 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
     pdu s n bs = case dynamicUnpack s (B.pack bs) n of
                   Left err -> putStrLn $ "ERROR " ++ err
                   Right res -> putStrLn $ "OK " ++ show res
+
+    -- TODO: Make some unpacker expected failures
+
+    isId s = do
+      t <- dynamicGen s
+      let packed = dynamicPack s t
+      let unpacked = dynamicUnpack s packed (ctName t)
+      putStrLn $ case unpacked of
+                    Left e -> "ERROR: unpack failed. " ++ e
+                    Right t' -> if t' == t
+                                  then "OK id " ++ show t
+                                  else "ERROR id failed " ++ show t
 
     handleEx (TypeMisMatch s) = putStrLn $ "EXCEPTION type mismatch: " ++ s
     handleEx (IncorrectArrayLength s) = putStrLn $ "EXCEPTION incorrect array length: " ++ s
@@ -196,3 +213,5 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
         ,106,107,108]
       pdu s "uthings"
         [2]
+
+    testGen s = replicateM_ 10 (isId s)
