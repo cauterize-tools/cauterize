@@ -1,5 +1,7 @@
 module Cauterize.Dynamic.Gen
   ( dynamicGen
+  , dynamicGenType
+  , dynamicGenType'
   ) where
 
 import Cauterize.Dynamic.Common
@@ -19,7 +21,10 @@ dynamicGen s = do
     m = S.specTypeMap s
 
 dynamicGenType :: S.Spec -> String -> IO CautType
-dynamicGenType s n = generate $ do
+dynamicGenType s n = generate $ dynamicGenType' s n
+
+dynamicGenType' :: S.Spec -> String -> Gen CautType
+dynamicGenType' s n = do
   d <- dynamicGenDetails m n
   return CautType { ctName = n, ctDetails = d }
   where
