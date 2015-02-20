@@ -44,6 +44,7 @@ library
                        Cauterize.Dynamic.Pack,
                        Cauterize.Dynamic.Unpack,
                        Cauterize.Dynamic.Gen,
+                       Cauterize.Dynamic.Meta,
                        Cauterize.Dynamic.Meta.Gen,
                        Cauterize.Dynamic.Meta.Pack,
                        Cauterize.Dynamic.Meta.Unpack,

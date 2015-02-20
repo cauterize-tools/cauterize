@@ -2,9 +2,9 @@ module Cauterize.Test.Test
   ( runTest
   ) where
 
--- import qualified Cauterize.Meta as Meta
+import qualified Cauterize.Meta as Meta
 import Cauterize.Dynamic
-import Cauterize.Dynamic.Gen
+import Cauterize.Dynamic.Meta
 import Control.Exception
 import Control.Monad
 import qualified Cauterize.Specification as Spec
@@ -13,9 +13,9 @@ import qualified Data.ByteString as B
 import qualified Data.Map as M
 
 runTest :: O.TestOptions -> IO ()
-runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
+runTest O.TestOptions { O.specName = sn, O.metaName = mn } = do
   Right s <- Spec.parseFile sn
-  -- Right m <- Meta.parseFile mn
+  Right m <- Meta.parseFile mn
 
   putStrLn "PUT ############################################################################"
   testPut s
@@ -24,7 +24,7 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
   testGet s
 
   putStrLn "GEN ############################################################################"
-  replicateM_ 10 (isId s)
+  replicateM_ 10 (metaIsId s m)
 
   where
     pdp s t = putStrLn $ "OK " ++ (show . B.unpack) (dynamicPack s t)
@@ -36,17 +36,17 @@ runTest O.TestOptions { O.specName = sn, O.metaName = _ } = do
 
     -- TODO: Make some unpacker expected failures
 
-    isId s = do
-      t <- dynamicGen s
-      let packed = dynamicPack s t
-      let unpacked = dynamicUnpack s packed (ctName t)
-      putStrLn $ case unpacked of
-                    Left e -> "ERROR: unpack failed. " ++ e
-                    Right t' -> if t' == t
-                                  then "OK id " ++ show t ++ "\n" ++
-                                       "   // " ++ show (B.unpack packed)
-                                  else "ERROR id failed " ++ show t ++ "\n" ++
-                                       "   // " ++ show (B.unpack packed)
+    metaIsId s m = do
+      t <- dynamicMetaGen s m
+      let p = dynamicMetaPack s m t
+      let u = dynamicMetaUnpack s m p
+      putStrLn $ case u of
+                  Left e -> "ERROR: unpack failed. " ++ e
+                  Right t' -> if t' == t
+                                then "OK id " ++ show t ++ "\n" ++
+                                     "   // " ++ show (B.unpack p)
+                                else "ERROR id failed " ++ show t ++ "\n" ++
+                                     "   // " ++ show (B.unpack p)
 
     handleEx (TypeMisMatch s) = putStrLn $ "EXCEPTION type mismatch: " ++ s
     handleEx (IncorrectArrayLength s) = putStrLn $ "EXCEPTION incorrect array length: " ++ s

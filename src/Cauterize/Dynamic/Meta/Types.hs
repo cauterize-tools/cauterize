@@ -6,3 +6,4 @@ import Cauterize.Dynamic.Types
 
 data MetaType =
   MetaType { unMetaType :: CautType }
+  deriving (Show, Eq, Ord)

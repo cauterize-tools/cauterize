@@ -17,7 +17,7 @@ dynamicMetaPack spec meta t =
   case tn `M.lookup` m of
     Nothing -> throwInvType $ "The type '" ++ tn ++ "' does not appear in the meta description."
     Just (Meta.MetaType { Meta.metaTypePrefix = p }) -> runPut $ do
-      packLengthWithWidth dl (fromIntegral . B.length $ ctPacked)
+      packLengthWithWidth (fromIntegral . B.length $ ctPacked) dl
       putByteString (B.pack p)
       putByteString ctPacked
   where
@@ -27,7 +27,9 @@ dynamicMetaPack spec meta t =
     m = Meta.metaTypeMap meta
     ctPacked = dynamicPack spec ct
 
-packLengthWithWidth :: Integer -> Integer -> Put
+packLengthWithWidth :: Integer -- length to pack
+                    -> Integer -- width to pack length into
+                    -> Put
 packLengthWithWidth len 1 | 0 <= len && len < 2^(8  :: Integer) = putWord8 (fromIntegral len)
 packLengthWithWidth len 2 | 0 <= len && len < 2^(16 :: Integer) = putWord16le (fromIntegral len)
 packLengthWithWidth len 4 | 0 <= len && len < 2^(32 :: Integer) = putWord32le (fromIntegral len)
