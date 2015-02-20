@@ -1,5 +1,6 @@
 module Cauterize.Dynamic.Unpack
   ( dynamicUnpack
+  , dynamicUnpack'
   ) where
 
 import Cauterize.Dynamic.Types
@@ -15,9 +16,12 @@ import Data.Serialize.IEEE754
 import Data.Serialize.Get
 
 dynamicUnpack :: S.Spec -> B.ByteString -> String -> Either String CautType
-dynamicUnpack s b n =
+dynamicUnpack s b n = flip runGet b $ dynamicUnpack' s n
+
+dynamicUnpack' :: S.Spec -> String -> Get CautType
+dynamicUnpack' s n =
   let m = S.specTypeMap s
-  in do d <- runGet (dynamicUnpackDetails m n) b
+  in do d <- dynamicUnpackDetails m n
         return CautType { ctName = n, ctDetails = d }
 
 dynamicUnpackDetails :: TyMap -> String -> Get CautDetails

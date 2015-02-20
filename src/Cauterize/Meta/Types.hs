@@ -3,6 +3,8 @@ module Cauterize.Meta.Types
   ( Meta(..)
   , MetaType(..)
   , metaFromSpec
+  , metaTypeMap
+  , metaTagMap
   , bytesRequired
   ) where
 
@@ -13,6 +15,7 @@ import Data.Word
 import Data.Data
 import qualified Data.List as L
 import qualified Data.ByteString as B
+import qualified Data.Map as M
 
 data Meta = Meta { metaName :: Name
                  , metaVersion :: Integer
@@ -29,7 +32,6 @@ data Meta = Meta { metaName :: Name
 data MetaType = MetaType { metaTypeName :: Name
                          , metaTypePrefix :: [Word8]
                          } deriving (Show, Eq, Data, Typeable)
-
 
 metaFromSpec :: Spec -> Meta
 metaFromSpec (Spec name version hash (RangeSize _ smax) _ types) =
@@ -50,6 +52,12 @@ metaFromSpec (Spec name version hash (RangeSize _ smax) _ types) =
     typePrefixLength = case typePrefixes of
                           Just (p:_) -> length p
                           _ -> error "Need at least one prefix to determine a prefix length"
+
+metaTypeMap :: Meta -> M.Map Name MetaType
+metaTypeMap Meta { metaTypes = mt } = M.fromList $ map (\t -> (metaTypeName t, t)) mt
+
+metaTagMap :: Meta -> M.Map [Word8] MetaType
+metaTagMap Meta { metaTypes = mt } = M.fromList $ map (\t -> (metaTypePrefix t, t)) mt
 
 bytesRequired :: Word64 -> Integer
 bytesRequired i | (0          <= i) && (i < 256) = 1

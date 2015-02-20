@@ -1,15 +1,9 @@
 module Cauterize.Dynamic
-  ( CautType(..)
-  , CautDetails(..)
-  , BIDetails(..)
-  , Exceptions(..)
-  , FieldValue(..)
-
-  , dynamicPack
-  , dynamicUnpack
+  ( module M
   ) where
 
 
-import Cauterize.Dynamic.Pack
-import Cauterize.Dynamic.Unpack
-import Cauterize.Dynamic.Types
+import Cauterize.Dynamic.Pack as M
+import Cauterize.Dynamic.Unpack as M
+import Cauterize.Dynamic.Types as M
+import Cauterize.Dynamic.Gen as M
