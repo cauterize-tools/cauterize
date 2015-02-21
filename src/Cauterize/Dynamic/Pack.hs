@@ -42,7 +42,7 @@ dynamicPackBuiltIn _ n det =
          BDs8 d -> putWord8 $ fromIntegral d
          BDs16 d -> putWord16le $ fromIntegral d
          BDs32 d -> putWord32le $ fromIntegral d
-         BDs64 d -> putWord32le $ fromIntegral d
+         BDs64 d -> putWord64le $ fromIntegral d
          BDf32 d -> putFloat32le d
          BDf64 d -> putFloat64le d
          BDbool d -> putWord8 $ if d then 1 else 0
