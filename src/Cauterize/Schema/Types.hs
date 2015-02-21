@@ -62,12 +62,17 @@ referredNames (Union t) = referencesOf t
 data SchemaErrors = DuplicateNames [Name]
                   | Cycles [Cycle]
                   | NonExistent [Name]
+                  | DuplicateFields [(Name, Name)]
   deriving (Show)
 
 -- |If checkSchema returns [], then the Schema should be safe to operate on
 -- with any of the methods provided in the Cauterize.Schema module.
 checkSchema :: Schema -> [SchemaErrors]
-checkSchema s@(Schema _ _ ts) = catMaybes [duplicateNames, cycles, nonExistent]
+checkSchema s@(Schema _ _ ts) = catMaybes [ duplicateNames
+                                          , cycles
+                                          , nonExistent
+                                          , duplicateFieldNames
+                                          ]
   where
     tns  = map typeName ts
     duplicateNames = case duplicates tns of
@@ -81,6 +86,9 @@ checkSchema s@(Schema _ _ ts) = catMaybes [duplicateNames, cycles, nonExistent]
                   in case L.toList $ rSet `L.difference` tnSet of
                       [] -> Nothing
                       bn -> Just $ NonExistent bn
+    duplicateFieldNames = case concatMap duplicateFields ts of
+                            [] -> Nothing
+                            df -> Just $ DuplicateFields df
 
 schemaCycles :: Schema -> [Cycle]
 schemaCycles s = typeCycles (map snd $ M.toList tyMap)
@@ -100,6 +108,21 @@ duplicates ins = map fst $ M.toList dups
     dups = M.filter (>1) counts
     counts = foldl insertWith M.empty ins
     insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
+
+duplicateFields :: ScType -> [(Name, Name)]
+duplicateFields t = fieldDups
+  where
+    tn = typeName t
+    names (Fields fs) = map fName fs
+    dups fs = map (\f -> (tn,f)) $ M.keys $ M.filter (> 1) $ countThings (names fs)
+    fieldDups = case t of
+                  Record (TRecord _ fs) -> dups fs
+                  Combination (TCombination _ fs) -> dups fs
+                  Union (TUnion _ fs) -> dups fs
+                  _ -> []
+
+countThings :: (Ord a, Eq a) => [a] -> M.Map a Int
+countThings = foldl (\m t -> M.insertWith (+) t 1 m) M.empty
 
 -- Instances
 
