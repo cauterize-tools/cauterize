@@ -2,6 +2,7 @@
 module TestSupport
   ( TestFailure(..)
   , testSchema
+  , testSuite
   , tf, tp
   , testCase
   , withTestS
@@ -10,6 +11,7 @@ module TestSupport
   ) where
 
 import Control.Exception
+import Control.Monad
 import Data.Data
 import qualified Cauterize.Meta as Meta
 import qualified Cauterize.Schema as Schema
@@ -32,6 +34,13 @@ tf m = throw $ TestFailure m []
 -- Test passes
 tp :: IO ()
 tp = return ()
+
+testSuite :: [IO Int] -> IO (Maybe Int)
+testSuite cs = do
+  failures <- liftM sum $ sequence cs
+  case failures of
+    0 -> return Nothing
+    n -> return (Just n)
 
 -- Run a test case.
 testCase :: String -> IO () -> IO Int
