@@ -104,5 +104,19 @@ test-suite test-suite
   build-depends:       base >=4.7 && <4.8,
                        bytestring,
                        cauterize,
-                       optparse-applicative >=0.11.0.1
+                       hspec >= 2.1.4,
+                       hspec-discover >= 2.1.4
+  default-language:    Haskell2010
+
+test-suite spec
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      tests
+  ghc-options:         -Wall -O2
+  main-is:             Spec.hs
+  build-depends:       base >=4.7 && <4.8,
+                       bytestring,
+                       containers,
+                       hspec >= 2.1.4,
+                       hspec-discover >= 2.1.4,
+                       cauterize
   default-language:    Haskell2010

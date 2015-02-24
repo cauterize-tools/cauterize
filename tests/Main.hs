@@ -7,6 +7,8 @@ import TestSupport
 import Data.Maybe
 import System.Exit
 
+import Test.Hspec
+
 import qualified Suites.ParseSchema
 import qualified Suites.Dynamic
 
