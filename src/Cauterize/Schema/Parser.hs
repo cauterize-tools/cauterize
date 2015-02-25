@@ -14,13 +14,13 @@ import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
 parseFile :: FilePath -> IO (Either ParseError Schema)
-parseFile path = readFile path >>= parseString path
+parseFile path = liftM (parseString path) $ readFile path
 
-parseString :: FilePath -> String -> IO (Either ParseError Schema)
+parseString :: FilePath -> String -> Either ParseError Schema
 parseString path str =
-  return $ case parse parseSchema path str of
-              Left e -> Left e
-              Right s -> Right s
+  case parse parseSchema path str of
+     Left e -> Left e
+     Right s -> Right s
 
 parseSchema :: Parser Schema
 parseSchema = do
