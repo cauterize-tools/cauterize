@@ -9,9 +9,8 @@ import Options.Applicative
 import qualified Data.Text as T
 
 data CrucibleOpts = CrucibleOpts
-  { genCmds :: [T.Text]
-  , buildCmds :: [T.Text]
-  , runCmds :: [T.Text]
+  { buildCmds :: [T.Text]
+  , runCmd :: T.Text
   , schemaCount :: Maybe Int
   , instanceCount :: Maybe Int
   , schemaSize :: Maybe Int
@@ -31,7 +30,7 @@ defaultSchemaSize = 10
 --  %m - the path to the meta file.
 --  %d - the path to the working directory of the crucible command.
 --
--- cauterize-test crucible --generate-cmd="foo --schema=%s --meta=%m --output=%d/cmd"
+-- cauterize-test crucible --build-cmd="foo --schema=%s --meta=%m --output=%d/cmd"
 --                         --build-cmd="cd %d/cmd && cabal build"
 --                         --run-cmd="%d/dist/build/cmd/cmd"
 --                         --schema-count=5
@@ -40,22 +39,18 @@ defaultSchemaSize = 10
 
 crucibleOptions :: Parser CrucibleOpts
 crucibleOptions = CrucibleOpts
-  <$> parseGen
-  <*> parseBuild
+  <$> parseBuild
   <*> parseRun
   <*> parseSchemaCount
   <*> parseInstanceCount
   <*> parseSchemaSize
   where
-    parseGen = some $ option txt ( long "generate-cmd"
-                                <> metavar "GENCMD"
-                                <> help genCmdHelp )
     parseBuild = some $ option txt ( long "build-cmd"
                                   <> metavar "BLDCMD"
                                   <> help buildCmdHelp )
-    parseRun = some $ option txt ( long "run-cmd"
-                                <> metavar "RUNCMD"
-                                <> help runCmdHelp )
+    parseRun = option txt ( long "run-cmd"
+                         <> metavar "RUNCMD"
+                         <> help runCmdHelp )
     parseSchemaCount = optional $ option auto ( long "schema-count"
                                              <> metavar "SCMCNT"
                                              <> help schemaCountHelp )
@@ -66,7 +61,6 @@ crucibleOptions = CrucibleOpts
                                             <> metavar "SCMSIZE"
                                             <> help schemaSizeHelp )
 
-    genCmdHelp = "The command to convert from a specification and meta file into an encoding test client. Can be specified more than once."
     buildCmdHelp = "The command to build the generated test client. Can be specified more than once."
     runCmdHelp = "The command to run the built test client. Can be specified more than once."
     schemaCountHelp = "The number of schemas to test."

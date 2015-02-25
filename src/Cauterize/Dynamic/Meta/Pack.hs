@@ -1,5 +1,6 @@
 module Cauterize.Dynamic.Meta.Pack
   ( dynamicMetaPack
+  , dynamicMetaPackHeaderAndPayload
   ) where
 
 import Cauterize.Dynamic.Meta.Types
@@ -14,12 +15,18 @@ import qualified Data.Map as M
 
 dynamicMetaPack :: Spec.Spec -> Meta.Meta -> MetaType -> B.ByteString
 dynamicMetaPack spec meta t =
+  let (h, p) = dynamicMetaPackHeaderAndPayload spec meta t
+  in h `B.append` p
+
+dynamicMetaPackHeaderAndPayload :: Spec.Spec -> Meta.Meta -> MetaType -> (B.ByteString, B.ByteString)
+dynamicMetaPackHeaderAndPayload spec meta t =
   case tn `M.lookup` m of
     Nothing -> throw $ InvalidType tn
-    Just (Meta.MetaType { Meta.metaTypePrefix = p }) -> runPut $ do
-      packLengthWithWidth (fromIntegral . B.length $ ctPacked) dl
-      putByteString (B.pack p)
-      putByteString ctPacked
+    Just (Meta.MetaType { Meta.metaTypePrefix = p }) ->
+      let h = runPut $ do
+                packLengthWithWidth (fromIntegral . B.length $ ctPacked) dl
+                putByteString (B.pack p)
+      in (h, ctPacked)
   where
     dl = Meta.metaDataLength meta
     ct = unMetaType t

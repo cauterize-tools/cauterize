@@ -19,6 +19,6 @@ spec = do
       let u = dynamicMetaUnpack specification meta p
       case u of
         Left e -> expectationFailure $ "could not unpack dynamically generated type: '" ++ e ++ "'. Type was: " ++ show t ++ ". Bytes were: " ++ show (B.unpack p) ++ "."
-        Right t' -> if t' /= t
-                      then expectationFailure $ "unpacking packed type did not yield equal value: " ++ show t ++ " /= " ++ show t'
-                      else return ()
+        Right (t', b) -> if t' /= t
+                          then expectationFailure $ "unpacking packed type did not yield equal value: " ++ show t ++ " /= " ++ show t'
+                          else 0 `shouldBe` B.length b -- should not be any remaining data

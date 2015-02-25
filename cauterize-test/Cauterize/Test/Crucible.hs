@@ -11,11 +11,14 @@ import Data.Maybe
 import System.Directory
 import System.Exit
 import System.Process
+import System.IO
 import Test.QuickCheck.Gen
 import Text.PrettyPrint.Class
+import qualified Data.ByteString as B
 import qualified Cauterize.Meta as ME
 import qualified Cauterize.Schema as SC
 import qualified Cauterize.Specification as SP
+import qualified Cauterize.Dynamic.Meta as D
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -33,6 +36,11 @@ data RunOutput = RunOutput
   , runExitCode :: ExitCode
   } deriving (Show)
 
+data TestResult = TestPass
+                | TestError { testErrorMessage :: String }
+                | TestFail { testFailExpected :: D.MetaType, testFailActual :: D.MetaType }
+  deriving (Show)
+
 runWasSuccessful :: RunOutput -> Bool
 runWasSuccessful RunOutput { runExitCode = e } = e == ExitSuccess
 
@@ -44,6 +52,7 @@ runCrucible opts = do
       \ix -> inNewDir ("run-" ++ show ix) go
   where
     runCount = fromMaybe defaultSchemaCount (schemaCount opts)
+    instCount = fromMaybe 1 (instanceCount opts)
     go = do
           -- Generate a schema. From this, also compile a specification file and a meta
           -- file. Write them to disk.
@@ -63,15 +72,49 @@ runCrucible opts = do
 
           -- Chain together the commands specified on the command line after expanding
           -- their variables. Print summaries of the commands.
-          let mExpCtx = map (expandCmd ctx)
-          outputs <- dependentCommands $ concat [ mExpCtx . genCmds $ opts
-                                                , mExpCtx . buildCmds $ opts
-                                                , mExpCtx . runCmds $ opts
-                                                ]
-          mapM_ printResult outputs
+          let buildCmds' = map (expandCmd ctx) (buildCmds opts)
+          let runCmd' = expandCmd ctx (runCmd opts)
 
-shellCmd :: T.Text -> IO RunOutput
-shellCmd cmd = do
+          buildOutputs <- runDependentCommands buildCmds'
+
+          if all runWasSuccessful buildOutputs
+            then runCrucibleForSchemaInstance runCmd' spec meta instCount >>= print
+            else putStrLn "Build failure:" >> print (last buildOutputs)
+
+runCrucibleForSchemaInstance :: T.Text -> SP.Spec -> ME.Meta -> Int -> IO [TestResult]
+runCrucibleForSchemaInstance cmd spec meta count = replicateM count $ do
+  (Just stdih, Just stdoh, Just _, ph) <- createProcess shelled
+  result <- runTest stdih stdoh spec meta
+  terminateProcess ph
+  return result
+  where
+    shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
+                                     , std_err = CreatePipe
+                                     , std_in = CreatePipe
+                                     }
+
+
+runTest :: Handle -> Handle -> SP.Spec -> ME.Meta -> IO TestResult
+runTest ih oh spec meta = do
+  mt <- D.dynamicMetaGen spec meta
+  let packed = D.dynamicMetaPack spec meta mt
+  B.hPut ih packed
+  hFlush ih
+  hdr <- liftM (D.dynamicMetaUnpackHeader meta) (B.hGet oh hlen)
+  case hdr of
+    Left err -> return $ TestError err
+    Right (mh, _) -> do
+      payload <- B.hGet oh (fromIntegral . D.metaLength $ mh)
+      return $ case D.dynamicMetaUnpackFromHeader spec meta mh payload of
+                Left str -> TestError { testErrorMessage = str }
+                Right (mt', _) -> if mt /= mt'
+                                    then TestFail { testFailExpected = mt, testFailActual = mt' }
+                                    else TestPass
+  where
+    hlen = fromIntegral $ ME.metaTypeLength meta + ME.metaDataLength meta
+
+runShellCmd :: T.Text -> IO RunOutput
+runShellCmd cmd = do
   (_, Just stdoh, Just stdeh, ph) <- createProcess shelled
   e <- waitForProcess ph
   stdo <- T.hGetContents stdoh
@@ -87,12 +130,12 @@ shellCmd cmd = do
                                      , std_err = CreatePipe
                                      }
 
-dependentCommands :: [T.Text] -> IO [RunOutput]
-dependentCommands [] = return []
-dependentCommands (c:cmds) = do
-  c' <- shellCmd c
+runDependentCommands :: [T.Text] -> IO [RunOutput]
+runDependentCommands [] = return []
+runDependentCommands (c:cmds) = do
+  c' <- runShellCmd c
   if runWasSuccessful c'
-    then liftM (c':) (dependentCommands cmds)
+    then liftM (c':) (runDependentCommands cmds)
     else return [c']
 
 expandCmd :: Context -> T.Text -> T.Text
@@ -118,6 +161,7 @@ aSchema c = generate $ arbSchemaParam allProtoParams c
                                 , ParamVector, ParamRecord
                                 , ParamCombination , ParamUnion ]
 
+{-
 printResult :: RunOutput -> IO ()
 printResult RunOutput { runCmdStr = cs, runStdOut = so, runStdErr = se, runExitCode = ec } =
   case ec of
@@ -129,3 +173,4 @@ printResult RunOutput { runCmdStr = cs, runStdOut = so, runStdErr = se, runExitC
       T.putStr so
       T.putStrLn "## Standard error:"
       T.putStr se
+      -}

@@ -1,5 +1,7 @@
 module Cauterize.Dynamic.Meta.Unpack
   ( dynamicMetaUnpack
+  , dynamicMetaUnpackHeader
+  , dynamicMetaUnpackFromHeader
   ) where
 
 import Cauterize.Dynamic.Types
@@ -13,25 +15,31 @@ import qualified Cauterize.Specification as Spec
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 
-dynamicMetaUnpack :: Spec.Spec -> Meta.Meta -> B.ByteString -> Either String MetaType
-dynamicMetaUnpack spec meta b = flip runGet b $ do
-  let tagLen = fromIntegral $ Meta.metaTypeLength meta
-  let dataLen = fromIntegral $ Meta.metaDataLength meta
-
-  len <- liftM fromIntegral (unpackLengthWithWidth $ fromIntegral dataLen)
-
-  let need = len + tagLen + dataLen
-
-  if B.length b < len + tagLen + dataLen
-    then fail $ "Not enough input bytes. Given: " ++ show len ++ " bytes, but need " ++ show need ++ " bytes."
-    else do
-      tag <- liftM B.unpack $ getByteString tagLen
-      case tag `M.lookup` m of
-        Nothing -> fail $ "Invalid meta tag: " ++ show tag
-        Just (Meta.MetaType { Meta.metaTypeName = n }) -> liftM MetaType (dynamicUnpack' spec n)
+dynamicMetaUnpackHeader :: Meta.Meta -> B.ByteString -> Either String (MetaHeader, B.ByteString)
+dynamicMetaUnpackHeader meta b = runGetState p b 0
   where
+    p = do
+      let tagLen = fromIntegral $ Meta.metaTypeLength meta
+      let dataLen = fromIntegral $ Meta.metaDataLength meta
+
+      len <- liftM fromIntegral (unpackLengthWithWidth dataLen)
+      tag <- liftM B.unpack $ getByteString tagLen
+
+      return $ MetaHeader len tag
+
+dynamicMetaUnpackFromHeader :: Spec.Spec -> Meta.Meta -> MetaHeader -> B.ByteString -> Either String (MetaType, B.ByteString)
+dynamicMetaUnpackFromHeader spec meta (MetaHeader _ tag) b = runGetState p b 0
+  where
+    p = case tag `M.lookup` m of
+          Nothing -> fail $ "Invalid meta tag: " ++ show tag
+          Just (Meta.MetaType { Meta.metaTypeName = n }) -> liftM MetaType (dynamicUnpack' spec n)
     m = Meta.metaTagMap meta
 
+dynamicMetaUnpack :: Spec.Spec -> Meta.Meta -> B.ByteString -> Either String (MetaType, B.ByteString)
+dynamicMetaUnpack spec meta b =
+  case dynamicMetaUnpackHeader meta b of
+    Left err -> Left $ "Failed to unpack meta header:" ++ err
+    Right (mh, remainder) -> dynamicMetaUnpackFromHeader spec meta mh remainder
 
 unpackLengthWithWidth :: Integer -> Get Integer
 unpackLengthWithWidth 1 = liftM fromIntegral getWord8
