@@ -26,7 +26,8 @@
       (field rec_s8  s8)
       (field rec_s16 s16)
       (field rec_s32 s32)
-      (field rec_s64 s64)))
+      (field rec_s64 s64)
+      (field rec_other)))
   (union union_of_float
     (fields
       (field uni_f32 f32)

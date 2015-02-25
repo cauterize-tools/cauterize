@@ -179,7 +179,11 @@ dynamicPackRecordField tym fm (C.Field { C.fName = n, C.fRef = r }) =
 
 -- Skips fields not present in the dynamic field map.
 dynamicPackCombinationField :: TyMap -> M.Map String FieldValue -> C.Field -> Put
-dynamicPackCombinationField _ fm (C.EmptyField { C.fName = n }) = dynamicPackEmptyField fm n
+dynamicPackCombinationField _ fm (C.EmptyField { C.fName = n }) =
+  case n `M.lookup` fm of
+    Just (DataField det) -> unexpectedData n det
+    Just EmptyField -> dynamicPackEmptyField fm n
+    Nothing -> return ()
 dynamicPackCombinationField tym fm (C.Field { C.fName = n, C.fRef = r }) =
   case n `M.lookup` fm of
     Just EmptyField -> unexpectedEmpty n
