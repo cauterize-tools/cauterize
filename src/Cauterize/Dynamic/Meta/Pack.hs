@@ -2,10 +2,10 @@ module Cauterize.Dynamic.Meta.Pack
   ( dynamicMetaPack
   ) where
 
-import Cauterize.Dynamic.Common
 import Cauterize.Dynamic.Meta.Types
 import Cauterize.Dynamic.Pack
 import Cauterize.Dynamic.Types
+import Control.Exception
 import Data.Serialize.Put
 import qualified Cauterize.Meta as Meta
 import qualified Cauterize.Specification as Spec
@@ -15,7 +15,7 @@ import qualified Data.Map as M
 dynamicMetaPack :: Spec.Spec -> Meta.Meta -> MetaType -> B.ByteString
 dynamicMetaPack spec meta t =
   case tn `M.lookup` m of
-    Nothing -> throwInvType $ "The type '" ++ tn ++ "' does not appear in the meta description."
+    Nothing -> throw $ InvalidType tn
     Just (Meta.MetaType { Meta.metaTypePrefix = p }) -> runPut $ do
       packLengthWithWidth (fromIntegral . B.length $ ctPacked) dl
       putByteString (B.pack p)
@@ -34,4 +34,4 @@ packLengthWithWidth len 1 | 0 <= len && len < 2^(8  :: Integer) = putWord8 (from
 packLengthWithWidth len 2 | 0 <= len && len < 2^(16 :: Integer) = putWord16le (fromIntegral len)
 packLengthWithWidth len 4 | 0 <= len && len < 2^(32 :: Integer) = putWord32le (fromIntegral len)
 packLengthWithWidth len 8 | 0 <= len && len < 2^(64 :: Integer) = putWord64le (fromIntegral len)
-packLengthWithWidth len w = throwInvTag $ "Cannot represent the length '" ++ show len ++ "' with a width of '" ++ show w ++ "'."
+packLengthWithWidth len w = throw $ InvalidLengthForLengthWidth len w

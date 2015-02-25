@@ -29,7 +29,7 @@ data CautDetails
   | CDRecord { cdRecordFields :: M.Map String FieldValue }
   | CDCombination { cdCombinationFields :: M.Map String FieldValue }
   | CDUnion { cdUnionFieldName :: String, cdUnionFieldDetails :: FieldValue }
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 data BIDetails = BDu8 Word8
                | BDu16 Word16
@@ -45,23 +45,27 @@ data BIDetails = BDu8 Word8
                | BDcu8 Word8
                | BDcu16 Word16
                | BDcu32 Word32
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 data FieldValue = DataField CautDetails
                 | EmptyField
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Data, Typeable)
 
 type TyMap = M.Map String S.SpType
 
-data Exceptions = TypeMisMatch String
-                | IncorrectArrayLength String
-                | IncorrectVectorLength String
-                | InvalidType String
-                | InvalidTag String
-                | MissingField String
-                | UnexpectedField String
-                | UnexpectedDataField String
-                | UnexpectedEmptyField String
-  deriving (Show, Data, Typeable)
+data Exceptions = TypeMisMatch { tmmExpected :: String, tmmActual :: String }
+                | PrototypeMisMatch { ptmmExpectedType :: String, ptmmDetailType :: String }
+                | IncorrectArrayLength { ialExpected :: Integer, ialActual :: Integer }
+                | IncorrectVectorLength { ivlMaximum :: Integer, ivlActual :: Integer }
+                | InvalidType { invType :: String }
+                | InvalidTagForRepresentation { invTag :: Integer, invRepresentation :: String }
+                | InvalidLengthForLengthWidth { ilflwLength :: Integer, ilflwWidth :: Integer }
+                | InvalidLengthWidth { ilwWidth :: Integer }
+                | NotATagType { invTagType :: String }
+                | MissingField { mfField :: String }
+                | UnexpectedFields { ufFields :: [String] }
+                | UnexpectedDataField { udfField :: String, udfData :: CautDetails }
+                | UnexpectedEmptyField { udfField :: String }
+  deriving (Show, Eq, Data, Typeable)
 
 instance Exception Exceptions

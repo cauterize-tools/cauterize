@@ -4,6 +4,7 @@ module Cauterize.Dynamic.Pack
 
 import Cauterize.Dynamic.Common
 import Cauterize.Dynamic.Types
+import Control.Exception
 import Data.Maybe
 import Data.Serialize.IEEE754
 import Data.Serialize.Put
@@ -33,7 +34,7 @@ dynamicPackDetails m n det =
 dynamicPackBuiltIn :: TyMap -> String -> BIDetails -> Put
 dynamicPackBuiltIn _ n det =
   if not (n `isNameOf` det)
-  then throwTM $ "(" ++ show det ++ ") is not a '" ++ n ++ "'."
+  then throw $ TypeMisMatch n (show det)
   else case det of
          BDu8 d -> putWord8 d
          BDu16 d -> putWord16le d
@@ -56,9 +57,7 @@ dynamicPackSynonym m n det =
       trn = show $ C.synonymRepr . S.unSynonym $ t
   in if isNameOf trn det
       then dynamicPackBuiltIn m trn det
-      else throwTM $ concat [ "'" , n, "' expects a builtin of type '", trn
-                            , "', but was given the following: (" ++ show det ++ ")."
-                            ]
+      else throw $ TypeMisMatch trn (show det)
 
 dynamicPackArray :: TyMap -> String -> [CautDetails] -> Put
 dynamicPackArray m n elems =
@@ -68,9 +67,7 @@ dynamicPackArray m n elems =
       al = C.arrayLen a
       etype = C.arrayRef a
   in if al /= el
-       then throwIAL $ concat [ "'", n, "' expects a length of ", show al
-                              , ", but was given a list of elements ", show el, " long."
-                              ]
+       then throw $ IncorrectArrayLength al el
        else mapM_ (dynamicPackDetails m etype) elems
 
 dynamicPackVector :: TyMap -> String -> [CautDetails] -> Put
@@ -82,9 +79,7 @@ dynamicPackVector m n elems =
       etype = C.vectorRef v
       vlr = S.unLengthRepr $ S.lenRepr t
   in if el > vl
-       then throwIVL $ concat [ "'", n, "' expects a length less than ", show vl
-                              , ", but was given a list of elements ", show el, " long."
-                              ]
+       then throw $ IncorrectVectorLength vl el
        else do dynamicPackTag vlr el
                mapM_ (dynamicPackDetails m etype) elems
 
@@ -115,7 +110,7 @@ dynamicPackUnion m n fn fv = do
   dynamicPackTag fir (C.fIndex field)
   case (field, fv) of
     (C.EmptyField {}, EmptyField) -> return ()
-    (C.EmptyField { C.fName = efn }, DataField _) -> unexpectedData efn
+    (C.EmptyField { C.fName = efn }, DataField d) -> unexpectedData efn d
     (C.Field { C.fRef = r }, DataField fd) -> dynamicPackDetails m r fd
     (C.Field { C.fName = dfn }, EmptyField) -> unexpectedEmpty dfn
   where
@@ -123,7 +118,7 @@ dynamicPackUnion m n fn fv = do
     u = S.unUnion t
     fm = fieldsToNameMap . C.unFields . C.unionFields $ u
     fir = S.unTagRepr . S.tagRepr $ t
-    field = fromMaybe (throwUF $ "the following field is not allowed: " ++ fn)
+    field = fromMaybe (throw $ UnexpectedFields [fn])
                       (fn `M.lookup` fm)
 
 -- Retrieve a type from the map while also ensuring that its type matches some
@@ -136,8 +131,7 @@ checkedTypeLookup :: TyMap -- the map of types from the schema
 checkedTypeLookup m n checker expectedStr =
   let t = n `lu` m
   in if not (checker t)
-        then throwTM $ concat ["'", n, "' does not name an instance of the expected prototype: '"
-                              , expectedStr, "'."]
+        then throw $ PrototypeMisMatch n expectedStr
         else t
 
 -- Validates that the dynamic fields are all found in the specification fields.
@@ -152,7 +146,7 @@ checkedDynamicFields fs dfs a =
       dset = M.keysSet dfs
       diff = dset `Set.difference` fset -- the fields in dset that are not in fset
   in if Set.empty /= diff
-      then throwUF $ "the following fields are not allowed: " ++ (show . Set.toList) diff
+      then throw $ UnexpectedFields (Set.toList diff)
       else a dfs
 
 -- There are 4 tag widths in Cauterize: 8, 16, 32, and 64 bits. This will pack
@@ -165,7 +159,7 @@ dynamicPackTag b v =
     C.BIu16 | v >= 0 && v <= u16Max -> putWord16le (fromIntegral v)
     C.BIu32 | v >= 0 && v <= u32Max -> putWord32le (fromIntegral v)
     C.BIu64 | v >= 0 && v <= u64Max -> putWord64le (fromIntegral v)
-    _ -> throwInvTag $ "'" ++ show b ++ "' cannot be used to represent the tag value " ++ show v ++ "."
+    _ -> throw $ InvalidTagForRepresentation v (show b)
   where
     u8Max, u16Max, u32Max, u64Max :: Integer
     u8Max = 2^(8 :: Integer) - 1
@@ -177,7 +171,7 @@ dynamicPackTag b v =
 dynamicPackRecordField :: TyMap -> M.Map String FieldValue -> C.Field -> Put
 dynamicPackRecordField _ fm (C.EmptyField { C.fName = n }) = dynamicPackEmptyField fm n
 dynamicPackRecordField tym fm (C.Field { C.fName = n, C.fRef = r }) =
-  let det = fromMaybe (throwMF $ "Field map is missing field '" ++ n ++ "'.")
+  let det = fromMaybe (throw $ MissingField n)
                       (n `M.lookup` fm)
   in case det of
     DataField det' -> dynamicPackDetails tym r det'
@@ -193,15 +187,15 @@ dynamicPackCombinationField tym fm (C.Field { C.fName = n, C.fRef = r }) =
     Nothing -> return ()
 
 unexpectedEmpty :: String -> c
-unexpectedEmpty n = throwUEF $ "The field '" ++ n ++ "' expects to be a data field, but an empty field was provided."
+unexpectedEmpty n = throw $ UnexpectedEmptyField n
 
-unexpectedData :: String -> c
-unexpectedData n = throwUDF $ "The field '" ++ n ++ "' does not have associated data, but data was provided."
+unexpectedData :: String -> CautDetails -> c
+unexpectedData n d = throw $ UnexpectedDataField n d
 
 dynamicPackEmptyField :: M.Map String FieldValue -> String -> Put
 dynamicPackEmptyField fm n =
-  let det = fromMaybe (throwMF $ "Field map is missing field '" ++ n ++ "'.")
+  let det = fromMaybe (throw $ MissingField n)
                       (n `M.lookup` fm)
   in case det of
       EmptyField -> return ()
-      DataField _ -> unexpectedData n
+      DataField d -> unexpectedData n d

@@ -5,16 +5,6 @@ module Cauterize.Dynamic.Common
   , fieldsToIndexMap
   , fieldNameSet
 
-  , throwTM
-  , throwIAL
-  , throwIVL
-  , throwInvType
-  , throwInvTag
-  , throwMF
-  , throwUF
-  , throwUDF
-  , throwUEF
-
   , isBuiltIn
   , isSynonym
   , isArray
@@ -33,7 +23,7 @@ import qualified Data.Map as M
 import qualified Data.Set as Set
 
 lu :: String -> TyMap -> S.SpType
-lu n m = fromMaybe (throwInvType $ "'" ++ n ++ "' is not a valid type in the provided map.")
+lu n m = fromMaybe (throw $ InvalidType n)
                    (n `M.lookup` m)
 
 fieldsToNameMap :: [C.Field] -> M.Map String C.Field
@@ -93,30 +83,3 @@ isCombination _ = False
 isUnion :: S.SpType -> Bool
 isUnion (S.Union {}) = True
 isUnion _ = False
-
-throwTM :: String -> c
-throwTM = throw . TypeMisMatch
-
-throwIAL :: String -> c
-throwIAL = throw . IncorrectArrayLength
-
-throwIVL :: String -> c
-throwIVL = throw . IncorrectVectorLength
-
-throwInvType :: String -> c
-throwInvType = throw . InvalidType
-
-throwInvTag :: String -> c
-throwInvTag = throw . InvalidTag
-
-throwMF :: String -> c
-throwMF = throw . MissingField
-
-throwUF :: String -> c
-throwUF = throw . UnexpectedField
-
-throwUDF :: String -> c
-throwUDF = throw . UnexpectedDataField
-
-throwUEF :: String -> c
-throwUEF = throw . UnexpectedEmptyField

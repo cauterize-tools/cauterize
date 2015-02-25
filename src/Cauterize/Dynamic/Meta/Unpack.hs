@@ -2,9 +2,10 @@ module Cauterize.Dynamic.Meta.Unpack
   ( dynamicMetaUnpack
   ) where
 
-import Cauterize.Dynamic.Common
+import Cauterize.Dynamic.Types
 import Cauterize.Dynamic.Meta.Types
 import Cauterize.Dynamic.Unpack
+import Control.Exception
 import Control.Monad
 import Data.Serialize.Get
 import qualified Cauterize.Meta as Meta
@@ -26,7 +27,7 @@ dynamicMetaUnpack spec meta b = flip runGet b $ do
     else do
       tag <- liftM B.unpack $ getByteString tagLen
       case tag `M.lookup` m of
-        Nothing -> throwInvTag $ "Invalid meta tag: " ++ show tag
+        Nothing -> fail $ "Invalid meta tag: " ++ show tag
         Just (Meta.MetaType { Meta.metaTypeName = n }) -> liftM MetaType (dynamicUnpack' spec n)
   where
     m = Meta.metaTagMap meta
@@ -37,4 +38,4 @@ unpackLengthWithWidth 1 = liftM fromIntegral getWord8
 unpackLengthWithWidth 2 = liftM fromIntegral getWord16le
 unpackLengthWithWidth 4 = liftM fromIntegral getWord32le
 unpackLengthWithWidth 8 = liftM fromIntegral getWord64le
-unpackLengthWithWidth w = throwInvTag $ "Cannot represent a length that is '" ++ show w ++ "' bytes wide."
+unpackLengthWithWidth w = throw $ InvalidLengthWidth w

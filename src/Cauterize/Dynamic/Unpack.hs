@@ -5,6 +5,7 @@ module Cauterize.Dynamic.Unpack
 
 import Cauterize.Dynamic.Types
 import Cauterize.Dynamic.Common
+import Control.Exception
 import Control.Monad
 import Data.Bits
 import qualified Data.Map as M
@@ -15,8 +16,8 @@ import qualified Data.ByteString as B
 import Data.Serialize.IEEE754
 import Data.Serialize.Get
 
-dynamicUnpack :: S.Spec -> B.ByteString -> String -> Either String CautType
-dynamicUnpack s b n = flip runGet b $ dynamicUnpack' s n
+dynamicUnpack :: S.Spec -> String -> B.ByteString -> Either String CautType
+dynamicUnpack s n b = flip runGet b $ dynamicUnpack' s n
 
 dynamicUnpack' :: S.Spec -> String -> Get CautType
 dynamicUnpack' s n =
@@ -112,4 +113,4 @@ unpackTag C.BIu8  = liftM fromIntegral getWord8
 unpackTag C.BIu16 = liftM fromIntegral getWord16le
 unpackTag C.BIu32 = liftM fromIntegral getWord32le
 unpackTag C.BIu64 = liftM fromIntegral getWord64le
-unpackTag b = throwInvTag $ "'" ++ show b ++ "' cannot be used to represent a tag."
+unpackTag b = throw $ NotATagType (show b)
