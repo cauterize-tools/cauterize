@@ -54,7 +54,7 @@ data FieldValue = DataField CautDetails
 type TyMap = M.Map String S.SpType
 
 data Exceptions = TypeMisMatch { tmmExpected :: String, tmmActual :: String }
-                | PrototypeMisMatch { ptmmExpectedType :: String, ptmmDetailType :: String }
+                | PrototypeMisMatch { ptmmTypeName :: String, ptmmDetailType :: String }
                 | IncorrectArrayLength { ialExpected :: Integer, ialActual :: Integer }
                 | IncorrectVectorLength { ivlMaximum :: Integer, ivlActual :: Integer }
                 | InvalidType { invType :: String }

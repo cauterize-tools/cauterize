@@ -1,63 +1,39 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module TestSupport
-  ( TestFailure(..)
+  ( SchemaFailure(..)
   , testSchema
-  , testSuite
-  , tf, tp
-  , testCase
-  , withTestS
-  , withTestSS
-  , withTestSSM
+
+  , itWithSpec
+  , itWithSpecAndMeta
   ) where
 
+import Test.Hspec
+
 import Control.Exception
-import Control.Monad
 import Data.Data
 import qualified Cauterize.Meta as Meta
 import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
 
+itWithSpec :: String -> (Spec.Spec -> IO ()) -> SpecWith ()
+itWithSpec s a = it s $ withTestSS $ \_ specification -> a specification
+
+itWithSpecAndMeta :: String -> (Spec.Spec -> Meta.Meta -> IO ()) -> SpecWith ()
+itWithSpecAndMeta s a = it s $ withTestSSM $ \_ specification meta -> a specification meta
+
 -- Data type to encompass failures.
-data TestFailure = TestFailure { tfMessage :: String
-                               , tfOtherInfo :: [String]
-                               }
+data SchemaFailure = SchemaFailure { tfMessage :: String
+                                   , tfOtherInfo :: [String]
+                                   }
   deriving (Show, Data, Typeable)
-instance Exception TestFailure
+instance Exception SchemaFailure
 
 testSchema :: FilePath
 testSchema = "tests/test_schema.txt"
 
 -- Throw a test failure.
 tf :: String -> c
-tf m = throw $ TestFailure m []
-
--- Test passes
-tp :: IO ()
-tp = return ()
-
-testSuite :: [IO Int] -> IO (Maybe Int)
-testSuite cs = do
-  failures <- liftM sum $ sequence cs
-  case failures of
-    0 -> return Nothing
-    n -> return (Just n)
-
--- Run a test case.
-testCase :: String -> IO () -> IO Int
-testCase n a = runCase `catch` handler
-  where
-    runCase :: IO Int
-    runCase = a >> return 0
-
-    handler :: TestFailure -> IO Int
-    handler (TestFailure { tfMessage = m, tfOtherInfo = oi }) = do
-      putStrLn $ "FAILURE: " ++ n
-      putStrLn m
-      case oi of
-        [] -> return 1
-        _ -> do putStrLn "OTHER INFO:"
-                mapM_ putStrLn oi
-                return 1
+tf m = throw $ SchemaFailure m []
 
 withTestS :: (Schema.Schema -> IO ()) -> IO ()
 withTestS f = do
@@ -80,5 +56,5 @@ withTestSSM f = withTestSS go
     go schema spec = let meta = Meta.metaFromSpec spec
                      in f schema spec meta `catch` reThrow ("Meta was:\n" ++ show (Meta.prettyMeta meta))
 
-reThrow :: String -> TestFailure -> c
-reThrow msg (TestFailure m mm) = throw (TestFailure m (msg:mm))
+reThrow :: String -> SchemaFailure -> c
+reThrow msg (SchemaFailure m mm) = throw (SchemaFailure m (msg:mm))
