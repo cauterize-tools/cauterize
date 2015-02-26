@@ -30,11 +30,11 @@ data Context = Context
   , currentDir :: T.Text
   } deriving (Show)
 
-data RunOutput = RunOutput
-  { runCmdStr :: T.Text
-  , runStdOut :: T.Text
-  , runStdErr :: T.Text
-  , runExitCode :: ExitCode
+data BuildCmdOutput = BuildCmdOutput
+  { buildCmdStr :: T.Text
+  , buildStdOut :: T.Text
+  , buildStdErr :: T.Text
+  , buildExitCode :: ExitCode
   } deriving (Show)
 
 data TestOutput = TestOutput TestResult String B.ByteString D.MetaType
@@ -45,22 +45,27 @@ data TestResult = TestPass
                 | TestFail
   deriving (Show)
 
-runWasSuccessful :: RunOutput -> Bool
-runWasSuccessful RunOutput { runExitCode = e } = e == ExitSuccess
-
 runCrucible :: CrucibleOpts -> IO ()
 runCrucible opts = do
   putStrLn $ "Generating " ++ show runCount ++ " schemas and testing " ++ show instCount ++ " instances from each."
   t <- round `fmap` getPOSIXTime :: IO Integer
   failCounts <- inNewDir ("crucible-" ++ show t) $
                   forM ([0..runCount-1] :: [Int]) $
-                    \ix -> inNewDir ("run-" ++ show ix) go
+                    \ix -> inNewDir ("schema-" ++ show ix) go
   case sum failCounts of
     0 -> exitSuccess
     n -> exitWith (ExitFailure n)
   where
     runCount = fromMaybe defaultSchemaCount (schemaCount opts)
     instCount = fromMaybe defaultInstanceCount (instanceCount opts)
+
+    -- Creates a schema of the specified size.
+    aSchema :: Int -> IO SC.Schema
+    aSchema c = generate $ arbSchemaParam allProtoParams c
+    allProtoParams = S.fromList [ ParamSynonym, ParamArray
+                                , ParamVector, ParamRecord
+                                , ParamCombination , ParamUnion ]
+
     go = do
           -- Generate a schema. From this, also compile a specification file and a meta
           -- file. Write them to disk.
@@ -78,17 +83,91 @@ runCrucible opts = do
                                 (return "meta.txt")
                                 (liftM T.pack getCurrentDirectory)
 
-          -- Chain together the commands specified on the command line after expanding
-          -- their variables. Print summaries of the commands.
+          -- Chain together the commands specified on the command line after
+          -- expanding their variables. Run the commands in order. If any
+          -- command fails in the build sequence, the remaining commands will
+          -- not be run.
           let buildCmds' = map (expandCmd ctx) (buildCmds opts)
           let runCmd' = expandCmd ctx (runCmd opts)
 
           buildOutputs <- runDependentCommands buildCmds'
 
+          -- If all the build commands are successful, go ahead and run several
+          -- binary instances conforming to the schema against the generated
+          -- code under test.
+          --
+          -- If anything failed, print a summary of the failure.
           if all runWasSuccessful buildOutputs
-            then runCrucibleForSchemaInstance runCmd' spec meta instCount >>= renderResults
+            then testCmdWithSchemaInstances runCmd' spec meta instCount >>= renderResults
             else putStrLn "Build failure:" >> printResult (last buildOutputs) >> return 1
 
+-- | Run each command in order. If any command fails, do not run the remaining
+-- commands.
+runDependentCommands :: [T.Text] -> IO [BuildCmdOutput]
+runDependentCommands [] = return []
+runDependentCommands (c:cmds) = do
+  c' <- runBuildCmd c
+  if runWasSuccessful c'
+    then liftM (c':) (runDependentCommands cmds)
+    else return [c']
+
+-- | Convenience function that evaluates to True when a RunOutput represents a
+-- successful termination.
+runWasSuccessful :: BuildCmdOutput -> Bool
+runWasSuccessful BuildCmdOutput { buildExitCode = e } = e == ExitSuccess
+
+-- | Run the specified text as a build command. Package the outputs.
+runBuildCmd :: T.Text -> IO BuildCmdOutput
+runBuildCmd cmd = do
+  (_, Just stdoh, Just stdeh, ph) <- createProcess shelled
+  e <- waitForProcess ph
+  stdo <- T.hGetContents stdoh
+  stde <- T.hGetContents stdeh
+
+  return BuildCmdOutput { buildCmdStr = cmd
+                        , buildStdOut = stdo
+                        , buildStdErr = stde
+                        , buildExitCode = e
+                        }
+  where
+    shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
+                                     , std_err = CreatePipe
+                                     }
+
+-- Tests the ability of an executable to transcode an instance of a type from
+-- the schema that correstponds to the passed specification and meta file.
+--
+-- One instance is tested per invocation of the process.
+--
+-- NOTE: currently there is no timeout. If the child process hangs, everything
+-- hangs.
+--
+-- TODO: come up with timeout mechanism.
+testCmdWithSchemaInstances :: T.Text  -- ^ the path to the exectuable to test
+                           -> SP.Spec -- ^ the specification from which to generate the instance
+                           -> ME.Meta -- ^ the meta file from which to generate the instance
+                           -> Int     -- ^ how many instances to test
+                           -> IO [TestOutput]
+testCmdWithSchemaInstances cmd spec meta count = replicateM count $ do
+  -- Create the process. Grab its stdin and stdout.
+  (Just stdih, Just stdoh, Just stdeh, ph) <- createProcess shelled
+  (result, unpacked, packed) <- runTest stdih stdoh spec meta
+
+  -- Wait for the process to terminate, collect the result of stdout, package
+  -- everything up properly according to the exit status of the process.
+  e <- waitForProcess ph
+  errorOutput <- hGetContents stdeh
+  r <- case e of
+          ExitSuccess -> return result
+          ExitFailure c -> return TestError { testErrorMessage = "Client process exited with failure code: " ++ show c }
+  return (TestOutput r errorOutput packed unpacked)
+  where
+    shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
+                                     , std_err = CreatePipe
+                                     , std_in = CreatePipe
+                                     }
+
+-- Do something pretty with a list of TestOutput types.
 renderResults :: [TestOutput] -> IO Int
 renderResults rs = go rs 0
   where
@@ -110,25 +189,26 @@ renderResults rs = go rs 0
                        putStrLn $ "Standard error output: " ++ e
                        putStrLn $ "Show metatype: " ++ show mt
 
-runCrucibleForSchemaInstance :: T.Text -> SP.Spec -> ME.Meta -> Int -> IO [TestOutput]
-runCrucibleForSchemaInstance cmd spec meta count = replicateM count $ do
-  -- Create the process. Grab its stdin and stdout.
-  (Just stdih, Just stdoh, Just stdeh, ph) <- createProcess shelled
-  (result, unpacked, packed) <- runTest stdih stdoh spec meta
-  e <- waitForProcess ph
-  errorOutput <- hGetContents stdeh
-  r <- case e of
-          ExitSuccess -> return result
-          ExitFailure c -> return TestError { testErrorMessage = "Client process exited with failure code: " ++ show c }
-  return (TestOutput r errorOutput packed unpacked)
-  where
-    shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
-                                     , std_err = CreatePipe
-                                     , std_in = CreatePipe
-                                     }
+-- Output the result of a build command.
+printResult :: BuildCmdOutput -> IO ()
+printResult BuildCmdOutput { buildCmdStr = cs, buildStdOut = so, buildStdErr = se, buildExitCode = ec } =
+  case ec of
+    ExitSuccess -> T.putStrLn "SUCCESS"
+    ExitFailure c -> do
+      T.putStrLn $ "FAILED: " `T.append` (T.pack . show) c
+      T.putStrLn $ "## Command String: " `T.append` cs
+      T.putStrLn "## Standard output:"
+      T.putStr so
+      T.putStrLn "## Standard error:"
+      T.putStr se
 
 
-runTest :: Handle -> Handle -> SP.Spec -> ME.Meta -> IO (TestResult, D.MetaType, B.ByteString)
+-- Run a single test against a binary instance of a schema.
+runTest :: Handle -- ^ stdin of the process under test
+        -> Handle -- ^ stdout of the process under test
+        -> SP.Spec -- ^ specification derived from the schema under test
+        -> ME.Meta -- ^ meta from the specification that MUST be the previous arugument (sorry)
+        -> IO (TestResult, D.MetaType, B.ByteString)
 runTest ih oh spec meta = do
   -- Generate a type according to the specification, then pack it to binary.
   mt <- D.dynamicMetaGen spec meta
@@ -139,11 +219,19 @@ runTest ih oh spec meta = do
   let packedLen = fromIntegral $ B.length packed
   let specMaxLen = SP.maxSize $ SP.specSize spec
   when (packedLen > (specMaxLen + fromIntegral hlen))
-       (error $ "LENGTH OF BS TOO LONG! Expected " ++ show packedLen ++ " to be less than " ++ show specMaxLen ++ ".")
+       (error $ "LENGTH OF BS TOO LONG! Expected "
+             ++ show packedLen
+             ++ " to be less than "
+             ++ show specMaxLen ++ ".")
 
-  -- Setup a thread to do the writing.
+  -- Setup a *THREAD* to do write the encoded type to the process-under-test's
+  -- stdin. This is in a separate thread because it's likely we can deadlock
+  -- for larger types due to OS buffering rules.
   encodeDone <- newEmptyMVar
-  _ <- forkFinally (encoder packed encodeDone) (\_ -> putMVar encodeDone ())
+  _ <- flip forkFinally (\_ -> putMVar encodeDone ()) $ do
+      B.hPut ih packed
+      hClose ih
+      putMVar encodeDone ()
 
   -- Begin decoding from the process' stdout.
   hdrBytes <- B.hGet oh hlen
@@ -166,8 +254,10 @@ runTest ih oh spec meta = do
                                              | otherwise -> if mt /= mt'
                                                               then TestFail
                                                               else TestPass
+  -- Make sure the encoding thread is finished.
   _ <- takeMVar encodeDone
 
+  -- Dump something on the console to represent the running state.
   case result of
     TestPass -> putStr "."
     _ -> putStr "X"
@@ -176,36 +266,8 @@ runTest ih oh spec meta = do
   return (result, mt, packed)
   where
     hlen = fromIntegral $ ME.metaTypeLength meta + ME.metaDataLength meta
-    encoder packed done = do
-      B.hPut ih packed
-      hClose ih
-      putMVar done ()
 
-runShellCmd :: T.Text -> IO RunOutput
-runShellCmd cmd = do
-  (_, Just stdoh, Just stdeh, ph) <- createProcess shelled
-  e <- waitForProcess ph
-  stdo <- T.hGetContents stdoh
-  stde <- T.hGetContents stdeh
-
-  return RunOutput { runCmdStr = cmd
-                   , runStdOut = stdo
-                   , runStdErr = stde
-                   , runExitCode = e
-                   }
-  where
-    shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
-                                     , std_err = CreatePipe
-                                     }
-
-runDependentCommands :: [T.Text] -> IO [RunOutput]
-runDependentCommands [] = return []
-runDependentCommands (c:cmds) = do
-  c' <- runShellCmd c
-  if runWasSuccessful c'
-    then liftM (c':) (runDependentCommands cmds)
-    else return [c']
-
+-- Use a context to expand variables in a command.
 expandCmd :: Context -> T.Text -> T.Text
 expandCmd ctx cmd = repSpecPath . repMetaPath . repDirPath $ cmd
   where
@@ -213,31 +275,13 @@ expandCmd ctx cmd = repSpecPath . repMetaPath . repDirPath $ cmd
     repMetaPath = T.replace "%m" (metaPath ctx)
     repDirPath = T.replace "%d" (currentDir ctx)
 
+-- Create a directory, and perform an IO action with that new directory as the
+-- working directory of the IO action.
 inNewDir :: String -> IO a -> IO a
 inNewDir name a = do
   cd <- getCurrentDirectory
-  putStrLn $ "Creating directory " ++ name
   createDirectory name
   setCurrentDirectory name
   a' <- a
   setCurrentDirectory cd
   return a'
-
-aSchema :: Int -> IO SC.Schema
-aSchema c = generate $ arbSchemaParam allProtoParams c
-  where
-    allProtoParams = S.fromList [ ParamSynonym, ParamArray
-                                , ParamVector, ParamRecord
-                                , ParamCombination , ParamUnion ]
-
-printResult :: RunOutput -> IO ()
-printResult RunOutput { runCmdStr = cs, runStdOut = so, runStdErr = se, runExitCode = ec } =
-  case ec of
-    ExitSuccess -> T.putStrLn "SUCCESS"
-    ExitFailure c -> do
-      T.putStrLn $ "FAILED: " `T.append` (T.pack . show) c
-      T.putStrLn $ "## Command String: " `T.append` cs
-      T.putStrLn "## Standard output:"
-      T.putStr so
-      T.putStrLn "## Standard error:"
-      T.putStr se
