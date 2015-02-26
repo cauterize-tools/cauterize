@@ -59,7 +59,7 @@ library
 -- schemas into specifications.
 executable cauterize
   hs-source-dirs:      cauterize-cmd
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -O2 -threaded
   main-is:             Main.hs
   build-depends:       base >=4.6 && <4.8,
                        cauterize,
@@ -71,7 +71,7 @@ executable cauterize
 -- of types.
 executable cauterize-test
   hs-source-dirs:      cauterize-test
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -O2 -threaded
   main-is:             Main.hs
   build-depends:       base >=4.6 && <4.8,
                        cauterize,
@@ -89,7 +89,7 @@ executable cauterize-test
 
 executable cauterize-meta
   hs-source-dirs:      cauterize-meta
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -O2 -threaded
   main-is:             Main.hs
   build-depends:       base >=4.7 && <4.8,
                        cauterize,
@@ -99,7 +99,7 @@ executable cauterize-meta
 test-suite spec
   type:                exitcode-stdio-1.0
   hs-source-dirs:      tests
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -O2 -threaded
   main-is:             Spec.hs
   other-modules:       TestSupport,
                        Cauterize.Dynamic.MetaSpec,

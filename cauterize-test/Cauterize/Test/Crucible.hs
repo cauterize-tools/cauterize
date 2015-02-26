@@ -37,9 +37,12 @@ data RunOutput = RunOutput
   , runExitCode :: ExitCode
   } deriving (Show)
 
+data TestOutput = TestOutput TestResult String B.ByteString D.MetaType
+  deriving (Show)
+
 data TestResult = TestPass
                 | TestError { testErrorMessage :: String }
-                | TestFail { testFailEncoded :: B.ByteString  }
+                | TestFail
   deriving (Show)
 
 runWasSuccessful :: RunOutput -> Bool
@@ -47,13 +50,17 @@ runWasSuccessful RunOutput { runExitCode = e } = e == ExitSuccess
 
 runCrucible :: CrucibleOpts -> IO ()
 runCrucible opts = do
+  putStrLn $ "Generating " ++ show runCount ++ " schemas and testing " ++ show instCount ++ " instances from each."
   t <- round `fmap` getPOSIXTime :: IO Integer
-  inNewDir ("crucible-" ++ show t) $
-    forM_ ([0..runCount-1] :: [Int]) $
-      \ix -> inNewDir ("run-" ++ show ix) go
+  failCounts <- inNewDir ("crucible-" ++ show t) $
+                  forM ([0..runCount-1] :: [Int]) $
+                    \ix -> inNewDir ("run-" ++ show ix) go
+  case sum failCounts of
+    0 -> exitSuccess
+    n -> exitWith (ExitFailure n)
   where
     runCount = fromMaybe defaultSchemaCount (schemaCount opts)
-    instCount = fromMaybe 1 (instanceCount opts)
+    instCount = fromMaybe defaultInstanceCount (instanceCount opts)
     go = do
           -- Generate a schema. From this, also compile a specification file and a meta
           -- file. Write them to disk.
@@ -79,33 +86,41 @@ runCrucible opts = do
           buildOutputs <- runDependentCommands buildCmds'
 
           if all runWasSuccessful buildOutputs
-            then runCrucibleForSchemaInstance runCmd' spec meta instCount >>= renderResults opts
-            else putStrLn "Build failure:" >> printResult (last buildOutputs)
+            then runCrucibleForSchemaInstance runCmd' spec meta instCount >>= renderResults
+            else putStrLn "Build failure:" >> printResult (last buildOutputs) >> return 1
 
-renderResults :: CrucibleOpts -> [TestResult] -> IO ()
-renderResults opts rs = go rs 0
+renderResults :: [TestOutput] -> IO Int
+renderResults rs = go rs 0
   where
-    denomStr = "(" ++ show (schemaCount opts) ++ "*" ++ show (instanceCount opts) ++ ")"
-    successStr = "Success! 0/" ++ denomStr ++ " instances had problems."
-    failStr n = "FAIL FAIL FAIL! " ++ show n ++ "/" ++ denomStr ++ " instances had problems."
+    successStr = "\nSchema success!"
+    failStr n = "\nSCHEMA HAD " ++ show n ++ "FAILURES!"
 
-    go [] 0 = putStrLn successStr >> exitSuccess
-    go [] n = putStrLn (failStr n) >> exitWith (ExitFailure n)
-    go (t:rest) failures = case t of
-                              TestPass -> go rest failures
-                              TestError m -> printErr m >> go rest (failures + 1)
-                              TestFail b -> printFail b >> go rest (failures + 1)
+    go [] 0 = putStrLn successStr >> return 0
+    go [] n = putStrLn (failStr n) >> return n
+    go (TestOutput t e b mt:rest) failures = case t of
+                                              TestPass -> go rest failures
+                                              TestError m -> printErr m >> go rest (failures + 1)
+                                              TestFail -> printFail >> go rest (failures + 1)
+      where
+        printErr m = do putStrLn $ "Error: " ++ m
+                        putStrLn $ "Error encoded bytes: " ++ (show . B.unpack) b
+                        putStrLn $ "Standard error output: " ++ e
+                        putStrLn $ "Show metatype: " ++ show mt
+        printFail = do putStrLn $ "Failure for encoded bytes: " ++ (show . B.unpack) b
+                       putStrLn $ "Standard error output: " ++ e
+                       putStrLn $ "Show metatype: " ++ show mt
 
-    printErr e = putStrLn $ "Error: " ++ e
-    printFail b = putStrLn $ "Failure for encoded bytes: " ++ (show . B.unpack) b
-
-runCrucibleForSchemaInstance :: T.Text -> SP.Spec -> ME.Meta -> Int -> IO [TestResult]
+runCrucibleForSchemaInstance :: T.Text -> SP.Spec -> ME.Meta -> Int -> IO [TestOutput]
 runCrucibleForSchemaInstance cmd spec meta count = replicateM count $ do
   -- Create the process. Grab its stdin and stdout.
-  (Just stdih, Just stdoh, Just _, ph) <- createProcess shelled
-  result <- runTest stdih stdoh spec meta
-  _ <- waitForProcess ph
-  return result
+  (Just stdih, Just stdoh, Just stdeh, ph) <- createProcess shelled
+  (result, unpacked, packed) <- runTest stdih stdoh spec meta
+  e <- waitForProcess ph
+  errorOutput <- hGetContents stdeh
+  r <- case e of
+          ExitSuccess -> return result
+          ExitFailure c -> return TestError { testErrorMessage = "Client process exited with failure code: " ++ show c }
+  return (TestOutput r errorOutput packed unpacked)
   where
     shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
                                      , std_err = CreatePipe
@@ -113,18 +128,27 @@ runCrucibleForSchemaInstance cmd spec meta count = replicateM count $ do
                                      }
 
 
-runTest :: Handle -> Handle -> SP.Spec -> ME.Meta -> IO TestResult
+runTest :: Handle -> Handle -> SP.Spec -> ME.Meta -> IO (TestResult, D.MetaType, B.ByteString)
 runTest ih oh spec meta = do
   -- Generate a type according to the specification, then pack it to binary.
   mt <- D.dynamicMetaGen spec meta
   let packed = D.dynamicMetaPack spec meta mt
+
+  -- We keep this here as a sanity check. If this hits, it *IS* an error. We
+  -- don't want to continue if this happens. Ever.
+  let packedLen = fromIntegral $ B.length packed
+  let specMaxLen = SP.maxSize $ SP.specSize spec
+  when (packedLen > (specMaxLen + fromIntegral hlen))
+       (error $ "LENGTH OF BS TOO LONG! Expected " ++ show packedLen ++ " to be less than " ++ show specMaxLen ++ ".")
 
   -- Setup a thread to do the writing.
   encodeDone <- newEmptyMVar
   _ <- forkFinally (encoder packed encodeDone) (\_ -> putMVar encodeDone ())
 
   -- Begin decoding from the process' stdout.
-  hdr <- liftM (D.dynamicMetaUnpackHeader meta) (B.hGet oh hlen)
+  hdrBytes <- B.hGet oh hlen
+  let hdr = D.dynamicMetaUnpackHeader meta hdrBytes
+
   result <- case hdr of
               -- Unable to unpack the header.
               Left err -> return $ TestError err
@@ -140,10 +164,16 @@ runTest ih oh spec meta = do
                           Right (mt', rest ) | not (B.null rest) -> TestError { testErrorMessage =
                                                                       "Not all bytes were consumed: " ++ (show . B.unpack) rest }
                                              | otherwise -> if mt /= mt'
-                                                              then TestFail { testFailEncoded = packed }
+                                                              then TestFail
                                                               else TestPass
   _ <- takeMVar encodeDone
-  return result
+
+  case result of
+    TestPass -> putStr "."
+    _ -> putStr "X"
+  hFlush stdout
+
+  return (result, mt, packed)
   where
     hlen = fromIntegral $ ME.metaTypeLength meta + ME.metaDataLength meta
     encoder packed done = do
@@ -186,6 +216,7 @@ expandCmd ctx cmd = repSpecPath . repMetaPath . repDirPath $ cmd
 inNewDir :: String -> IO a -> IO a
 inNewDir name a = do
   cd <- getCurrentDirectory
+  putStrLn $ "Creating directory " ++ name
   createDirectory name
   setCurrentDirectory name
   a' <- a
