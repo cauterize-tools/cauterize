@@ -45,7 +45,7 @@ crucibleOptions = CrucibleOpts
   <*> parseInstanceCount
   <*> parseSchemaSize
   where
-    parseBuild = some $ option txt ( long "build-cmd"
+    parseBuild = many $ option txt ( long "build-cmd"
                                   <> metavar "BLDCMD"
                                   <> help buildCmdHelp )
     parseRun = option txt ( long "run-cmd"

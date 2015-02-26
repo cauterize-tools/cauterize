@@ -5,6 +5,7 @@ module Cauterize.Test.Crucible
 
 import Cauterize.Schema.Arbitrary
 import Cauterize.Test.Crucible.Options
+import Control.Concurrent
 import Control.Monad
 import Data.Time.Clock.POSIX
 import Data.Maybe
@@ -38,7 +39,7 @@ data RunOutput = RunOutput
 
 data TestResult = TestPass
                 | TestError { testErrorMessage :: String }
-                | TestFail { testFailExpected :: D.MetaType, testFailActual :: D.MetaType }
+                | TestFail { testFailEncoded :: B.ByteString  }
   deriving (Show)
 
 runWasSuccessful :: RunOutput -> Bool
@@ -78,14 +79,32 @@ runCrucible opts = do
           buildOutputs <- runDependentCommands buildCmds'
 
           if all runWasSuccessful buildOutputs
-            then runCrucibleForSchemaInstance runCmd' spec meta instCount >>= print
-            else putStrLn "Build failure:" >> print (last buildOutputs)
+            then runCrucibleForSchemaInstance runCmd' spec meta instCount >>= renderResults opts
+            else putStrLn "Build failure:" >> printResult (last buildOutputs)
+
+renderResults :: CrucibleOpts -> [TestResult] -> IO ()
+renderResults opts rs = go rs 0
+  where
+    denomStr = "(" ++ show (schemaCount opts) ++ "*" ++ show (instanceCount opts) ++ ")"
+    successStr = "Success! 0/" ++ denomStr ++ " instances had problems."
+    failStr n = "FAIL FAIL FAIL! " ++ show n ++ "/" ++ denomStr ++ " instances had problems."
+
+    go [] 0 = putStrLn successStr >> exitSuccess
+    go [] n = putStrLn (failStr n) >> exitWith (ExitFailure n)
+    go (t:rest) failures = case t of
+                              TestPass -> go rest failures
+                              TestError m -> printErr m >> go rest (failures + 1)
+                              TestFail b -> printFail b >> go rest (failures + 1)
+
+    printErr e = putStrLn $ "Error: " ++ e
+    printFail b = putStrLn $ "Failure for encoded bytes: " ++ (show . B.unpack) b
 
 runCrucibleForSchemaInstance :: T.Text -> SP.Spec -> ME.Meta -> Int -> IO [TestResult]
 runCrucibleForSchemaInstance cmd spec meta count = replicateM count $ do
+  -- Create the process. Grab its stdin and stdout.
   (Just stdih, Just stdoh, Just _, ph) <- createProcess shelled
   result <- runTest stdih stdoh spec meta
-  terminateProcess ph
+  _ <- waitForProcess ph
   return result
   where
     shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
@@ -96,22 +115,41 @@ runCrucibleForSchemaInstance cmd spec meta count = replicateM count $ do
 
 runTest :: Handle -> Handle -> SP.Spec -> ME.Meta -> IO TestResult
 runTest ih oh spec meta = do
+  -- Generate a type according to the specification, then pack it to binary.
   mt <- D.dynamicMetaGen spec meta
   let packed = D.dynamicMetaPack spec meta mt
-  B.hPut ih packed
-  hFlush ih
+
+  -- Setup a thread to do the writing.
+  encodeDone <- newEmptyMVar
+  _ <- forkFinally (encoder packed encodeDone) (\_ -> putMVar encodeDone ())
+
+  -- Begin decoding from the process' stdout.
   hdr <- liftM (D.dynamicMetaUnpackHeader meta) (B.hGet oh hlen)
-  case hdr of
-    Left err -> return $ TestError err
-    Right (mh, _) -> do
-      payload <- B.hGet oh (fromIntegral . D.metaLength $ mh)
-      return $ case D.dynamicMetaUnpackFromHeader spec meta mh payload of
-                Left str -> TestError { testErrorMessage = str }
-                Right (mt', _) -> if mt /= mt'
-                                    then TestFail { testFailExpected = mt, testFailActual = mt' }
-                                    else TestPass
+  result <- case hdr of
+              -- Unable to unpack the header.
+              Left err -> return $ TestError err
+
+              -- Got a header.
+              Right (mh, _) -> do
+                -- Read the payload bytes.
+                payload <- B.hGet oh (fromIntegral . D.metaLength $ mh)
+
+                -- Try to unpack the types from the payload bytes.
+                return $ case D.dynamicMetaUnpackFromHeader spec meta mh payload of
+                          Left str -> TestError { testErrorMessage = str }
+                          Right (mt', rest ) | not (B.null rest) -> TestError { testErrorMessage =
+                                                                      "Not all bytes were consumed: " ++ (show . B.unpack) rest }
+                                             | otherwise -> if mt /= mt'
+                                                              then TestFail { testFailEncoded = packed }
+                                                              else TestPass
+  _ <- takeMVar encodeDone
+  return result
   where
     hlen = fromIntegral $ ME.metaTypeLength meta + ME.metaDataLength meta
+    encoder packed done = do
+      B.hPut ih packed
+      hClose ih
+      putMVar done ()
 
 runShellCmd :: T.Text -> IO RunOutput
 runShellCmd cmd = do
@@ -161,7 +199,6 @@ aSchema c = generate $ arbSchemaParam allProtoParams c
                                 , ParamVector, ParamRecord
                                 , ParamCombination , ParamUnion ]
 
-{-
 printResult :: RunOutput -> IO ()
 printResult RunOutput { runCmdStr = cs, runStdOut = so, runStdErr = se, runExitCode = ec } =
   case ec of
@@ -173,4 +210,3 @@ printResult RunOutput { runCmdStr = cs, runStdOut = so, runStdErr = se, runExitC
       T.putStr so
       T.putStrLn "## Standard error:"
       T.putStr se
-      -}
