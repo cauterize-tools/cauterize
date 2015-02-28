@@ -1,7 +1,7 @@
 module Cauterize.Test.Crucible.Options
   ( CrucibleOpts(..)
   , crucibleOptions
-  , defaultSchemaCount, defaultInstanceCount, defaultSchemaSize
+  , defaultSchemaCount, defaultInstanceCount, defaultSchemaTypeCount, defaultSchemaEncSize
   ) where
 
 import Control.Monad (liftM)
@@ -11,15 +11,17 @@ import qualified Data.Text as T
 data CrucibleOpts = CrucibleOpts
   { buildCmds :: [T.Text]
   , runCmd :: T.Text
-  , schemaCount :: Maybe Int
-  , instanceCount :: Maybe Int
-  , schemaSize :: Maybe Int
+  , schemaCount :: Maybe Integer
+  , instanceCount :: Maybe Integer
+  , schemaTypeCount :: Maybe Integer -- number of types
+  , schemaEncSize :: Maybe Integer  -- maximum encoded size
   } deriving (Show)
 
-defaultSchemaCount, defaultInstanceCount, defaultSchemaSize :: Int
+defaultSchemaCount, defaultInstanceCount, defaultSchemaTypeCount, defaultSchemaEncSize :: Integer
 defaultSchemaCount = 1
 defaultInstanceCount = 100
-defaultSchemaSize = 10
+defaultSchemaTypeCount = 10
+defaultSchemaEncSize = 10 * 1024
 
 -- Generate a number of schemas, insert their schemas and meta files into a
 -- target generator, run the generator in the test loop, report the exit codes
@@ -43,7 +45,8 @@ crucibleOptions = CrucibleOpts
   <*> parseRun
   <*> parseSchemaCount
   <*> parseInstanceCount
-  <*> parseSchemaSize
+  <*> parseSchemaTypeCount
+  <*> parseSchemaEncSize
   where
     parseBuild = many $ option txt ( long "build-cmd"
                                   <> metavar "BLDCMD"
@@ -57,9 +60,12 @@ crucibleOptions = CrucibleOpts
     parseInstanceCount = optional $ option auto ( long "instance-count"
                                                <> metavar "INSCNT"
                                                <> help instanceCountHelp )
-    parseSchemaSize = optional $ option auto ( long "schema-size"
-                                            <> metavar "SCMSIZE"
-                                            <> help schemaSizeHelp )
+    parseSchemaTypeCount = optional $ option auto ( long "type-count"
+                                                 <> metavar "SCMSIZE"
+                                                 <> help schemaSizeHelp )
+    parseSchemaEncSize = optional $ option auto ( long "enc-size"
+                                               <> metavar "ENCSIZE"
+                                               <> help schemaSizeHelp )
 
     buildCmdHelp = "The command to build the generated test client. Can be specified more than once."
     runCmdHelp = "The command to run the built test client. Can be specified more than once."

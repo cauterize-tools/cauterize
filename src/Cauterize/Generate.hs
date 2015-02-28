@@ -12,13 +12,9 @@ module Cauterize.Generate
 
 import Cauterize.Common.Types
 import Control.Monad
-import Data.Maybe
 import Test.QuickCheck.Gen
 import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
-import qualified Data.Map as M
-
-import Debug.Trace
 
 data PrototypeVariant
   = PVSynonym
@@ -60,7 +56,9 @@ generateSchemaWith' maximumTypes maximumSize margin allowedPrototypes =
 
           if sz <= maximumSize
             then go (tCount - 1) (maximumSize - sz) names ts
-            else if ((fromIntegral oldSz) / (fromIntegral maximumSize)) > margin
+            else if let os = fromIntegral oldSz
+                        ms = fromIntegral maximumSize
+                    in (os / ms) > margin
               then return s -- if we're within 10% of the size, give up and return what we have
               else go tCount maximumSize (n:names) s
 

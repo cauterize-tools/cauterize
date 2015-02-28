@@ -36,7 +36,6 @@ library
                        Cauterize.Schema.Parser,
                        Cauterize.Specification.Parser
                        Cauterize.Specification,
-                       Cauterize.Schema.Arbitrary,
                        Cauterize.FormHash,
                        Cauterize.Dynamic,
                        Cauterize.Dynamic.Common,
