@@ -187,21 +187,20 @@ pruneBuiltIns fs = refBis ++ topLevel
     isBuiltIn (BuiltIn {..}) = True
     isBuiltIn _ = False
 
--- Topographically sort the types so that types with the fewest dependencies
--- show up first in the list of types. Types with the most dependencies are
--- ordered at the end. This allows languages that have order-dependencies to
--- rely on the sorted list for the order of code generation.
-topoSort :: [SpType] -> [SpType]
-topoSort sps = flattenSCCs . stronglyConnComp $ map m sps
-  where
-    m t = let n = typeName t
-          in (t, n, referencesOf t)
-
 -- TODO: Double-check the Schema hash can be recreated.
 fromSchema :: SC.Schema -> Spec
-fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') (maximumTypeDepth sc) fs'
+fromSchema sc = Spec { specName = n
+                     , specVersion = v
+                     , specHash = overallHash
+                     , specSize = rangeFitting fs'
+                     , specDepth = maximumTypeDepth sc
+                     , specTypes = fs'
+                     }
   where
-    fs' = topoSort $ pruneBuiltIns $ map fromF fs
+    n = SC.schemaName sc
+    v = SC.schemaVersion sc
+    fs' = topoSort $ pruneBuiltIns $ map snd $ M.toList specMap
+
     keepNames = S.fromList $ map typeName fs'
 
     tyMap = SC.schemaTypeMap sc
@@ -214,10 +213,62 @@ fromSchema sc@(SC.Schema n v fs) = Spec n v overallHash (rangeFitting fs') (maxi
                       hashStrs = map (show . snd) filtered
                   in hashFinalize $ foldl hashUpdate a hashStrs
 
-    specMap = fmap fromF tyMap
-    fromF p = mkSpecType specMap p hash
+    specMap = fmap mkSpecType tyMap
+
+    mkSpecType :: SC.ScType -> SpType
+    mkSpecType p =
+      case p of
+        SC.BuiltIn t@(TBuiltIn b) ->
+          let s = builtInSize b
+          in BuiltIn t hash (FixedSize s)
+        SC.Synonym  t@(TSynonym _ b) ->
+          let s = builtInSize b
+          in Synonym t hash (FixedSize s)
+        SC.Array t@(TArray _ r i) ->
+          let ref = lookupRef r
+          in Array t hash (mkRangeSize (i * minSize ref) (i * maxSize ref))
+        SC.Vector t@(TVector _ r i) ->
+          let ref = lookupRef r
+              repr = minimalExpression i
+              repr' = LengthRepr repr
+              reprSz = builtInSize repr
+          in Vector t hash (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr'
+        SC.Record t@(TRecord _ rs) ->
+          let refs = lookupRefs rs
+              sumMin = sumOfMinimums refs
+              sumMax = sumOfMaximums refs
+          in Record t hash (mkRangeSize sumMin sumMax)
+        SC.Combination t@(TCombination _ rs) ->
+          let refs = lookupRefs rs
+              sumMax = sumOfMaximums refs
+              repr = minimalBitField (fieldsLength rs)
+              repr' = FlagsRepr repr
+              reprSz = builtInSize repr
+          in Combination t hash (mkRangeSize reprSz (reprSz + sumMax)) repr'
+        SC.Union t@(TUnion _ rs) ->
+          let refs = lookupRefs rs
+              minMin = minimumOfSizes refs
+              maxMax = maximumOfSizes refs
+              repr = minimalExpression (fieldsLength rs)
+              repr' = TagRepr repr
+              reprSz = builtInSize repr
+          in Union t hash (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
       where
         hash = hashScType (SC.typeName p)
+        lookupRef r = fromJust $ r `M.lookup` specMap
+        lookupField (Field _ r _) = Just $ lookupRef r
+        lookupField (EmptyField _ _) = Nothing
+        lookupRefs = mapMaybe lookupField . unFields
+
+-- Topographically sort the types so that types with the fewest dependencies
+-- show up first in the list of types. Types with the most dependencies are
+-- ordered at the end. This allows languages that have order-dependencies to
+-- rely on the sorted list for the order of code generation.
+topoSort :: [SpType] -> [SpType]
+topoSort sps = flattenSCCs . stronglyConnComp $ map m sps
+  where
+    m t = let n = typeName t
+          in (t, n, referencesOf t)
 
 -- | This is responsible for building a map from names to hashes out of a
 -- Schema.  Hashes are of a textual that uniquely represents the type. The
@@ -317,50 +368,6 @@ specTypeMap :: Spec -> M.Map Name SpType
 specTypeMap s = let ts = specTypes s
                     ns = map typeName ts
                 in M.fromList $ zip ns ts
-
-mkSpecType :: M.Map Name SpType -> SC.ScType -> FormHash -> SpType
-mkSpecType m p =
-  case p of
-    (SC.BuiltIn t@(TBuiltIn b)) ->
-      let s = builtInSize b
-      in \h -> BuiltIn t h (FixedSize s)
-    (SC.Synonym  t@(TSynonym _ b)) ->
-      let s = builtInSize b
-      in \h -> Synonym t h (FixedSize s)
-    (SC.Array t@(TArray _ r i)) ->
-      let ref = lookupRef r
-      in \h -> Array t h (mkRangeSize (i * minSize ref) (i * maxSize ref))
-    (SC.Vector t@(TVector _ r i)) ->
-      let ref = lookupRef r
-          repr = minimalExpression i
-          repr' = LengthRepr repr
-          reprSz = builtInSize repr
-      in \h -> Vector t h (mkRangeSize reprSz (reprSz + (i * maxSize ref))) repr'
-    (SC.Record t@(TRecord _ rs)) ->
-      let refs = lookupRefs rs
-          sumMin = sumOfMinimums refs
-          sumMax = sumOfMaximums refs
-      in \h -> Record t h (mkRangeSize sumMin sumMax)
-    (SC.Combination t@(TCombination _ rs)) ->
-      let refs = lookupRefs rs
-          sumMax = sumOfMaximums refs
-          repr = minimalBitField (fieldsLength rs)
-          repr' = FlagsRepr repr
-          reprSz = builtInSize repr
-      in \h -> Combination t h (mkRangeSize reprSz (reprSz + sumMax)) repr'
-    (SC.Union t@(TUnion _ rs)) ->
-      let refs = lookupRefs rs
-          minMin = minimumOfSizes refs
-          maxMax = maximumOfSizes refs
-          repr = minimalExpression (fieldsLength rs)
-          repr' = TagRepr repr
-          reprSz = builtInSize repr
-      in \h -> Union t h (mkRangeSize (reprSz + minMin) (reprSz + maxMax)) repr'
-  where
-    lookupRef r = fromJust $ r `M.lookup` m
-    lookupField (Field _ r _) = Just $ lookupRef r
-    lookupField (EmptyField _ _) = Nothing
-    lookupRefs = mapMaybe lookupField . unFields
 
 instance References SpType where
   referencesOf (BuiltIn {..}) = []

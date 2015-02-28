@@ -3,24 +3,21 @@ module Cauterize.Test.Crucible
   ( runCrucible
   ) where
 
-import Cauterize.Schema.Arbitrary
+import Cauterize.Generate
 import Cauterize.Test.Crucible.Options
 import Control.Concurrent
 import Control.Monad
-import Data.Time.Clock.POSIX
 import Data.Maybe
+import Data.Time.Clock.POSIX
 import System.Directory
 import System.Exit
-import System.Process
 import System.IO
-import Test.QuickCheck.Gen
+import System.Process
 import Text.PrettyPrint.Class
-import qualified Data.ByteString as B
-import qualified Cauterize.Meta as ME
-import qualified Cauterize.Schema as SC
-import qualified Cauterize.Specification as SP
 import qualified Cauterize.Dynamic.Meta as D
-import qualified Data.Set as S
+import qualified Cauterize.Meta as ME
+import qualified Cauterize.Specification as SP
+import qualified Data.ByteString as B
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
@@ -47,10 +44,15 @@ data TestResult = TestPass
 
 runCrucible :: CrucibleOpts -> IO ()
 runCrucible opts = do
-  putStrLn $ "Generating " ++ show runCount ++ " schemas and testing " ++ show instCount ++ " instances from each."
+  putStrLn "Running crucible."
+  putStrLn $ "  Schema count: " ++ show runCount
+  putStrLn $ "  Types per schema: " ++ show typeCount
+  putStrLn $ "  Instance from each schema: " ++ show instCount
+  putStrLn $ "  Maximum encoded size of each type: " ++ show maxEncSize
+
   t <- round `fmap` getPOSIXTime :: IO Integer
   failCounts <- inNewDir ("crucible-" ++ show t) $
-                  forM ([0..runCount-1] :: [Int]) $
+                  forM [0..runCount-1] $
                     \ix -> inNewDir ("schema-" ++ show ix) go
   case sum failCounts of
     0 -> exitSuccess
@@ -58,18 +60,17 @@ runCrucible opts = do
   where
     runCount = fromMaybe defaultSchemaCount (schemaCount opts)
     instCount = fromMaybe defaultInstanceCount (instanceCount opts)
+    typeCount = fromMaybe defaultSchemaTypeCount (schemaTypeCount opts)
+    maxEncSize = fromMaybe defaultSchemaEncSize (schemaEncSize opts)
 
     -- Creates a schema of the specified size.
-    aSchema :: Int -> IO SC.Schema
-    aSchema c = generate $ arbSchemaParam allProtoParams c
-    allProtoParams = S.fromList [ ParamSynonym, ParamArray
-                                , ParamVector, ParamRecord
-                                , ParamCombination , ParamUnion ]
+    aSchema c s = generateSchemaWith c s 0.95 allProtoParams
+    allProtoParams = [ minBound .. maxBound ]
 
     go = do
           -- Generate a schema. From this, also compile a specification file and a meta
           -- file. Write them to disk.
-          schema <- aSchema $ fromMaybe defaultSchemaSize (schemaSize opts)
+          schema <- aSchema typeCount maxEncSize
           let spec = SP.fromSchema schema
           let meta = ME.metaFromSpec spec
 
@@ -146,9 +147,9 @@ runBuildCmd cmd = do
 testCmdWithSchemaInstances :: T.Text  -- ^ the path to the exectuable to test
                            -> SP.Spec -- ^ the specification from which to generate the instance
                            -> ME.Meta -- ^ the meta file from which to generate the instance
-                           -> Int     -- ^ how many instances to test
+                           -> Integer -- ^ how many instances to test
                            -> IO [TestOutput]
-testCmdWithSchemaInstances cmd spec meta count = replicateM count $ do
+testCmdWithSchemaInstances cmd spec meta count = replicateM (fromIntegral count) $ do
   -- Create the process. Grab its stdin and stdout.
   (Just stdih, Just stdoh, Just stdeh, ph) <- createProcess shelled
   (result, unpacked, packed) <- runTest stdih stdoh spec meta

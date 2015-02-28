@@ -26,7 +26,10 @@ import Text.PrettyPrint.Class
 
 type Cycle = [Name]
 
-data Schema = Schema Name Version [ScType]
+data Schema = Schema { schemaName :: Name
+                     , schemaVersion :: Version
+                     , schemaTypes :: [ScType]
+                     }
   deriving (Show)
 
 data ScType = BuiltIn     TBuiltIn
