@@ -20,9 +20,10 @@ generators_ easier.
 Code generators consume the specification and output a library capable of
 encoding and decoding data represented by the schema.
 
-Cauterize is _first_ intended to serve the constraints of hard-real-time
-embedded systems programming, but is still suitable for a variety of other
-situations. All Cauterize specifications have the following properties:
+Cauterize is _first_ intended to serve the constraints of [hard
+real-time](http://en.wikipedia.org/wiki/Real-time_computing) embedded systems
+programming, but is still suitable for a variety of other situations. All
+Cauterize specifications have the following properties:
 
   * Encoded messages have a maximum and minimum size known at compile time
   * All types have a maximum referential depth
