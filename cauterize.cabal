@@ -50,6 +50,7 @@ library
                        Cauterize.Dynamic.Meta.Unpack,
                        Cauterize.Dynamic.Meta.Types,
                        Cauterize.Common.ParserUtils,
+                       Cauterize.Generate,
                        Cauterize.Meta,
                        Cauterize.Meta.Parser,
                        Cauterize.Meta.Pretty,
@@ -106,6 +107,8 @@ test-suite spec
                        Cauterize.DynamicSpec,
                        Cauterize.SchemaSpec
   build-depends:       base >=4.7 && <4.8,
+                       pretty,
+                       pretty-class,
                        bytestring,
                        containers,
                        hspec >= 2.1.4,
