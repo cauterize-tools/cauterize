@@ -11,13 +11,13 @@ prettyMeta :: Meta -> T.Text
 prettyMeta (Meta n v tl dl sh  sv ts) =
   let banner = "meta-interface"
       h'  = parens $ "sha1" <+> text (T.pack $ show sh)
-      ts' = parens $ "types" <$> indent 2 (vcat $ map prettyType ts)
-      rest = indent 2 $ vcat [ parens $ "meta-variant" <+> integer v
-                             , parens $ "type-length" <+> integer tl
-                             , parens $ "data-length" <+> integer dl
-                             , ts'
-                             ]
-      doc = parens $ banner <+> ((text n <+> text sv <+> h') <$> rest)
+      ts' = parens $ nest 1 ("types" <$> vcat (map prettyType ts))
+      rest = vcat [ parens $ "meta-variant" <+> integer v
+                  , parens $ "type-length" <+> integer tl
+                  , parens $ "data-length" <+> integer dl
+                  , ts'
+                  ]
+      doc = parens $ nest 1 (banner <+> ((text n <+> text sv <+> h') <$> rest))
   in displayT . renderPretty 1 120 . pretty $ doc
   where
 
