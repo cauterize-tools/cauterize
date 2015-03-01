@@ -60,12 +60,12 @@ runCrucible opts = do
   where
     runCount = fromMaybe defaultSchemaCount (schemaCount opts)
     instCount = fromMaybe defaultInstanceCount (instanceCount opts)
-    typeCount = fromMaybe defaultSchemaTypeCount (schemaTypeCount opts)
-    maxEncSize = fromMaybe defaultSchemaEncSize (schemaEncSize opts)
+    typeCount = schemaTypeCount opts
+    maxEncSize = schemaEncSize opts
+    usePrototypes = allowedPrototypes opts
 
     -- Creates a schema of the specified size.
-    aSchema c s = generateSchemaWith c s 0.95 allProtoParams
-    allProtoParams = [ minBound .. maxBound ]
+    aSchema c s = generateSchemaWith c s 0.95 usePrototypes
 
     go = do
           -- Generate a schema. From this, also compile a specification file and a meta

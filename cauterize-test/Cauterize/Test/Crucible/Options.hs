@@ -1,9 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Test.Crucible.Options
   ( CrucibleOpts(..)
   , crucibleOptions
-  , defaultSchemaCount, defaultInstanceCount, defaultSchemaTypeCount, defaultSchemaEncSize
+  , defaultSchemaCount, defaultInstanceCount
   ) where
 
+import Cauterize.Generate
 import Control.Monad (liftM)
 import Options.Applicative
 import qualified Data.Text as T
@@ -13,15 +15,14 @@ data CrucibleOpts = CrucibleOpts
   , runCmd :: T.Text
   , schemaCount :: Maybe Integer
   , instanceCount :: Maybe Integer
-  , schemaTypeCount :: Maybe Integer -- number of types
-  , schemaEncSize :: Maybe Integer  -- maximum encoded size
+  , schemaTypeCount :: Integer -- number of types
+  , schemaEncSize :: Integer  -- maximum encoded size
+  , allowedPrototypes :: [PrototypeVariant]
   } deriving (Show)
 
-defaultSchemaCount, defaultInstanceCount, defaultSchemaTypeCount, defaultSchemaEncSize :: Integer
+defaultSchemaCount, defaultInstanceCount :: Integer
 defaultSchemaCount = 1
 defaultInstanceCount = 100
-defaultSchemaTypeCount = 10
-defaultSchemaEncSize = 10 * 1024
 
 -- Generate a number of schemas, insert their schemas and meta files into a
 -- target generator, run the generator in the test loop, report the exit codes
@@ -47,6 +48,7 @@ crucibleOptions = CrucibleOpts
   <*> parseInstanceCount
   <*> parseSchemaTypeCount
   <*> parseSchemaEncSize
+  <*> parseAllowedPrototypes
   where
     parseBuild = many $ option txt ( long "build-cmd"
                                   <> metavar "BLDCMD"
@@ -60,17 +62,41 @@ crucibleOptions = CrucibleOpts
     parseInstanceCount = optional $ option auto ( long "instance-count"
                                                <> metavar "INSCNT"
                                                <> help instanceCountHelp )
-    parseSchemaTypeCount = optional $ option auto ( long "type-count"
-                                                 <> metavar "SCMSIZE"
-                                                 <> help schemaSizeHelp )
-    parseSchemaEncSize = optional $ option auto ( long "enc-size"
-                                               <> metavar "ENCSIZE"
-                                               <> help schemaSizeHelp )
+    parseSchemaTypeCount = option auto ( long "type-count"
+                                      <> metavar "SCMSIZE"
+                                      <> value defaultMaximumTypes
+                                      <> help schemaSizeHelp )
+    parseSchemaEncSize = option auto ( long "enc-size"
+                                    <> metavar "ENCSIZE"
+                                    <> value defaultMaximumSize
+                                    <> help schemaSizeHelp )
+    parseAllowedPrototypes = option parseAlloProtOpt
+                                   (long "prototypes"
+                                 <> metavar "PROTOTYPES"
+                                 <> value defaultAllowedPrototypes
+                                 <> help allowedPrototypesHelp )
 
     buildCmdHelp = "The command to build the generated test client. Can be specified more than once."
     runCmdHelp = "The command to run the built test client. Can be specified more than once."
     schemaCountHelp = "The number of schemas to test."
     instanceCountHelp = "The number of instances of each schema to test."
     schemaSizeHelp = "The number of types to generate in each schema."
+    allowedPrototypesHelp = concat [ "Which prototypes to include in schema generation. "
+                                   , "Define using a comma-separated list including only the following elements: "
+                                   , "array,combination,record,synonym,union,vector."
+                                   ]
 
     txt = liftM T.pack str
+    parseAlloProtOpt = do txts <- liftM (T.splitOn ",") txt
+                          mapM parseProtoVar txts
+
+-- TODO: parseProtoVar is likely duplicated in Cauterize.Test.Generate as well.
+-- See what it would take to deduplicate.
+parseProtoVar :: Monad m => T.Text -> m PrototypeVariant
+parseProtoVar "synonym" = return PVSynonym
+parseProtoVar "array" = return PVArray
+parseProtoVar "vector" = return PVVector
+parseProtoVar "record" = return PVRecord
+parseProtoVar "combination" = return PVCombination
+parseProtoVar "union" = return PVUnion
+parseProtoVar s = fail (T.unpack s)

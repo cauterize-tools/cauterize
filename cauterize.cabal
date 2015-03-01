@@ -76,6 +76,7 @@ executable cauterize-test
   build-depends:       base >=4.6 && <4.8,
                        cauterize,
                        optparse-applicative >=0.11.0.1,
+                       split,
                        containers,
                        bytestring,
                        QuickCheck >=2.7,

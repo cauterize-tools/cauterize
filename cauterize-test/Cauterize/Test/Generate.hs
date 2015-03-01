@@ -3,13 +3,12 @@ module Cauterize.Test.Generate
   ) where
 
 import Cauterize.Generate
-import Test.QuickCheck.Gen
 import Text.PrettyPrint.Class
 import qualified Cauterize.Schema as SC
 import qualified Cauterize.Test.Generate.Options as OPT
 
 printArbSpec :: OPT.GenerateOpts -> IO ()
-printArbSpec (OPT.GenerateOpts typeCount encSize) = outputCaut OPT.allProtoParams typeCount encSize
+printArbSpec (OPT.GenerateOpts typeCount encSize prototypes) = outputCaut prototypes typeCount encSize
 
 outputCaut :: [PrototypeVariant] -- which prototypes to allow
            -> Integer -- number of types in the schema

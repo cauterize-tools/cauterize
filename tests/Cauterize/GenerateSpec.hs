@@ -5,7 +5,6 @@ module Cauterize.GenerateSpec
 import Test.Hspec
 import Cauterize.Generate
 
-import Text.PrettyPrint
 import Text.PrettyPrint.Class
 
 import qualified Cauterize.Specification as Spec
