@@ -13,9 +13,9 @@ import System.Directory
 import System.Exit
 import System.IO
 import System.Process
-import Text.PrettyPrint.Leijen.Text
 import qualified Cauterize.Dynamic.Meta as D
 import qualified Cauterize.Meta as ME
+import qualified Cauterize.Schema as SC
 import qualified Cauterize.Specification as SP
 import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as T
@@ -78,9 +78,9 @@ runCrucible opts = do
           let spec = SP.fromSchema schema
           let meta = ME.metaFromSpec spec
 
-          T.writeFile "schema.txt" $ T.pack . show . pretty $ schema
-          T.writeFile "specification.txt" $ T.pack . show . pretty $ spec
-          T.writeFile "meta.txt" $ T.pack . show . ME.prettyMeta $ meta
+          T.writeFile "schema.txt" $ SC.prettyPrint schema
+          T.writeFile "specification.txt" $ SP.prettyPrint spec
+          T.writeFile "meta.txt" $ ME.prettyMeta meta
 
           -- Construct a context with the paths to the specification and meta files
           -- along with the current directory.
