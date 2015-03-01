@@ -8,7 +8,7 @@ module Cauterize.Test.Crucible.Options
 import Cauterize.Generate
 import Control.Monad (liftM)
 import Options.Applicative
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 
 data CrucibleOpts = CrucibleOpts
   { buildCmds :: [T.Text]

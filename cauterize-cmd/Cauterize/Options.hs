@@ -3,7 +3,7 @@ module Cauterize.Options where
 import Options.Applicative
 
 data CautOpts = CautOpts
-  { schemaFile :: String
+  { schemaFile :: FilePath
   } deriving (Show)
 
 runWithOptions :: (CautOpts -> IO ()) -> IO ()

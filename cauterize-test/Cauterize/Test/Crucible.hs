@@ -13,13 +13,13 @@ import System.Directory
 import System.Exit
 import System.IO
 import System.Process
-import Text.PrettyPrint.Class
+import Text.PrettyPrint.Leijen.Text
 import qualified Cauterize.Dynamic.Meta as D
 import qualified Cauterize.Meta as ME
 import qualified Cauterize.Specification as SP
 import qualified Data.ByteString as B
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 
 data Context = Context
   { specificationPath :: T.Text
@@ -34,11 +34,15 @@ data BuildCmdOutput = BuildCmdOutput
   , buildExitCode :: ExitCode
   } deriving (Show)
 
-data TestOutput = TestOutput TestResult String B.ByteString D.MetaType
+data TestOutput = TestOutput { testResult :: TestResult
+                             , testStdErr :: T.Text
+                             , testEncodedInstance :: B.ByteString
+                             , testInstance :: D.MetaType
+                             }
   deriving (Show)
 
 data TestResult = TestPass
-                | TestError { testErrorMessage :: String }
+                | TestError { testErrorMessage :: T.Text }
                 | TestFail
   deriving (Show)
 
@@ -157,11 +161,11 @@ testCmdWithSchemaInstances cmd spec meta count = replicateM (fromIntegral count)
   -- Wait for the process to terminate, collect the result of stdout, package
   -- everything up properly according to the exit status of the process.
   e <- waitForProcess ph
-  errorOutput <- hGetContents stdeh
+  errorOutput <- T.hGetContents stdeh
   r <- case e of
           ExitSuccess -> return result
-          ExitFailure c -> return TestError { testErrorMessage = "Client process exited with failure code: " ++ show c }
-  return (TestOutput r errorOutput packed unpacked)
+          ExitFailure c -> return TestError { testErrorMessage = "Client process exited with failure code: " `T.append` (T.pack . show) c }
+  return TestOutput { testResult = r, testStdErr = errorOutput, testEncodedInstance = packed, testInstance = unpacked }
   where
     shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
                                      , std_err = CreatePipe
@@ -175,20 +179,20 @@ renderResults rs = go rs 0
     successStr = "\nSchema success!"
     failStr n = "\nSCHEMA HAD " ++ show n ++ "FAILURES!"
 
-    go [] 0 = putStrLn successStr >> return 0
+    go [] 0 = putStrLn successStr >> return (0 :: Int)
     go [] n = putStrLn (failStr n) >> return n
     go (TestOutput t e b mt:rest) failures = case t of
                                               TestPass -> go rest failures
                                               TestError m -> printErr m >> go rest (failures + 1)
                                               TestFail -> printFail >> go rest (failures + 1)
       where
-        printErr m = do putStrLn $ "Error: " ++ m
-                        putStrLn $ "Error encoded bytes: " ++ (show . B.unpack) b
-                        putStrLn $ "Standard error output: " ++ e
-                        putStrLn $ "Show metatype: " ++ show mt
-        printFail = do putStrLn $ "Failure for encoded bytes: " ++ (show . B.unpack) b
-                       putStrLn $ "Standard error output: " ++ e
-                       putStrLn $ "Show metatype: " ++ show mt
+        printErr m = do T.putStrLn $ "Error: " `T.append` m
+                        T.putStrLn $ "Error encoded bytes: " `T.append` (T.pack . show . B.unpack) b
+                        T.putStrLn $ "Standard error output: " `T.append` e
+                        T.putStrLn $ "Show metatype: " `T.append` (T.pack . show) mt
+        printFail = do T.putStrLn $ "Failure for encoded bytes: " `T.append` (T.pack . show . B.unpack) b
+                       T.putStrLn $ "Standard error output: " `T.append` e
+                       T.putStrLn $ "Show metatype: " `T.append` (T.pack . show) mt
 
 -- Output the result of a build command.
 printResult :: BuildCmdOutput -> IO ()
@@ -240,7 +244,7 @@ runTest ih oh spec meta = do
 
   result <- case hdr of
               -- Unable to unpack the header.
-              Left err -> return $ TestError err
+              Left err -> return $ TestError (T.pack err)
 
               -- Got a header.
               Right (mh, _) -> do
@@ -251,7 +255,7 @@ runTest ih oh spec meta = do
                 return $ case D.dynamicMetaUnpackFromHeader spec meta mh payload of
                           Left str -> TestError { testErrorMessage = str }
                           Right (mt', rest ) | not (B.null rest) -> TestError { testErrorMessage =
-                                                                      "Not all bytes were consumed: " ++ (show . B.unpack) rest }
+                                                                      "Not all bytes were consumed: " `T.append` (T.pack . show . B.unpack) rest }
                                              | otherwise -> if mt /= mt'
                                                               then TestFail
                                                               else TestPass

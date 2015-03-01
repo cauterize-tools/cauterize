@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Generate
   ( generateSchema
   , generateSchemaWith
@@ -15,6 +16,7 @@ import Control.Monad
 import Test.QuickCheck.Gen
 import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
+import qualified Data.Text.Lazy as T
 
 data PrototypeVariant
   = PVSynonym
@@ -42,7 +44,7 @@ generateSchemaWith' maximumTypes maximumSize margin allowedPrototypes =
     size ts = let s = Spec.specSize . Spec.fromSchema $ Schema.Schema "temp_schema" "0" ts
               in Spec.maxSize s
 
-    go :: Integer -> Integer -> [String] -> [Schema.ScType] -> Gen [Schema.ScType]
+    go :: Integer -> Integer -> [T.Text] -> [Schema.ScType] -> Gen [Schema.ScType]
     go _ _ [] _ = error "Ran out of names!"
     go tCount remSz (n:names) s
       | tCount <= 0 = return s
@@ -62,7 +64,7 @@ generateSchemaWith' maximumTypes maximumSize margin allowedPrototypes =
               then return s -- if we're within 10% of the size, give up and return what we have
               else go tCount maximumSize (n:names) s
 
-genVariant :: [Schema.ScType] -> [PrototypeVariant] -> String -> Gen Schema.ScType
+genVariant :: [Schema.ScType] -> [PrototypeVariant] -> T.Text -> Gen Schema.ScType
 genVariant [] _ _ = error "Cannot create new prototype without preexisting types."
 genVariant _ [] _ = error "Must specify at least one prototype variant."
 genVariant existingTypes variants name = do
@@ -100,12 +102,12 @@ defaultMargin = 0.9
 
 -- A few functions for generating then names we'll use throughout this
 -- generation process.
-schemaNames :: [String]
+schemaNames :: [T.Text]
 schemaNames = take 100 allNames
 
-allNames :: [String]
+allNames :: [T.Text]
 allNames = let syms = ["a","e","i","o","u","y"]
-           in map concat $ sequences syms
+           in map (T.pack . concat) $ sequences syms
 
 sequences :: [a] -> [[a]]
 sequences ls = ls' ++ [i ++ [a] | i <- sequences ls, a <- ls]
@@ -137,7 +139,7 @@ arbLength = frequency [ (1000, choose (pow0,  pow8  - 1))
     pow64 = (2 :: Integer)^(64 :: Integer)
 
 -- This is used to build a set of fields for the types that use a field set.
-genFields_ :: (Num b, Enum b) => Gen (String -> b -> c) -> Gen [c]
+genFields_ :: (Num b, Enum b) => Gen (T.Text -> b -> c) -> Gen [c]
 genFields_ cstorGen = do
   count <- fieldCount
   fieldCstors <- replicateM count cstorGen
@@ -150,12 +152,12 @@ genFields_ cstorGen = do
                      gens = map return ixs
                  in frequency $ zip freqs gens
 
-genFields :: [String] -> Gen Fields
+genFields :: [T.Text] -> Gen Fields
 genFields ts = liftM Fields gf
   where gf = genFields_ $ frequency [(1, liftM (\d n ix -> Field n d ix) (elements ts))
                                     ,(1, return EmptyField)
                                     ]
 
-genFieldsWithoutEmpty :: [String] -> Gen Fields
+genFieldsWithoutEmpty :: [T.Text] -> Gen Fields
 genFieldsWithoutEmpty ts = liftM Fields gf
   where gf = genFields_ $ liftM (\d n ix -> Field n d ix) (elements ts)

@@ -3,7 +3,7 @@ module Cauterize.Options where
 import Options.Applicative
 
 data MetaOpts = MetaOpts
-  { specFile :: String
+  { specFile :: FilePath
   } deriving (Show)
 
 runWithOptions :: (MetaOpts -> IO ()) -> IO ()

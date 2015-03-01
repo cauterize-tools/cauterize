@@ -2,18 +2,21 @@
 module Cauterize.Meta.Parser where
 
 import Text.Parsec
-import Text.Parsec.String
+import Text.Parsec.Text.Lazy
 import Data.Word
 import Numeric
 
 import Cauterize.Meta.Types
 import Cauterize.Common.ParserUtils
 
-parseFile :: FilePath -> IO (Either ParseError Meta)
-parseFile path = readFile path >>= parseString path
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 
-parseString :: FilePath -> String -> IO (Either ParseError Meta)
-parseString path str =
+parseFile :: FilePath -> IO (Either ParseError Meta)
+parseFile path = T.readFile path >>= parseText path
+
+parseText :: FilePath -> T.Text -> IO (Either ParseError Meta)
+parseText path str =
   return $ case parse parseMeta path str of
               Left e -> Left e
               Right s -> Right s
@@ -70,5 +73,5 @@ pHexByte = do
   let [(v,"")] = readHex [c0,c1]
   return v
 
-hexDigits :: [Char]
+hexDigits :: String
 hexDigits = ['0'..'9'] ++ ['a'..'f']

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, RecordWildCards, DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances, RecordWildCards, DeriveDataTypeable, OverloadedStrings #-}
 module Cauterize.Specification.Types
   ( Spec(..)
   , SpType(..)
@@ -31,11 +31,11 @@ import Data.Data
 import qualified Data.Map as M
 import qualified Data.List as L
 import qualified Data.Set as S
+import qualified Data.Text.Lazy as T
 import qualified Cauterize.Common.Types as CT
 import qualified Cauterize.Schema.Types as SC
 
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
+import Text.PrettyPrint.Leijen.Text
 
 data FixedSize = FixedSize { unFixedSize :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
@@ -162,7 +162,7 @@ instance Sized SpType where
   maxSize (Union { spRangeSize = s}) = maxSize s
 
 typeName :: SpType -> Name
-typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = show b
+typeName (BuiltIn { unBuiltIn = (TBuiltIn b)}) = T.pack . show $ b
 typeName (Synonym { unSynonym = (TSynonym n _)}) = n
 typeName (Array { unArray = (TArray n _ _)}) = n
 typeName (Vector { unVector = (TVector n _ _)}) = n
@@ -175,7 +175,7 @@ pruneBuiltIns fs = refBis ++ topLevel
   where
     (bis, topLevel) = L.partition isBuiltIn fs
 
-    biNames = map (\(BuiltIn (TBuiltIn b) _ _) -> show b) bis
+    biNames = map (\(BuiltIn (TBuiltIn b) _ _) -> T.pack . show $ b) bis
     biMap = M.fromList $ zip biNames bis
 
     rsSet = S.fromList $ concatMap referencesOf topLevel
@@ -210,7 +210,7 @@ fromSchema sc = Spec { specName = n
     overallHash = let a = hashInit `hashUpdate` n `hashUpdate` v
                       sorted = sortBy (compare `on` fst) $ M.toList thm
                       filtered = filter (\(x,_) -> x `S.member` keepNames) sorted
-                      hashStrs = map (show . snd) filtered
+                      hashStrs = map (hashToText . snd) filtered
                   in hashFinalize $ foldl hashUpdate a hashStrs
 
     specMap = fmap mkSpecType tyMap
@@ -315,19 +315,19 @@ typeHashMap :: SC.Schema -> M.Map Name FormHash
 typeHashMap s = m
   where
     m = fmap typeHash (SC.schemaTypeMap s)
-    lu n = show (fromJust $ n `M.lookup` m)
+    lu n = hashToText (fromJust $ n `M.lookup` m)
     fieldStr (EmptyField n i) = ["field", n, showNumSigned i]
     fieldStr (Field n r i) = ["field", n, lu r, showNumSigned i]
     typeHash t =
       let str = case t of
-                  SC.BuiltIn (TBuiltIn b) -> [show b]
-                  SC.Synonym (TSynonym n b) -> ["synonym", n, show b]
+                  SC.BuiltIn (TBuiltIn b) -> [T.pack . show $ b]
+                  SC.Synonym (TSynonym n b) -> ["synonym", n, T.pack . show $ b]
                   SC.Array (TArray n r i) -> ["array", n, lu r, showNumSigned i]
                   SC.Vector (TVector n r i) -> ["vector", n, lu r, showNumSigned i]
                   SC.Record (TRecord n (Fields fs)) -> ["record", n] ++ concatMap fieldStr fs
                   SC.Combination (TCombination n (Fields fs)) -> ["combination", n] ++ concatMap fieldStr fs
                   SC.Union (TUnion n (Fields fs)) -> ["union", n] ++ concatMap fieldStr fs
-      in hashString . unwords $ str
+      in hashText . T.unwords $ str
 
 typeDepthMap :: SC.Schema -> M.Map Name Integer
 typeDepthMap s = m
@@ -357,12 +357,12 @@ maximumTypeDepth :: SC.Schema -> Depth
 maximumTypeDepth s = let m = typeDepthMap s
                      in Depth . maximum . M.elems $ m
 
-showNumSigned :: (Ord a, Show a, Num a) => a -> String
+showNumSigned :: (Ord a, Show a, Num a) => a -> T.Text
 showNumSigned v = let v' = abs v
-                      v'' = show v'
+                      v'' = T.pack . show $ v'
                   in if v < 0
-                       then '-':v''
-                       else '+':v''
+                       then '-' `T.cons` v''
+                       else '+' `T.cons` v''
 
 specTypeMap :: Spec -> M.Map Name SpType
 specTypeMap s = let ts = specTypes s
@@ -373,65 +373,65 @@ instance References SpType where
   referencesOf (BuiltIn {..}) = []
   referencesOf (Synonym s _ _) = referencesOf s
   referencesOf (Array f _ _) = referencesOf f
-  referencesOf (Vector b _ _ r) = nub $ show (unLengthRepr r) : referencesOf b
+  referencesOf (Vector b _ _ r) = nub $ (T.pack . show) (unLengthRepr r) : referencesOf b
   referencesOf (Record s _ _) = referencesOf s
-  referencesOf (Combination s _ _ r) = nub $ show (unFlagsRepr r) : referencesOf s
-  referencesOf (Union e _ _ r) = nub $ show (unTagRepr r) : referencesOf e
+  referencesOf (Combination s _ _ r) = nub $ (T.pack . show) (unFlagsRepr r) : referencesOf s
+  referencesOf (Union e _ _ r) = nub $ (T.pack . show) (unTagRepr r) : referencesOf e
 
-prettyPrint :: Spec -> String
-prettyPrint = show . pretty
+prettyPrint :: Spec -> T.Text
+prettyPrint = displayT . renderPretty 1 120 . pretty
 
 pShow :: (Show a) => a -> Doc
-pShow = text . show
+pShow = text . T.pack . show
 
 instance Pretty Spec where
-  pretty (Spec n v h sz d fs) = parens $ hang ps 1 pfs
+  pretty (Spec n v h sz d fs) = parens $ nest 1 (ps <$> pfs)
     where
-      ps = text "specification" <+> text n <+> text v <+> pretty h <+> pretty sz <+> pretty d
+      ps = "specification" <+> text n <+> text v <+> pretty h <+> pretty sz <+> pretty d
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields
 --  (type name hash [references] [representations] [lengths])
 instance Pretty SpType where
-  pretty (BuiltIn (TBuiltIn b) h sz) = parens $ pt <+> pa
+  pretty (BuiltIn (TBuiltIn b) h sz) = parens (pt <+> pa)
     where
       pt = text "builtin" <+> pShow b <+> pretty h
       pa = pretty sz
-  pretty (Synonym (TSynonym n b) h sz) = parens $ pt $+$ nest 1 pa
+  pretty (Synonym (TSynonym n b) h sz) = parens $ nest 1 (pt <$> pa)
     where
-      pt = text "synonym" <+> text n <+> pretty h
-      pa = pretty sz $$ pShow b
-  pretty (Array (TArray n m i) h sz) = parens $ pt $+$ nest 1 pa
+      pt = text "synonym" <+> text n <+> pretty h <+> pretty sz
+      pa = pShow b
+  pretty (Array (TArray n m i) h sz) = parens $ nest 1 (pt <$> pa)
     where
-      pt = text "array" <+> text n <+> pretty h
-      pa = pretty sz $$ integer i $$ text m
-  pretty (Vector (TVector n m i) h sz bi) = parens $ pt $+$ nest 1 pa
+      pt = text "array" <+> text n <+> pretty h <+> pretty sz
+      pa = integer i <+> text m
+  pretty (Vector (TVector n m i) h sz bi) = parens $ nest 1 (pt <$> pa)
     where
-      pt = text "vector" <+> text n <+> pretty h
-      pa = pretty sz $$ pretty bi $$ integer i $$ text m
+      pt = text "vector" <+> text n <+> pretty h <+> pretty sz
+      pa = pretty bi <$> integer i <+> text m
   pretty (Record (TRecord n rs) h sz) = prettyFieldedB0 "record" n rs sz h
   pretty (Combination (TCombination n rs) h sz bi) = prettyFieldedB1 "combination" n rs sz bi h
   pretty (Union (TUnion n rs) h sz bi) = prettyFieldedB1 "union" n rs sz bi h
 
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.
-prettyFieldedB0 :: (Pretty sz) => String -> String -> Fields -> sz -> FormHash -> Doc
-prettyFieldedB0 t n fs sz hash = parens $ hang pt 1 pfs
+prettyFieldedB0 :: (Pretty sz) => T.Text -> T.Text -> Fields -> sz -> FormHash -> Doc
+prettyFieldedB0 t n fs sz hash = parens $ nest 1 (pt <$> pfs)
   where
-    pt = text t <+> text n <+> pretty hash
-    pfs = pretty sz $$ specPrettyFields fs
+    pt = text t <+> text n <+> pretty hash <+> pretty sz
+    pfs = specPrettyFields fs
 
-prettyFieldedB1 :: (Pretty sz, Pretty bi) => String -> String -> Fields -> sz -> bi -> FormHash -> Doc
-prettyFieldedB1 t n fs sz repr hash = parens $ hang pt 1 pfs
+prettyFieldedB1 :: (Pretty sz, Pretty bi) => T.Text -> T.Text -> Fields -> sz -> bi -> FormHash -> Doc
+prettyFieldedB1 t n fs sz repr hash = parens $ nest 1 (pt <$> pfs)
   where
-    pt = text t <+> text n <+> pretty hash
-    pfs = pretty sz $$ pretty repr $$ specPrettyFields fs
+    pt = text t <+> text n <+> pretty hash <+> pretty sz
+    pfs = pretty repr <$> specPrettyFields fs
 
 specPrettyRefs :: Field -> Doc
-specPrettyRefs  (EmptyField n i) = parens $ text "field" <+> text n <+> integer i
-specPrettyRefs  (Field n m i) = parens $ text "field" <+> text n <+> text m <+> integer i
+specPrettyRefs (EmptyField n i) = parens $ text "field" <+> text n <+> integer i
+specPrettyRefs (Field n m i) = parens $ text "field" <+> text n <+> text m <+> integer i
 
 specPrettyFields :: Fields -> Doc
-specPrettyFields (Fields fs) = parens $ hang (text "fields") 1 pfs
+specPrettyFields (Fields fs) = parens $ nest 1 ("fields" <$> pfs)
   where
     pfs = vcat $ map specPrettyRefs fs

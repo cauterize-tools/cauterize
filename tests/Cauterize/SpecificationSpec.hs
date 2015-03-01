@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.SpecificationSpec
   ( spec
   ) where
@@ -6,6 +7,7 @@ import Test.Hspec
 
 import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
+import qualified Data.Text.Lazy as T
 
 spec :: Spec
 spec = do
@@ -21,18 +23,18 @@ spec = do
         rsMin `shouldBe` 8
         rsMax `shouldBe` 8
     it "calculates the correct size of a union" $ do
-      let schemaText = unlines [ "(schema test_schema 0.0.0"
-                               , "  (union option"
-                               , "    (fields"
-                               , "      (field nothing)"
-                               , "      (field some s64))))"
-                               ]
+      let schemaText = T.unlines [ "(schema test_schema 0.0.0"
+                                 , "  (union option"
+                                 , "    (fields"
+                                 , "      (field nothing)"
+                                 , "      (field some s64))))"
+                                 ]
       schemaText `asSpec` \Spec.Spec { Spec.specSize = Spec.RangeSize rsMin rsMax } -> do
         rsMin `shouldBe` 1
         rsMax `shouldBe` 9
 
-asSpec :: String -> (Spec.Spec -> Expectation) -> Expectation
+asSpec :: T.Text -> (Spec.Spec -> Expectation) -> Expectation
 asSpec txt go =
-  case Schema.parseString "asSpec" txt of
+  case Schema.parseText "asSpec" txt of
     Left err -> expectationFailure $ show err
     Right schema -> go $ Spec.fromSchema schema

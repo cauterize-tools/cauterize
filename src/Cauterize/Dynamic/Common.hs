@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Dynamic.Common
   ( isNameOf
   , lu
@@ -17,16 +18,17 @@ module Cauterize.Dynamic.Common
 import Cauterize.Dynamic.Types
 import Control.Exception
 import Data.Maybe
+import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
 import qualified Cauterize.Common.Types as C
 import qualified Data.Map as M
 import qualified Data.Set as Set
 
-lu :: String -> TyMap -> S.SpType
+lu :: T.Text -> TyMap -> S.SpType
 lu n m = fromMaybe (throw $ InvalidType n)
                    (n `M.lookup` m)
 
-fieldsToNameMap :: [C.Field] -> M.Map String C.Field
+fieldsToNameMap :: [C.Field] -> M.Map T.Text C.Field
 fieldsToNameMap fs = M.fromList $ map go fs
   where
     go f = (C.fName f, f)
@@ -36,10 +38,10 @@ fieldsToIndexMap fs = M.fromList $ map go fs
   where
     go f = (C.fIndex f, f)
 
-fieldNameSet :: [C.Field] -> Set.Set String
+fieldNameSet :: [C.Field] -> Set.Set T.Text
 fieldNameSet fs = Set.fromList $ map C.fName fs
 
-isNameOf :: String -> BIDetails -> Bool
+isNameOf :: T.Text -> BIDetails -> Bool
 isNameOf "u8" (BDu8 _) = True
 isNameOf "u16" (BDu16 _) = True
 isNameOf "u32" (BDu32 _) = True

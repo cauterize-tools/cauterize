@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
 module Cauterize.Schema.Types
   ( Cycle
   , Schema(..)
@@ -20,13 +20,13 @@ import Data.Graph
 
 import qualified Data.Set as L
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as T
 
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
+import Text.PrettyPrint.Leijen.Text
 
-type Cycle = [Name]
+type Cycle = [T.Text]
 
-data Schema = Schema { schemaName :: Name
+data Schema = Schema { schemaName :: T.Text
                      , schemaVersion :: Version
                      , schemaTypes :: [ScType]
                      }
@@ -45,7 +45,7 @@ schemaTypeMap :: Schema -> M.Map Name ScType
 schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\t -> (typeName t, t)) fs
 
 typeName :: ScType -> Name
-typeName (BuiltIn (TBuiltIn b)) = show b
+typeName (BuiltIn (TBuiltIn b)) = (T.pack . show) b
 typeName (Synonym (TSynonym n _)) = n
 typeName (Array (TArray n _ _)) = n
 typeName (Vector (TVector n _ _)) = n
@@ -129,35 +129,35 @@ countThings = foldl (\m t -> M.insertWith (+) t 1 m) M.empty
 
 -- Instances
 
-prettyPrint :: Schema -> String
-prettyPrint = show . pretty
+prettyPrint :: Schema -> T.Text
+prettyPrint = displayT . renderPretty 1 120 . pretty
 
 pShow :: (Show a) => a -> Doc
-pShow = text . show
+pShow = text . T.pack . show
 
 instance Pretty Schema where
-  pretty (Schema n v fs) = parens $ hang ps 1 pfs
+  pretty (Schema n v fs) = parens $ nest 1 (ps <$> pfs)
     where
       ps = text "schema" <+> text n <+> text v
       pfs = vcat $ map pretty fs
 
 instance Pretty ScType where
   pretty (BuiltIn _) = empty
-  pretty (Synonym (TSynonym n b)) = parens $ text "synonym" <+> text n <+> pShow b
-  pretty (Array (TArray n m s)) = parens $ text "array" <+> text n <+> text m <+> integer s
-  pretty (Vector (TVector n m s)) = parens $ text "vector" <+> text n <+> text m <+> integer s
+  pretty (Synonym (TSynonym n b)) = parens $ "synonym" <+> text n <+> pShow b
+  pretty (Array (TArray n m s)) = parens $ "array" <+> text n <+> text m <+> integer s
+  pretty (Vector (TVector n m s)) = parens $ "vector" <+> text n <+> text m <+> integer s
   pretty (Record (TRecord n fs)) = prettyFielded "record" n fs
   pretty (Combination (TCombination n fs)) = prettyFielded "combination" n fs
   pretty (Union (TUnion n fs)) = prettyFielded "union" n fs
 
-prettyFielded :: String -> Name -> Fields -> Doc
-prettyFielded t n fs = parens $ hang pt 1 pfs
+prettyFielded :: T.Text -> Name -> Fields -> Doc
+prettyFielded t n fs = parens $ nest 1 (pt <$> pfs)
   where
     pt = text t <+> text n
     pfs = schemaPrettyFields fs
 
 schemaPrettyFields :: Fields -> Doc
-schemaPrettyFields (Fields fs) = parens $ hang (text "fields") 1 pfs
+schemaPrettyFields (Fields fs) = parens $ nest 1 ("fields" <$> pfs)
   where
     pfs = vcat $ map schemaPrettyRefs fs
 

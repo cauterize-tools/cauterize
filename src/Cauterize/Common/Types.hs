@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 module Cauterize.Common.Types
   ( BuiltIn(..)
   , Name
@@ -19,8 +19,6 @@ module Cauterize.Common.Types
   , Fields(..)
   , Field(..)
 
-  , refSig
-
   , References(..)
 
   , fieldsLength
@@ -29,11 +27,11 @@ module Cauterize.Common.Types
 import Data.List
 import Data.Maybe
 import Data.Data
-import qualified Data.Map as M
+import qualified Data.Text.Lazy as T
 
-type Name = String
-type Signature = String
-type Version = String
+type Name = T.Text
+type Signature = T.Text
+type Version = T.Text
 
 data BuiltIn = BIu8 | BIu16 | BIu32 | BIu64
              | BIs8 | BIs16 | BIs32 | BIs64
@@ -149,7 +147,7 @@ data TSynonym = TSynonym { synonymName :: Name
   deriving (Show, Ord, Eq, Data, Typeable)
 
 instance References TSynonym where
-  referencesOf (TSynonym _ b) = [show b]
+  referencesOf (TSynonym _ b) = [T.pack . show $ b]
 
 
 data TRecord = TRecord { recordName :: Name, recordFields :: Fields }
@@ -179,19 +177,13 @@ data Fields = Fields { unFields :: [Field] }
 fieldsLength :: Fields -> Int
 fieldsLength (Fields fs) = length fs
 
-data Field = Field { fName :: Name , fRef :: Name , fIndex :: Integer }
-           | EmptyField { fName :: Name, fIndex :: Integer }
+data Field = Field { fName :: T.Text , fRef :: T.Text , fIndex :: Integer }
+           | EmptyField { fName :: T.Text, fIndex :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
-
-refSig :: M.Map Name Signature -> Field -> Signature
-refSig _ (EmptyField n _) = concat ["(field ", n, ")"]
-refSig sm (Field n m _) = concat ["(field ", n, " ", luSig m, ")"]
-  where
-    luSig na = fromJust $ na `M.lookup` sm
 
 refRef :: Field -> Maybe Name
 refRef (EmptyField _ _) = Nothing
 refRef (Field _ n _) = Just n
 
 class References a where
-  referencesOf :: a -> [Name]
+  referencesOf :: a -> [T.Text]

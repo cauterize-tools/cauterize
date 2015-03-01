@@ -5,7 +5,7 @@ module Cauterize.GenerateSpec
 import Test.Hspec
 import Cauterize.Generate
 
-import Text.PrettyPrint.Class
+import Text.PrettyPrint.Leijen.Text
 
 import qualified Cauterize.Specification as Spec
 
@@ -22,4 +22,5 @@ spec = do
                                           ]
       let s' = Spec.fromSchema s
       print $ Spec.specSize s'
+      print $ pretty s
       print $ pretty s'

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Dynamic.Unpack
   ( dynamicUnpack
   , dynamicUnpack'
@@ -9,6 +10,7 @@ import Control.Exception
 import Control.Monad
 import Data.Bits
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
 import qualified Cauterize.Common.Types as C
 import qualified Data.ByteString as B
@@ -16,16 +18,18 @@ import qualified Data.ByteString as B
 import Data.Serialize.IEEE754
 import Data.Serialize.Get
 
-dynamicUnpack :: S.Spec -> String -> B.ByteString -> Either String CautType
-dynamicUnpack s n b = flip runGet b $ dynamicUnpack' s n
+dynamicUnpack :: S.Spec -> T.Text -> B.ByteString -> Either T.Text CautType
+dynamicUnpack s n b = case flip runGet b $ dynamicUnpack' s n of
+                        Left e -> Left $ T.pack e
+                        Right r -> Right r
 
-dynamicUnpack' :: S.Spec -> String -> Get CautType
+dynamicUnpack' :: S.Spec -> T.Text -> Get CautType
 dynamicUnpack' s n =
   let m = S.specTypeMap s
   in do d <- dynamicUnpackDetails m n
         return CautType { ctName = n, ctDetails = d }
 
-dynamicUnpackDetails :: TyMap -> String -> Get CautDetails
+dynamicUnpackDetails :: TyMap -> T.Text -> Get CautDetails
 dynamicUnpackDetails m n =
   let t = n `lu` m
   in case t of
@@ -80,7 +84,7 @@ dynamicUnpackUnion m (C.TUnion { C.unionFields = C.Fields { C.unFields = fs } })
   where
     fm = fieldsToIndexMap fs
 
-unpackField :: TyMap -> C.Field -> Get (String, FieldValue)
+unpackField :: TyMap -> C.Field -> Get (T.Text, FieldValue)
 unpackField _ (C.EmptyField { C.fName = n }) = return (n, EmptyField)
 unpackField m (C.Field { C.fName = n, C.fRef = r }) =
   liftM (\d -> (n, DataField d)) (dynamicUnpackDetails m r)
@@ -113,4 +117,4 @@ unpackTag C.BIu8  = liftM fromIntegral getWord8
 unpackTag C.BIu16 = liftM fromIntegral getWord16le
 unpackTag C.BIu32 = liftM fromIntegral getWord32le
 unpackTag C.BIu64 = liftM fromIntegral getWord64le
-unpackTag b = throw $ NotATagType (show b)
+unpackTag b = throw $ NotATagType (T.pack . show $ b)

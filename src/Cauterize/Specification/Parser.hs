@@ -1,10 +1,10 @@
 module Cauterize.Specification.Parser
   ( parseFile
-  , parseString
+  , parseText
   ) where
 
 import Text.Parsec
-import Text.Parsec.String
+import Text.Parsec.Text.Lazy
 
 import Cauterize.Specification.Types
 import Cauterize.Common.ParserUtils
@@ -12,11 +12,14 @@ import Cauterize.Common.Types
 
 import Control.Monad
 
-parseFile :: FilePath -> IO (Either ParseError Spec)
-parseFile path = liftM (parseString path) $ readFile path
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 
-parseString :: FilePath -> String -> Either ParseError Spec
-parseString path str =
+parseFile :: FilePath -> IO (Either ParseError Spec)
+parseFile path = liftM (parseText path) $ T.readFile path
+
+parseText :: FilePath -> T.Text -> Either ParseError Spec
+parseText path str =
   case parse parseSpec path str of
      Left e -> Left e
      Right s -> Right s
@@ -130,13 +133,13 @@ parseField = pSexp "field" $ do
   n <- spacedName
   try (parseFullField n) <|> parseEmptyField n
 
-parseFullField :: String -> Parser Field
+parseFullField :: T.Text -> Parser Field
 parseFullField n = do
   t <- spacedName
   ix <- spacedNumber
   return $ Field n t ix
 
-parseEmptyField :: String -> Parser Field
+parseEmptyField :: T.Text -> Parser Field
 parseEmptyField n = do
   ix <- spacedNumber
   return $ EmptyField n ix

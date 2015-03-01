@@ -7,11 +7,9 @@ import qualified Data.Text.Lazy as T
 import Data.Word
 import Numeric
 
-prettyMeta :: Meta -> Doc
+prettyMeta :: Meta -> T.Text
 prettyMeta (Meta n v tl dl sh  sv ts) =
   let banner = "meta-interface"
-      n'  = text (T.pack n)
-      sv' = text (T.pack sv)
       h'  = parens $ "sha1" <+> text (T.pack $ show sh)
       ts' = parens $ "types" <$> indent 2 (vcat $ map prettyType ts)
       rest = indent 2 $ vcat [ parens $ "meta-variant" <+> integer v
@@ -19,11 +17,12 @@ prettyMeta (Meta n v tl dl sh  sv ts) =
                              , parens $ "data-length" <+> integer dl
                              , ts'
                              ]
-  in parens $ banner <+> ((n' <+> sv' <+> h') <$> rest)
+      doc = parens $ banner <+> ((text n <+> text sv <+> h') <$> rest)
+  in displayT . renderPretty 1 120 . pretty $ doc
   where
 
 prettyType :: MetaType -> Doc
-prettyType (MetaType n p) = parens $ "type" <+> text (T.pack n)
+prettyType (MetaType n p) = parens $ "type" <+> text n
                                             <+> prettyPrefix p
 
 prettyPrefix :: [Word8] -> Doc

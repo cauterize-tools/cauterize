@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Common.ParserUtils
   ( pSexp
   , parens
@@ -12,13 +13,14 @@ module Cauterize.Common.ParserUtils
   ) where
 
 import Text.Parsec
-import Text.Parsec.String
+import Text.Parsec.Text.Lazy
 
 import Cauterize.FormHash
 
 import Control.Monad
 
 import Data.Word
+import qualified Data.Text.Lazy as T
 import Numeric
 
 import qualified Data.ByteString as BS
@@ -32,19 +34,19 @@ parens a = do
   _ <- char ')'
   return a'
 
-parseManyStartingWith :: String -> String -> Parser String
+parseManyStartingWith :: String -> String -> Parser T.Text
 parseManyStartingWith s r = do
   s' <- oneOf s
   r' <- many . oneOf $ r
-  return $ s':r'
+  return $ s' `T.cons` T.pack r'
 
-schemaName :: Parser String
+schemaName :: Parser T.Text
 schemaName = parseManyStartingWith start rest
   where
     start = ['a'..'z']
     rest = start ++ "_" ++ ['0'..'9']
 
-schemaVersion :: Parser String
+schemaVersion :: Parser T.Text
 schemaVersion = parseManyStartingWith start rest
   where
     start = ['a'..'z'] ++ ['0'..'9']
@@ -53,7 +55,7 @@ schemaVersion = parseManyStartingWith start rest
 spaces1 :: Parser ()
 spaces1 = space >> spaces
 
-validName :: Parser String
+validName :: Parser T.Text
 validName = parseManyStartingWith start rest
   where
     start = ['a'..'z']
@@ -73,16 +75,16 @@ parseFormHash = pSexp "sha1" $ do
   spaces1
   liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['a'..'f'] ++ ['0'..'9'])
 
-spacedName :: Parser String
+spacedName :: Parser T.Text
 spacedName = spaces1 >> validName
 
 spacedNumber :: Parser Integer
 spacedNumber = spaces1 >> validNumber
 
-spacedSchemaName :: Parser String
+spacedSchemaName :: Parser T.Text
 spacedSchemaName = spaces1 >> schemaName
 
-spacedSchemaVersion :: Parser String
+spacedSchemaVersion :: Parser T.Text
 spacedSchemaVersion = spaces1 >> schemaVersion
 
 spacedFormHash :: Parser FormHash

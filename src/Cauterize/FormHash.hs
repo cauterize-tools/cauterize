@@ -1,25 +1,26 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 module Cauterize.FormHash
   ( FormHash(..)
   , HashContext
 
   , hashInit
   , hashUpdate
-  , hashString
+  , hashText
+  , hashToText
   , hashFinalize
 
   , hashToBytes
   ) where
 
 import qualified Crypto.Hash.SHA1 as C
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as BC
 import Data.Data
 import Data.Word
 import Numeric
 
-import Text.PrettyPrint
-import Text.PrettyPrint.Class
+import Text.PrettyPrint.Leijen.Text
 
 data FormHash = FormHash { hashToByteString :: B.ByteString }
   deriving (Eq, Ord, Data, Typeable)
@@ -29,11 +30,11 @@ type HashContext = C.Ctx
 hashInit :: HashContext
 hashInit = C.init
 
-hashUpdate :: HashContext -> String -> HashContext
-hashUpdate ctx s = ctx `C.update` BC.pack s
+hashUpdate :: HashContext -> T.Text -> HashContext
+hashUpdate ctx s = ctx `C.update` TE.encodeUtf8 (T.toStrict s)
 
-hashString :: String -> FormHash
-hashString = hashFinalize . hashUpdate hashInit
+hashText :: T.Text -> FormHash
+hashText = hashFinalize . hashUpdate hashInit
 
 hashFinalize :: HashContext -> FormHash
 hashFinalize = FormHash . C.finalize
@@ -41,13 +42,16 @@ hashFinalize = FormHash . C.finalize
 hashToBytes :: FormHash -> [Word8]
 hashToBytes (FormHash h) = B.unpack h
 
-instance Show FormHash where
-  show (FormHash bs) = concatMap showByte $ B.unpack bs
+hashToText :: FormHash -> T.Text
+hashToText (FormHash bs) = T.concat $ map showByte $ B.unpack bs
     where
       showByte b = case showHex b "" of
-                    [x,y] -> [x, y]
-                    [x]   -> ['0', x]
+                    [x,y] -> T.pack [x, y]
+                    [x]   -> T.pack ['0', x]
                     _     -> error "This should be impossible."
 
 instance Pretty FormHash where
-  pretty f = parens $ text "sha1" <+> (text . show $ f)
+  pretty f = parens $ "sha1" <+> (text . hashToText) f
+
+instance Show FormHash where
+  show = T.unpack . hashToText

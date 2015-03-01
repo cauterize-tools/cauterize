@@ -3,9 +3,9 @@ module Cauterize.Test.Generate
   ) where
 
 import Cauterize.Generate
-import Text.PrettyPrint.Class
 import qualified Cauterize.Schema as SC
 import qualified Cauterize.Test.Generate.Options as OPT
+import qualified Data.Text.Lazy.IO as T
 
 printArbSpec :: OPT.GenerateOpts -> IO ()
 printArbSpec (OPT.GenerateOpts typeCount encSize prototypes) = outputCaut prototypes typeCount encSize
@@ -17,5 +17,5 @@ outputCaut :: [PrototypeVariant] -- which prototypes to allow
 outputCaut ps tc es = do
   s <- generateSchemaWith tc es 0.95 ps
   case SC.checkSchema s of
-    [] -> print . pretty $ s
+    [] -> T.putStrLn . SC.prettyPrint $ s
     errors -> error $ "ERROR: " ++ show errors

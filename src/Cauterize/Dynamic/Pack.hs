@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Dynamic.Pack
   ( dynamicPack
   ) where
@@ -14,13 +15,14 @@ import qualified Cauterize.Specification as S
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 import qualified Data.Set as Set
+import qualified Data.Text.Lazy as T
 
 dynamicPack :: S.Spec -> CautType -> B.ByteString
 dynamicPack s (CautType { ctName = n, ctDetails = d }) =
   let m = S.specTypeMap s
   in runPut $ dynamicPackDetails m n d
 
-dynamicPackDetails :: TyMap -> String -> CautDetails -> Put
+dynamicPackDetails :: TyMap -> T.Text -> CautDetails -> Put
 dynamicPackDetails m n det =
   case det of
     CDBuiltIn bd -> dynamicPackBuiltIn m n bd
@@ -31,10 +33,10 @@ dynamicPackDetails m n det =
     CDCombination fs -> dynamicPackCombination m n fs
     CDUnion fn fd -> dynamicPackUnion m n fn fd
 
-dynamicPackBuiltIn :: TyMap -> String -> BIDetails -> Put
+dynamicPackBuiltIn :: TyMap -> T.Text -> BIDetails -> Put
 dynamicPackBuiltIn _ n det =
   if not (n `isNameOf` det)
-  then throw $ TypeMisMatch n (show det)
+  then throw $ TypeMisMatch n (T.pack . show $ det)
   else case det of
          BDu8 d -> putWord8 d
          BDu16 d -> putWord16le d
@@ -51,15 +53,15 @@ dynamicPackBuiltIn _ n det =
          BDcu16 d -> putWord16le d
          BDcu32 d -> putWord32le d
 
-dynamicPackSynonym :: TyMap -> String -> BIDetails -> Put
+dynamicPackSynonym :: TyMap -> T.Text -> BIDetails -> Put
 dynamicPackSynonym m n det =
   let t = checkedTypeLookup m n isSynonym "synonym"
-      trn = show $ C.synonymRepr . S.unSynonym $ t
+      trn = T.pack . show $ C.synonymRepr . S.unSynonym $ t
   in if isNameOf trn det
       then dynamicPackBuiltIn m trn det
-      else throw $ TypeMisMatch trn (show det)
+      else throw $ TypeMisMatch trn (T.pack . show $ det)
 
-dynamicPackArray :: TyMap -> String -> [CautDetails] -> Put
+dynamicPackArray :: TyMap -> T.Text -> [CautDetails] -> Put
 dynamicPackArray m n elems =
   let t = checkedTypeLookup m n isArray "array"
       a = S.unArray t
@@ -70,7 +72,7 @@ dynamicPackArray m n elems =
        then throw $ IncorrectArrayLength al el
        else mapM_ (dynamicPackDetails m etype) elems
 
-dynamicPackVector :: TyMap -> String -> [CautDetails] -> Put
+dynamicPackVector :: TyMap -> T.Text -> [CautDetails] -> Put
 dynamicPackVector m n elems =
   let t = checkedTypeLookup m n isVector "vector"
       v = S.unVector t
@@ -83,7 +85,7 @@ dynamicPackVector m n elems =
        else do dynamicPackTag vlr el
                mapM_ (dynamicPackDetails m etype) elems
 
-dynamicPackRecord :: TyMap -> String -> M.Map String FieldValue -> Put
+dynamicPackRecord :: TyMap -> T.Text -> M.Map T.Text FieldValue -> Put
 dynamicPackRecord m n fields = checkedDynamicFields fs fields go
   where
     t = checkedTypeLookup m n isRecord "record"
@@ -91,7 +93,7 @@ dynamicPackRecord m n fields = checkedDynamicFields fs fields go
     fs = C.unFields . C.recordFields $ r
     go fields' = mapM_ (dynamicPackRecordField m fields') fs
 
-dynamicPackCombination :: TyMap -> String -> M.Map String FieldValue -> Put
+dynamicPackCombination :: TyMap -> T.Text -> M.Map T.Text FieldValue -> Put
 dynamicPackCombination m n fields = checkedDynamicFields fs fields go
   where
     t = checkedTypeLookup m n isCombination "combination"
@@ -105,7 +107,7 @@ dynamicPackCombination m n fields = checkedDynamicFields fs fields go
       in do dynamicPackTag tr (fromIntegral ixbits)
             mapM_ (dynamicPackCombinationField m fields') fs
 
-dynamicPackUnion :: TyMap -> String -> String -> FieldValue -> Put
+dynamicPackUnion :: TyMap -> T.Text -> T.Text -> FieldValue -> Put
 dynamicPackUnion m n fn fv = do
   dynamicPackTag fir (C.fIndex field)
   case (field, fv) of
@@ -124,9 +126,9 @@ dynamicPackUnion m n fn fv = do
 -- Retrieve a type from the map while also ensuring that its type matches some
 -- expected condition. If the type does not match an exception is thrown.
 checkedTypeLookup :: TyMap -- the map of types from the schema
-                  -> String -- the name of the type to check
+                  -> T.Text -- the name of the type to check
                   -> (S.SpType -> Bool) -- a checking function: isArray, isRecord, etc
-                  -> String -- a name to use for the expected type (THIS IS SUPER HACKY)
+                  -> T.Text -- a name to use for the expected type (THIS IS SUPER HACKY)
                   -> S.SpType
 checkedTypeLookup m n checker expectedStr =
   let t = n `lu` m
@@ -138,8 +140,8 @@ checkedTypeLookup m n checker expectedStr =
 -- The passed function can assume that there are no extra fields. There may
 -- still be *missing* fields.
 checkedDynamicFields :: [C.Field] -- input fields to compare againts
-                     -> M.Map String FieldValue -- the dynamic fields that need checking
-                     -> (M.Map String FieldValue -> Put) -- a function to accept the checked dynamic fields
+                     -> M.Map T.Text FieldValue -- the dynamic fields that need checking
+                     -> (M.Map T.Text FieldValue -> Put) -- a function to accept the checked dynamic fields
                      -> Put -- the result of the passed function
 checkedDynamicFields fs dfs a =
   let fset = fieldNameSet fs
@@ -159,7 +161,7 @@ dynamicPackTag b v =
     C.BIu16 | v >= 0 && v <= u16Max -> putWord16le (fromIntegral v)
     C.BIu32 | v >= 0 && v <= u32Max -> putWord32le (fromIntegral v)
     C.BIu64 | v >= 0 && v <= u64Max -> putWord64le (fromIntegral v)
-    _ -> throw $ InvalidTagForRepresentation v (show b)
+    _ -> throw $ InvalidTagForRepresentation v (T.pack . show $ b)
   where
     u8Max, u16Max, u32Max, u64Max :: Integer
     u8Max = 2^(8 :: Integer) - 1
@@ -168,7 +170,7 @@ dynamicPackTag b v =
     u64Max = 2^(64 :: Integer) - 1
 
 -- Insists that the dynamic field map is complete.
-dynamicPackRecordField :: TyMap -> M.Map String FieldValue -> C.Field -> Put
+dynamicPackRecordField :: TyMap -> M.Map T.Text FieldValue -> C.Field -> Put
 dynamicPackRecordField _ fm (C.EmptyField { C.fName = n }) = dynamicPackEmptyField fm n
 dynamicPackRecordField tym fm (C.Field { C.fName = n, C.fRef = r }) =
   let det = fromMaybe (throw $ MissingField n)
@@ -178,7 +180,7 @@ dynamicPackRecordField tym fm (C.Field { C.fName = n, C.fRef = r }) =
     EmptyField -> unexpectedEmpty n
 
 -- Skips fields not present in the dynamic field map.
-dynamicPackCombinationField :: TyMap -> M.Map String FieldValue -> C.Field -> Put
+dynamicPackCombinationField :: TyMap -> M.Map T.Text FieldValue -> C.Field -> Put
 dynamicPackCombinationField _ fm (C.EmptyField { C.fName = n }) =
   case n `M.lookup` fm of
     Just (DataField det) -> unexpectedData n det
@@ -190,13 +192,13 @@ dynamicPackCombinationField tym fm (C.Field { C.fName = n, C.fRef = r }) =
     Just (DataField det) -> dynamicPackDetails tym r det
     Nothing -> return ()
 
-unexpectedEmpty :: String -> c
+unexpectedEmpty :: T.Text -> c
 unexpectedEmpty n = throw $ UnexpectedEmptyField n
 
-unexpectedData :: String -> CautDetails -> c
+unexpectedData :: T.Text -> CautDetails -> c
 unexpectedData n d = throw $ UnexpectedDataField n d
 
-dynamicPackEmptyField :: M.Map String FieldValue -> String -> Put
+dynamicPackEmptyField :: M.Map T.Text FieldValue -> T.Text -> Put
 dynamicPackEmptyField fm n =
   let det = fromMaybe (throw $ MissingField n)
                       (n `M.lookup` fm)

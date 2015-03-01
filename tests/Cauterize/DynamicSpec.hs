@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.DynamicSpec
   ( spec
   ) where
@@ -12,6 +13,7 @@ import Data.Word
 import qualified Cauterize.Specification as Spec
 import qualified Data.ByteString as B
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as T
 
 -- First, a few utilities.
 packCompare :: Spec.Spec -> CautType -> [Word8] -> Expectation
@@ -20,7 +22,7 @@ packCompare s t b = dynamicPack s t `shouldBe` B.pack b
 unpackCompare :: Spec.Spec -> CautType -> [Word8] -> Expectation
 unpackCompare s t b = case dynamicUnpack s (ctName t) (B.pack b) of
                           Right res -> res `shouldBe` t
-                          Left err -> expectationFailure err
+                          Left err -> expectationFailure (T.unpack err)
 
 -- packShouldThrow is defined in terms of packCompare because of how laziness
 -- interacts with exceptions. Namely, that often times we'll never force the

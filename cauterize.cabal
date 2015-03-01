@@ -18,8 +18,6 @@ library
   build-depends:       base >=4.6 && <4.8,
                        mtl >=2.2,
                        parsec,
-                       pretty,
-                       pretty-class == 0.1.*,
                        cryptohash,
                        QuickCheck,
                        containers,
@@ -63,6 +61,7 @@ executable cauterize
   main-is:             Main.hs
   build-depends:       base >=4.6 && <4.8,
                        cauterize,
+                       text >= 1.2,
                        optparse-applicative >=0.11.0.1
   default-language:    Haskell2010
 
@@ -76,12 +75,11 @@ executable cauterize-test
   build-depends:       base >=4.6 && <4.8,
                        cauterize,
                        optparse-applicative >=0.11.0.1,
+                       wl-pprint-text,
                        split,
                        containers,
                        bytestring,
                        QuickCheck >=2.7,
-                       pretty,
-                       pretty-class >= 0.1,
                        text,
                        time,
                        process,
@@ -107,11 +105,11 @@ test-suite spec
                        Cauterize.DynamicSpec,
                        Cauterize.SchemaSpec
   build-depends:       base >=4.7 && <4.8,
-                       pretty,
-                       pretty-class,
                        bytestring,
                        containers,
                        hspec >= 2.1.4,
                        hspec-discover >= 2.1.4,
+                       text >= 1.2,
+                       wl-pprint-text,
                        cauterize
   default-language:    Haskell2010

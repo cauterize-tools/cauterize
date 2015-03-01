@@ -1,23 +1,27 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Schema.Parser
   ( parseFile
-  , parseString
+  , parseText
   , Schema
   ) where
 
 import Control.Monad
 
 import Text.Parsec
-import Text.Parsec.String
+import Text.Parsec.Text.Lazy
+
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 
 import Cauterize.Common.ParserUtils
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
 
 parseFile :: FilePath -> IO (Either ParseError Schema)
-parseFile path = liftM (parseString path) $ readFile path
+parseFile path = liftM (parseText path) $ T.readFile path
 
-parseString :: FilePath -> String -> Either ParseError Schema
-parseString path str =
+parseText :: FilePath -> T.Text -> Either ParseError Schema
+parseText path str =
   case parse parseSchema path str of
      Left e -> Left e
      Right s -> Right s

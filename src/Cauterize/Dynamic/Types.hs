@@ -13,10 +13,11 @@ import Data.Data
 import Data.Int
 import Data.Word
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
 
 data CautType =
-  CautType { ctName :: String
+  CautType { ctName :: T.Text
            , ctDetails :: CautDetails
            }
   deriving (Show, Ord, Eq)
@@ -26,9 +27,9 @@ data CautDetails
   | CDSynonym BIDetails
   | CDArray { cdArrayElems :: [CautDetails] }
   | CDVector { cdVectorelems :: [CautDetails] }
-  | CDRecord { cdRecordFields :: M.Map String FieldValue }
-  | CDCombination { cdCombinationFields :: M.Map String FieldValue }
-  | CDUnion { cdUnionFieldName :: String, cdUnionFieldDetails :: FieldValue }
+  | CDRecord { cdRecordFields :: M.Map T.Text FieldValue }
+  | CDCombination { cdCombinationFields :: M.Map T.Text FieldValue }
+  | CDUnion { cdUnionFieldName :: T.Text, cdUnionFieldDetails :: FieldValue }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 data BIDetails = BDu8 Word8
@@ -51,21 +52,21 @@ data FieldValue = DataField CautDetails
                 | EmptyField
   deriving (Show, Ord, Eq, Data, Typeable)
 
-type TyMap = M.Map String S.SpType
+type TyMap = M.Map T.Text S.SpType
 
-data Exceptions = TypeMisMatch { tmmExpected :: String, tmmActual :: String }
-                | PrototypeMisMatch { ptmmTypeName :: String, ptmmDetailType :: String }
+data Exceptions = TypeMisMatch { tmmExpected :: T.Text, tmmActual :: T.Text }
+                | PrototypeMisMatch { ptmmTypeName :: T.Text, ptmmDetailType :: T.Text }
                 | IncorrectArrayLength { ialExpected :: Integer, ialActual :: Integer }
                 | IncorrectVectorLength { ivlMaximum :: Integer, ivlActual :: Integer }
-                | InvalidType { invType :: String }
-                | InvalidTagForRepresentation { invTag :: Integer, invRepresentation :: String }
+                | InvalidType { invType :: T.Text }
+                | InvalidTagForRepresentation { invTag :: Integer, invRepresentation :: T.Text }
                 | InvalidLengthForLengthWidth { ilflwLength :: Integer, ilflwWidth :: Integer }
                 | InvalidLengthWidth { ilwWidth :: Integer }
-                | NotATagType { invTagType :: String }
-                | MissingField { mfField :: String }
-                | UnexpectedFields { ufFields :: [String] }
-                | UnexpectedDataField { udfField :: String, udfData :: CautDetails }
-                | UnexpectedEmptyField { udfField :: String }
+                | NotATagType { invTagType :: T.Text }
+                | MissingField { mfField :: T.Text }
+                | UnexpectedFields { ufFields :: [T.Text] }
+                | UnexpectedDataField { udfField :: T.Text, udfData :: CautDetails }
+                | UnexpectedEmptyField { udfField :: T.Text }
   deriving (Show, Eq, Data, Typeable)
 
 instance Exception Exceptions

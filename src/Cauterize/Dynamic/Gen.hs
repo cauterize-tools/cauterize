@@ -12,6 +12,7 @@ import Test.QuickCheck.Gen
 import qualified Cauterize.Common.Types as C
 import qualified Cauterize.Specification as S
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as T
 
 dynamicGen :: S.Spec -> IO CautType
 dynamicGen s = do
@@ -20,17 +21,17 @@ dynamicGen s = do
   where
     m = S.specTypeMap s
 
-dynamicGenType :: S.Spec -> String -> IO CautType
+dynamicGenType :: S.Spec -> T.Text -> IO CautType
 dynamicGenType s n = generate $ dynamicGenType' s n
 
-dynamicGenType' :: S.Spec -> String -> Gen CautType
+dynamicGenType' :: S.Spec -> T.Text -> Gen CautType
 dynamicGenType' s n = do
   d <- dynamicGenDetails m n
   return CautType { ctName = n, ctDetails = d }
   where
     m = S.specTypeMap s
 
-dynamicGenDetails :: TyMap -> String -> Gen CautDetails
+dynamicGenDetails :: TyMap -> T.Text -> Gen CautDetails
 dynamicGenDetails m n =
   case n `lu` m of
    S.BuiltIn { S.unBuiltIn = bi } -> dynamicGenBuiltIn m bi
@@ -93,7 +94,7 @@ genBuiltIn b =
     C.BIcu32 -> liftM BDcu32 arbitrary
     C.BIbool -> liftM BDbool arbitrary
 
-genField :: TyMap -> C.Field -> Gen (String, FieldValue)
+genField :: TyMap -> C.Field -> Gen (T.Text, FieldValue)
 genField _ (C.EmptyField { C.fName = n }) = return (n, EmptyField)
 genField m (C.Field { C.fName = n, C.fRef = r }) =
   liftM (\d -> (n, DataField d)) (dynamicGenDetails m r)
