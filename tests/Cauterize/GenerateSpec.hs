@@ -5,22 +5,24 @@ module Cauterize.GenerateSpec
 import Test.Hspec
 import Cauterize.Generate
 
-import Text.PrettyPrint.Leijen.Text
+import Cauterize.Common.Types
 
+import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
 
 spec :: Spec
 spec = do
   describe "schema generation" $ do
     it "honors size restrictions" $ do
-      s <- generateSchemaWith 10 1000 0.9 [ PVSynonym
-                                          , PVArray
-                                          , PVVector
-                                          , PVRecord
-                                          , PVCombination
-                                          , PVUnion
-                                          ]
+      s <- generateSchemaWith 100 1000 0.9 [ PVSynonym
+                                           , PVArray
+                                           , PVVector
+                                           , PVRecord
+                                           , PVCombination
+                                           , PVUnion
+                                           ]
       let s' = Spec.fromSchema s
-      print $ Spec.specSize s'
-      print $ pretty s
-      print $ pretty s'
+      let numBuiltIns = fromEnum (maxBound :: BuiltIn) + 1
+
+      (length . Schema.schemaTypes) s - numBuiltIns `shouldSatisfy` (<= 100)
+      (Spec.maxSize . Spec.specSize) s' `shouldSatisfy` (<= 1000)

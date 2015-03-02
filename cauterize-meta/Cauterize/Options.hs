@@ -1,4 +1,7 @@
-module Cauterize.Options where
+module Cauterize.Options
+  ( MetaOpts(..)
+  , runWithOptions
+  ) where
 
 import Options.Applicative
 
