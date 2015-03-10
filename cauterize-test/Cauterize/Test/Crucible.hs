@@ -7,6 +7,7 @@ import Cauterize.Generate
 import Cauterize.Test.Crucible.Options
 import Control.Concurrent
 import Control.Monad
+import Data.List
 import Data.Maybe
 import Data.Time.Clock.POSIX
 import System.Directory
@@ -53,6 +54,7 @@ runCrucible opts = do
   putStrLn $ "  Types per schema: " ++ show typeCount
   putStrLn $ "  Instance from each schema: " ++ show instCount
   putStrLn $ "  Maximum encoded size of each type: " ++ show maxEncSize
+  putStrLn $ "  Allowed prototypes: " ++ usePrototypesStr
 
   t <- round `fmap` getPOSIXTime :: IO Integer
   failCounts <- inNewDir ("crucible-" ++ show t) $
@@ -67,6 +69,8 @@ runCrucible opts = do
     typeCount = schemaTypeCount opts
     maxEncSize = schemaEncSize opts
     usePrototypes = allowedPrototypes opts
+
+    usePrototypesStr = intercalate ", " $ map protoVarToStr usePrototypes
 
     -- Creates a schema of the specified size.
     aSchema c s = generateSchemaWith c s 0.95 usePrototypes
@@ -153,7 +157,8 @@ testCmdWithSchemaInstances :: T.Text  -- ^ the path to the exectuable to test
                            -> ME.Meta -- ^ the meta file from which to generate the instance
                            -> Integer -- ^ how many instances to test
                            -> IO [TestOutput]
-testCmdWithSchemaInstances cmd spec meta count = replicateM (fromIntegral count) $ do
+testCmdWithSchemaInstances _ _ _ 0 = return []
+testCmdWithSchemaInstances cmd spec meta count = do
   -- Create the process. Grab its stdin and stdout.
   (Just stdih, Just stdoh, Just stdeh, ph) <- createProcess shelled
   (result, unpacked, packed) <- runTest stdih stdoh spec meta
@@ -162,10 +167,15 @@ testCmdWithSchemaInstances cmd spec meta count = replicateM (fromIntegral count)
   -- everything up properly according to the exit status of the process.
   e <- waitForProcess ph
   errorOutput <- T.hGetContents stdeh
-  r <- case e of
-          ExitSuccess -> return result
-          ExitFailure c -> return TestError { testErrorMessage = "Client process exited with failure code: " `T.append` (T.pack . show) c }
-  return TestOutput { testResult = r, testStdErr = errorOutput, testEncodedInstance = packed, testInstance = unpacked }
+
+  let o r = TestOutput { testResult = r
+                       , testStdErr = errorOutput
+                       , testEncodedInstance = packed
+                       , testInstance = unpacked }
+  case e of
+     ExitSuccess -> liftM (o result:) (testCmdWithSchemaInstances cmd spec meta (count - 1))
+     ExitFailure c -> let te = TestError { testErrorMessage = "Client process exited with failure code: " `T.append` (T.pack . show) c }
+                      in return [o te]
   where
     shelled = (shell $ T.unpack cmd) { std_out = CreatePipe
                                      , std_err = CreatePipe
@@ -265,7 +275,7 @@ runTest ih oh spec meta = do
   -- Dump something on the console to represent the running state.
   case result of
     TestPass -> putStr "."
-    _ -> putStr "X"
+    _ -> putStrLn "X"
   hFlush stdout
 
   return (result, mt, packed)
@@ -290,3 +300,10 @@ inNewDir name a = do
   a' <- a
   setCurrentDirectory cd
   return a'
+
+protoVarToStr PVSynonym     = "synonym"
+protoVarToStr PVArray       = "array"
+protoVarToStr PVVector      = "vector"
+protoVarToStr PVRecord      = "record"
+protoVarToStr PVCombination = "combination"
+protoVarToStr PVUnion       = "union"
