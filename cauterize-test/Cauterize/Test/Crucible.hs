@@ -173,7 +173,10 @@ testCmdWithSchemaInstances cmd spec meta count = do
                        , testEncodedInstance = packed
                        , testInstance = unpacked }
   case e of
-     ExitSuccess -> liftM (o result:) (testCmdWithSchemaInstances cmd spec meta (count - 1))
+     ExitSuccess -> case result of
+                      TestPass -> liftM (o result:) (testCmdWithSchemaInstances cmd spec meta (count - 1))
+                      TestFail -> return [o result]
+                      te -> return [o te]
      ExitFailure c -> let te = TestError { testErrorMessage = "Client process exited with failure code: " `T.append` (T.pack . show) c }
                       in return [o te]
   where
