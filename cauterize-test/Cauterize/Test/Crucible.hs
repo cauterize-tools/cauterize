@@ -9,6 +9,7 @@ import Control.Concurrent
 import Control.Monad
 import Data.List
 import Data.Maybe
+import Data.String
 import Data.Time.Clock.POSIX
 import System.Directory
 import System.Exit
@@ -190,10 +191,10 @@ renderResults :: [TestOutput] -> IO Int
 renderResults rs = go rs 0
   where
     successStr = "\nSchema success!"
-    failStr n = "\nSCHEMA HAD " ++ show n ++ "FAILURES!"
+    failStr = "\nSCHEMA FAILED!"
 
     go [] 0 = putStrLn successStr >> return (0 :: Int)
-    go [] n = putStrLn (failStr n) >> return n
+    go [] n = putStrLn failStr >> return n
     go (TestOutput t e b mt:rest) failures = case t of
                                               TestPass -> go rest failures
                                               TestError m -> printErr m >> go rest (failures + 1)
@@ -304,6 +305,7 @@ inNewDir name a = do
   setCurrentDirectory cd
   return a'
 
+protoVarToStr :: IsString a => PrototypeVariant -> a
 protoVarToStr PVSynonym     = "synonym"
 protoVarToStr PVArray       = "array"
 protoVarToStr PVVector      = "vector"
