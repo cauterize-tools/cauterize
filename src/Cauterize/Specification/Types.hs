@@ -247,7 +247,9 @@ fromSchema sc = Spec { specName = n
           in Combination t hash (mkRangeSize reprSz (reprSz + sumMax)) repr'
         SC.Union t@(TUnion _ rs) ->
           let refs = lookupRefs rs
-              minMin = minimumOfSizes refs
+              minMin = if anyEmpty rs
+                          then 0
+                          else minimumOfSizes refs
               maxMax = maximumOfSizes refs
               repr = minimalExpression (fieldsLength rs)
               repr' = TagRepr repr
@@ -259,6 +261,12 @@ fromSchema sc = Spec { specName = n
         lookupField (Field _ r _) = Just $ lookupRef r
         lookupField (EmptyField _ _) = Nothing
         lookupRefs = mapMaybe lookupField . unFields
+
+        anyEmpty (Fields fs) = any isEmpty fs
+
+        isEmpty (EmptyField _ _) = True
+        isEmpty _ = False
+
 
 -- Topographically sort the types so that types with the fewest dependencies
 -- show up first in the list of types. Types with the most dependencies are
