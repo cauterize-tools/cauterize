@@ -43,9 +43,6 @@ data BIDetails = BDu8 Word8
                | BDf32 Float
                | BDf64 Double
                | BDbool Bool
-               | BDcu8 Word8
-               | BDcu16 Word16
-               | BDcu32 Word32
   deriving (Show, Ord, Eq, Data, Typeable)
 
 data FieldValue = DataField CautDetails

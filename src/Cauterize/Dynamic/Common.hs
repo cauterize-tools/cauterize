@@ -53,9 +53,6 @@ isNameOf "s64" (BDs64 _) = True
 isNameOf "f32" (BDf32 _) = True
 isNameOf "f64" (BDf64 _) = True
 isNameOf "bool" (BDbool _) = True
-isNameOf "cu8" (BDcu8 _) = True
-isNameOf "cu16" (BDcu16 _) = True
-isNameOf "cu32" (BDcu32 _) = True
 isNameOf _ _ = False
 
 isBuiltIn :: S.SpType -> Bool

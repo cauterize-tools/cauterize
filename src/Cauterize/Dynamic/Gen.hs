@@ -89,9 +89,6 @@ genBuiltIn b =
     C.BIs64 -> liftM BDs64 arbitrary
     C.BIf32 -> liftM BDf32 arbitrary
     C.BIf64 -> liftM BDf64 arbitrary
-    C.BIcu8 -> liftM BDcu8 arbitrary
-    C.BIcu16 -> liftM BDcu16 arbitrary
-    C.BIcu32 -> liftM BDcu32 arbitrary
     C.BIbool -> liftM BDbool arbitrary
 
 genField :: TyMap -> C.Field -> Gen (T.Text, FieldValue)

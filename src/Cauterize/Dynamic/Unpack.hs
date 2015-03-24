@@ -102,9 +102,6 @@ unpackBuiltIn b =
     C.BIs64 -> liftM (BDs64 . fromIntegral) getWord64le
     C.BIf32 -> liftM BDf32 getFloat32le
     C.BIf64 -> liftM BDf64 getFloat64le
-    C.BIcu8 -> liftM BDcu8 getWord8
-    C.BIcu16 -> liftM BDcu16 getWord16le
-    C.BIcu32 -> liftM BDcu32 getWord32le
     C.BIbool -> do
       w8 <- getWord8
       case w8 of

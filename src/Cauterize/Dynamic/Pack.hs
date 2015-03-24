@@ -49,9 +49,6 @@ dynamicPackBuiltIn _ n det =
          BDf32 d -> putFloat32le d
          BDf64 d -> putFloat64le d
          BDbool d -> putWord8 $ if d then 1 else 0
-         BDcu8 d -> putWord8 d
-         BDcu16 d -> putWord16le d
-         BDcu32 d -> putWord32le d
 
 dynamicPackSynonym :: TyMap -> T.Text -> BIDetails -> Put
 dynamicPackSynonym m n det =

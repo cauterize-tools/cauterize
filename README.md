@@ -181,18 +181,6 @@ Floating point types:
   * `f32` - 32 bits wide, IEEE754 Single Precision
   * `f64` - 64 bits wide, IEEE754 Double Precision
 
-#### UTF Code Units
-
-There are three UTF Code Unit built-in types defined. *These types do not
-enforce their content to be valid UTF data. They merely act as a hint to
-code-generators that the contents may be UTF data.* It is the responsibility of
-the code generator to decide whether to validate any UTF data stored in
-collections of code units.
-
-  * `cu8` - 8 bit wide UTF code unit
-  * `cu16` - 16 bit wide UTF code unit
-  * `cu32` - 32 bit wide UTF code unit
-
 ### Prototypes
 
 Cauterize provides several prototypes that act as templates out of which other
@@ -317,7 +305,7 @@ system stores `u64` values according to names that are up to 128 bytes long.
 
 ```
 (schema example 1.0.0
-  (vector key_name cu8 128)
+  (vector key_name u8 128)
   (record key_pair (fields
                      (field name key_name)
                      (field value u64)))
@@ -372,25 +360,19 @@ In this section, we'll try and justify a few of the obvious questions that come
 up when reading this document. Cauterize has some odd restrictions, but they
 are conscious decisions. If you have a question
 
-## What's up with the weird UTF built-in types?
+## Why isn't there a string type?
 
-Good question: we could have the schema definition force code generators to
-validate their UTF data. We could even have included a native string type in
-the native schema types. We didn't do this precisely because of the load it
-puts on code generation. It's unreasonable to expect that small embedded
-systems should validate UTF data.
+TODO: Answer this well. Strings are weird.
 
 If your schema needs a string type, consider defining your own like this:
 
 ```
 (schema string_example 1.0.0
-  (vector utf8str8k cu8 8192))
+  (vector utf8str8k u8 8192))
 ```
 
-This is a vector of `cu8` values. While this isn't forced to be UTF8 data, it
-is likely a valid assumption that it should be. Code generators for different
-targets are free to validate this data on their own OR have the programs that
-use the generated code do the validation.
+This is a vector of `u8` values. Its string encoding isn't checked, but it's
+likely safe to assume that it should be valid UTF8 data based on the name.
 
 ## Why don't unions support multiple types per alternative?
 

@@ -10,9 +10,6 @@
   (synonym a_bool  bool)
   (synonym a_f32   f32)
   (synonym a_f64   f64)
-  (synonym a_cu8   cu8)
-  (synonym a_cu16  cu16)
-  (synonym a_cu32  cu32)
   (array array_of_a_u8 a_u8 3)
   (vector vector_of_a_u16 a_u16 3)
   (record record_of_unsigned
