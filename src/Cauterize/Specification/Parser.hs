@@ -36,8 +36,10 @@ parseSpec = do
       qhash <- spacedFormHash
       sz <- parseRangeSize
       depth <- parseDepth
+      tyTag <- parseTypeTagWidth
+      lnTag <- parseLengthTagWidth
       types <- pTypes
-      return $ Spec qname qver qhash sz depth types
+      return $ Spec qname qver qhash sz depth tyTag lnTag types
     pTypes :: Parser [SpType]
     pTypes = option [] $ do
       spaces1
@@ -127,6 +129,12 @@ parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumb
 
 parseDepth :: Parser Depth
 parseDepth = (>>) spaces1 $ pSexp "depth" (liftM Depth spacedNumber)
+
+parseTypeTagWidth :: Parser TypeTagWidth
+parseTypeTagWidth = (>>) spaces1 $ pSexp "type-width" (liftM TypeTagWidth spacedNumber)
+
+parseLengthTagWidth :: Parser LengthTagWidth
+parseLengthTagWidth = (>>) spaces1 $ pSexp "length-width" (liftM LengthTagWidth spacedNumber)
 
 parseField :: Parser Field
 parseField = pSexp "field" $ do

@@ -12,11 +12,14 @@ module Cauterize.Specification.Types
   , FlagsRepr(..)
 
   , Depth(..)
+  , TypeTagWidth(..)
+  , LengthTagWidth(..)
 
   , fromSchema
   , prettyPrint
   , typeName
   , specTypeMap
+  , specTypeTagMap
   , typeDepthMap
   ) where
 
@@ -27,13 +30,15 @@ import Data.Function
 import Data.Maybe
 import Data.Graph
 import Data.Data
+import Data.Word
 
-import qualified Data.Map as M
-import qualified Data.List as L
-import qualified Data.Set as S
-import qualified Data.Text.Lazy as T
 import qualified Cauterize.Common.Types as CT
 import qualified Cauterize.Schema.Types as SC
+import qualified Data.ByteString as B
+import qualified Data.List as L
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text.Lazy as T
 
 import Text.PrettyPrint.Leijen.Text
 
@@ -50,6 +55,12 @@ data FlagsRepr = FlagsRepr { unFlagsRepr :: BuiltIn }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 newtype Depth = Depth { unDepth :: Integer }
+  deriving (Show, Ord, Eq, Data, Typeable)
+
+newtype LengthTagWidth = LengthTagWidth { unLengthTagWidth :: Integer }
+  deriving (Show, Ord, Eq, Data, Typeable)
+
+newtype TypeTagWidth = TypeTagWidth { unTypeTagWidth :: Integer }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 mkRangeSize :: Integer -> Integer -> RangeSize
@@ -104,11 +115,19 @@ instance Pretty FlagsRepr where
 instance Pretty Depth where
   pretty (Depth d) = parens $ text "depth" <+> integer d
 
+instance Pretty TypeTagWidth where
+  pretty (TypeTagWidth d) = parens $ text "type-width" <+> integer d
+
+instance Pretty LengthTagWidth where
+  pretty (LengthTagWidth d) = parens $ text "length-width" <+> integer d
+
 data Spec = Spec { specName :: Name
                  , specVersion :: Version
                  , specHash :: FormHash
                  , specSize :: RangeSize
                  , specDepth :: Depth
+                 , specTypeTagWidth :: TypeTagWidth
+                 , specLengthTagWidth :: LengthTagWidth
                  , specTypes :: [SpType] }
   deriving (Show, Eq, Data, Typeable)
 
@@ -192,14 +211,19 @@ fromSchema :: SC.Schema -> Spec
 fromSchema sc = Spec { specName = n
                      , specVersion = v
                      , specHash = overallHash
-                     , specSize = rangeFitting fs'
+                     , specSize = size
                      , specDepth = maximumTypeDepth sc
+                     , specTypeTagWidth = typeWidth
+                     , specLengthTagWidth = lenWidth
                      , specTypes = fs'
                      }
   where
     n = SC.schemaName sc
     v = SC.schemaVersion sc
     fs' = topoSort $ pruneBuiltIns $ map snd $ M.toList specMap
+    size = rangeFitting fs'
+
+    (lenWidth, typeWidth) = tagWidths fs' (maxSize size)
 
     keepNames = S.fromList $ map typeName fs'
 
@@ -267,6 +291,29 @@ fromSchema sc = Spec { specName = n
         isEmpty (EmptyField _ _) = True
         isEmpty _ = False
 
+
+tagWidths :: Integral a => [SpType] -> a -> (LengthTagWidth, TypeTagWidth)
+tagWidths types smax =
+  (LengthTagWidth lengthTagWidth, TypeTagWidth typePrefixWidth)
+  where
+    typePrefixes = uniquePrefixes $ map (B.unpack . hashToByteString . spHash) types
+    typePrefixWidth = case typePrefixes of
+                        Just (p:_) -> fromIntegral $ length p
+                        _ -> error "Need at least one prefix to determine a prefix length"
+    lengthTagWidth = bytesRequired $ fromIntegral typePrefixWidth + fromIntegral smax
+
+    uniquePrefixes :: Eq a => [[a]] -> Maybe [[a]]
+    uniquePrefixes ls = let count = length ls
+                        in case dropWhile (\l -> length l < count) $ map L.nub $ L.transpose $ map L.inits ls of
+                              [] -> Nothing
+                              l -> (Just . head) l
+
+    bytesRequired :: Word64 -> Integer
+    bytesRequired i | (0          <= i) && (i < 256) = 1
+                    | (256        <= i) && (i < 65536) = 2
+                    | (25536      <= i) && (i < 4294967296) = 4
+                    | (4294967296 <= i) && (i <= 18446744073709551615) = 8
+                    | otherwise = error $ "Cannot express value: " ++ show i
 
 -- Topographically sort the types so that types with the fewest dependencies
 -- show up first in the list of types. Types with the most dependencies are
@@ -377,6 +424,12 @@ specTypeMap s = let ts = specTypes s
                     ns = map typeName ts
                 in M.fromList $ zip ns ts
 
+specTypeTagMap :: Spec -> M.Map [Word8] SpType
+specTypeTagMap s = let ts = specTypes s
+                       tw = fromIntegral . unTypeTagWidth . specTypeTagWidth $ s
+                       hs = map (take tw . hashToBytes . spHash) ts
+                   in M.fromList $ zip hs ts
+
 instance References SpType where
   referencesOf (BuiltIn {..}) = []
   referencesOf (Synonym s _ _) = referencesOf s
@@ -393,9 +446,9 @@ pShow :: (Show a) => a -> Doc
 pShow = text . T.pack . show
 
 instance Pretty Spec where
-  pretty (Spec n v h sz d fs) = parens $ nest 1 (ps <$> pfs)
+  pretty (Spec n v h sz d tt lt fs) = parens $ nest 1 (ps <$> pfs)
     where
-      ps = "specification" <+> text n <+> text v <+> pretty h <+> pretty sz <+> pretty d
+      ps = "specification" <+> text n <+> text v <+> pretty h <+> pretty sz <+> pretty d <+> pretty tt <+> pretty lt
       pfs = vcat $ map pretty fs
 
 -- When printing spec types, the following is the general order of fields

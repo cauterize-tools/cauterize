@@ -8,30 +8,31 @@ import Cauterize.Dynamic.Pack
 import Cauterize.Dynamic.Types
 import Control.Exception
 import Data.Serialize.Put
-import qualified Cauterize.Meta as Meta
 import qualified Cauterize.Specification as Spec
 import qualified Data.ByteString as B
 import qualified Data.Map as M
+import qualified Cauterize.FormHash as F
 
-dynamicMetaPack :: Spec.Spec -> Meta.Meta -> MetaType -> B.ByteString
-dynamicMetaPack spec meta t =
-  let (h, p) = dynamicMetaPackHeaderAndPayload spec meta t
+dynamicMetaPack :: Spec.Spec -> MetaType -> B.ByteString
+dynamicMetaPack spec t =
+  let (h, p) = dynamicMetaPackHeaderAndPayload spec t
   in h `B.append` p
 
-dynamicMetaPackHeaderAndPayload :: Spec.Spec -> Meta.Meta -> MetaType -> (B.ByteString, B.ByteString)
-dynamicMetaPackHeaderAndPayload spec meta t =
+dynamicMetaPackHeaderAndPayload :: Spec.Spec -> MetaType -> (B.ByteString, B.ByteString)
+dynamicMetaPackHeaderAndPayload spec t =
   case tn `M.lookup` m of
     Nothing -> throw $ InvalidType tn
-    Just (Meta.MetaType { Meta.metaTypePrefix = p }) ->
-      let h = runPut $ do
-                packLengthWithWidth (fromIntegral . B.length $ ctPacked) dl
-                putByteString (B.pack p)
+    Just ty ->
+      let prefix = take (fromIntegral dl) $ F.hashToBytes $ Spec.spHash ty
+          h = runPut $ do
+                packLengthWithWidth (fromIntegral . B.length $ ctPacked) (fromIntegral dl)
+                putByteString (B.pack prefix)
       in (h, ctPacked)
   where
-    dl = Meta.metaDataLength meta
+    (Spec.LengthTagWidth dl) = Spec.specLengthTagWidth spec
     ct = unMetaType t
     tn = ctName ct
-    m = Meta.metaTypeMap meta
+    m = Spec.specTypeMap spec
     ctPacked = dynamicPack spec ct
 
 packLengthWithWidth :: Integer -- length to pack

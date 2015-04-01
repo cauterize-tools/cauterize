@@ -47,11 +47,7 @@ library
                        Cauterize.Dynamic.Meta.Unpack,
                        Cauterize.Dynamic.Meta.Types,
                        Cauterize.Common.ParserUtils,
-                       Cauterize.Generate,
-                       Cauterize.Meta,
-                       Cauterize.Meta.Parser,
-                       Cauterize.Meta.Pretty,
-                       Cauterize.Meta.Types
+                       Cauterize.Generate
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.
@@ -84,16 +80,6 @@ executable cauterize-test
                        time,
                        process,
                        directory
-  default-language:    Haskell2010
-
-executable cauterize-meta
-  hs-source-dirs:      cauterize-meta
-  ghc-options:         -Wall -O2 -threaded
-  main-is:             Main.hs
-  build-depends:       base,
-                       text,
-                       cauterize,
-                       optparse-applicative >=0.11.0.1
   default-language:    Haskell2010
 
 test-suite spec

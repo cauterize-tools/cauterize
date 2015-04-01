@@ -16,7 +16,6 @@ import System.Exit
 import System.IO
 import System.Process
 import qualified Cauterize.Dynamic.Meta as D
-import qualified Cauterize.Meta as ME
 import qualified Cauterize.Schema as SC
 import qualified Cauterize.Specification as SP
 import qualified Data.ByteString as B
@@ -81,11 +80,9 @@ runCrucible opts = do
           -- file. Write them to disk.
           schema <- aSchema typeCount maxEncSize
           let spec = SP.fromSchema schema
-          let meta = ME.metaFromSpec spec
 
           T.writeFile "schema.txt" $ SC.prettyPrint schema
           T.writeFile "specification.txt" $ SP.prettyPrint spec
-          T.writeFile "meta.txt" $ ME.prettyMeta meta
 
           -- Construct a context with the paths to the specification and meta files
           -- along with the current directory.
@@ -108,7 +105,7 @@ runCrucible opts = do
           --
           -- If anything failed, print a summary of the failure.
           if all runWasSuccessful buildOutputs
-            then testCmdWithSchemaInstances runCmd' spec meta instCount >>= renderResults
+            then testCmdWithSchemaInstances runCmd' spec instCount >>= renderResults
             else putStrLn "Build failure:" >> printResult (last buildOutputs) >> return 1
 
 -- | Run each command in order. If any command fails, do not run the remaining
@@ -155,14 +152,13 @@ runBuildCmd cmd = do
 -- TODO: come up with timeout mechanism.
 testCmdWithSchemaInstances :: T.Text  -- ^ the path to the exectuable to test
                            -> SP.Spec -- ^ the specification from which to generate the instance
-                           -> ME.Meta -- ^ the meta file from which to generate the instance
                            -> Integer -- ^ how many instances to test
                            -> IO [TestOutput]
-testCmdWithSchemaInstances _ _ _ 0 = return []
-testCmdWithSchemaInstances cmd spec meta count = do
+testCmdWithSchemaInstances _ _ 0 = return []
+testCmdWithSchemaInstances cmd spec count = do
   -- Create the process. Grab its stdin and stdout.
   (Just stdih, Just stdoh, Just stdeh, ph) <- createProcess shelled
-  (result, unpacked, packed) <- runTest stdih stdoh spec meta
+  (result, unpacked, packed) <- runTest stdih stdoh spec
 
   -- Wait for the process to terminate, collect the result of stdout, package
   -- everything up properly according to the exit status of the process.
@@ -175,7 +171,7 @@ testCmdWithSchemaInstances cmd spec meta count = do
                        , testInstance = unpacked }
   case e of
      ExitSuccess -> case result of
-                      TestPass -> liftM (o result:) (testCmdWithSchemaInstances cmd spec meta (count - 1))
+                      TestPass -> liftM (o result:) (testCmdWithSchemaInstances cmd spec (count - 1))
                       TestFail -> return [o result]
                       te -> return [o te]
      ExitFailure c -> let te = TestError { testErrorMessage = "Client process exited with failure code: " `T.append` (T.pack . show) c }
@@ -226,12 +222,11 @@ printResult BuildCmdOutput { buildCmdStr = cs, buildStdOut = so, buildStdErr = s
 runTest :: Handle -- ^ stdin of the process under test
         -> Handle -- ^ stdout of the process under test
         -> SP.Spec -- ^ specification derived from the schema under test
-        -> ME.Meta -- ^ meta from the specification that MUST be the previous arugument (sorry)
         -> IO (TestResult, D.MetaType, B.ByteString)
-runTest ih oh spec meta = do
+runTest ih oh spec = do
   -- Generate a type according to the specification, then pack it to binary.
-  mt <- D.dynamicMetaGen spec meta
-  let packed = D.dynamicMetaPack spec meta mt
+  mt <- D.dynamicMetaGen spec
+  let packed = D.dynamicMetaPack spec mt
 
   -- We keep this here as a sanity check. If this hits, it *IS* an error. We
   -- don't want to continue if this happens. Ever.
@@ -254,7 +249,7 @@ runTest ih oh spec meta = do
 
   -- Begin decoding from the process' stdout.
   hdrBytes <- B.hGet oh hlen
-  let hdr = D.dynamicMetaUnpackHeader meta hdrBytes
+  let hdr = D.dynamicMetaUnpackHeader spec hdrBytes
 
   result <- case hdr of
               -- Unable to unpack the header.
@@ -266,7 +261,7 @@ runTest ih oh spec meta = do
                 payload <- B.hGet oh (fromIntegral . D.metaLength $ mh)
 
                 -- Try to unpack the types from the payload bytes.
-                return $ case D.dynamicMetaUnpackFromHeader spec meta mh payload of
+                return $ case D.dynamicMetaUnpackFromHeader spec mh payload of
                           Left str -> TestError { testErrorMessage = str }
                           Right (mt', rest ) | not (B.null rest) -> TestError { testErrorMessage =
                                                                       "Not all bytes were consumed: " `T.append` (T.pack . show . B.unpack) rest }
@@ -284,7 +279,8 @@ runTest ih oh spec meta = do
 
   return (result, mt, packed)
   where
-    hlen = fromIntegral $ ME.metaTypeLength meta + ME.metaDataLength meta
+    hlen = fromIntegral (SP.unTypeTagWidth $ SP.specTypeTagWidth spec)
+         + fromIntegral (SP.unLengthTagWidth $ SP.specLengthTagWidth spec)
 
 -- Use a context to expand variables in a command.
 expandCmd :: Context -> T.Text -> T.Text
