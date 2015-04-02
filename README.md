@@ -1,3 +1,12 @@
+```
+   )     _____             _            _
+  /((   /  __ \           | |          (_)
+ (_))\  | /  \/ __ _ _   _| |_ ___ _ __ _ _______
+ _)((_) | |    / _` | | | | __/ _ \ '__| |_  / _ \
+ \ ^ /  | \__/\ (_| | |_| | ||  __/ |  | |/ /  __/
+  \_/    \____/\__,_|\__,_|\__\___|_|  |_/___\___|
+```
+
 # Cauterize
 
 Cauterize is a data-description language that must always be able to target a
@@ -103,6 +112,8 @@ From this goal, we can extract the following more specific goals:
   code generators should not have to generate any overly-complicated structures
   to conform to a specification. When a Cauterize feature is proposed, it must
   be implementable in simple terms in a variety of languages.
+* Ease of verification - code generators are hard to validate for correctness.
+  There should be some means of checking them automatically.
 * Simplicity - code generators should not be expected to perform complicated
   operations in order to emit code. Concepts should be simple in nature and
   have at least one obvious method for implementation.
