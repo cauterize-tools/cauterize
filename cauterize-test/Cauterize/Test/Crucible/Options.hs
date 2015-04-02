@@ -30,10 +30,9 @@ defaultInstanceCount = 100
 --
 -- Expanded tokens:
 --  %s - the path to the specification file.
---  %m - the path to the meta file.
 --  %d - the path to the working directory of the crucible command.
 --
--- cauterize-test crucible --build-cmd="foo --schema=%s --meta=%m --output=%d/cmd"
+-- cauterize-test crucible --build-cmd="foo --schema=%s --output=%d/cmd"
 --                         --build-cmd="cd %d/cmd && cabal build"
 --                         --run-cmd="%d/dist/build/cmd/cmd"
 --                         --schema-count=5
