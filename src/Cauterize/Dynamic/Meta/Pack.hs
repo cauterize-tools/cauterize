@@ -23,13 +23,14 @@ dynamicMetaPackHeaderAndPayload spec t =
   case tn `M.lookup` m of
     Nothing -> throw $ InvalidType tn
     Just ty ->
-      let prefix = take (fromIntegral dl) $ F.hashToBytes $ Spec.spHash ty
+      let prefix = take (fromIntegral tw) $ F.hashToBytes $ Spec.spHash ty
           h = runPut $ do
                 packLengthWithWidth (fromIntegral . B.length $ ctPacked) (fromIntegral dl)
                 putByteString (B.pack prefix)
       in (h, ctPacked)
   where
     (Spec.LengthTagWidth dl) = Spec.specLengthTagWidth spec
+    (Spec.TypeTagWidth tw) = Spec.specTypeTagWidth spec
     ct = unMetaType t
     tn = ctName ct
     m = Spec.specTypeMap spec
