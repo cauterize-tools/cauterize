@@ -24,7 +24,6 @@ import qualified Data.Text.Lazy.IO as T
 
 data Context = Context
   { specificationPath :: T.Text
-  , metaPath :: T.Text
   , currentDir :: T.Text
   } deriving (Show)
 
@@ -86,8 +85,7 @@ runCrucible opts = do
 
           -- Construct a context with the paths to the specification and meta files
           -- along with the current directory.
-          ctx <- liftM3 Context (return "specification.txt")
-                                (return "meta.txt")
+          ctx <- liftM2 Context (return "specification.txt")
                                 (liftM T.pack getCurrentDirectory)
 
           -- Chain together the commands specified on the command line after
@@ -284,10 +282,9 @@ runTest ih oh spec = do
 
 -- Use a context to expand variables in a command.
 expandCmd :: Context -> T.Text -> T.Text
-expandCmd ctx cmd = repSpecPath . repMetaPath . repDirPath $ cmd
+expandCmd ctx cmd = repSpecPath . repDirPath $ cmd
   where
     repSpecPath = T.replace "%s" (specificationPath ctx)
-    repMetaPath = T.replace "%m" (metaPath ctx)
     repDirPath = T.replace "%d" (currentDir ctx)
 
 -- Create a directory, and perform an IO action with that new directory as the
