@@ -1,5 +1,6 @@
 module Cauterize.Dynamic.Meta.Gen
   ( dynamicMetaGen
+  , dynamicMetaGen'
   ) where
 
 import Cauterize.Dynamic.Meta.Types
