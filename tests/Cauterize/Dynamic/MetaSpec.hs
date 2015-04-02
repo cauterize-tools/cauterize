@@ -12,12 +12,12 @@ import qualified Data.ByteString as B
 import qualified Data.Text.Lazy as T
 
 spec :: Spec
-spec = do
-  describe "dynamic transcoding against test_schema.txt" $ do
-    itWithSpecAndMeta "random transcodes are equal" $ \specification meta -> replicateM_ 10000 $ do
-      t <- dynamicMetaGen specification meta
-      let p = dynamicMetaPack specification meta t
-      let u = dynamicMetaUnpack specification meta p
+spec =
+  describe "dynamic transcoding against test_schema.txt" $
+    itWithSpec "random transcodes are equal" $ \specification -> replicateM_ 10000 $ do
+      t <- dynamicMetaGen specification
+      let p = dynamicMetaPack specification t
+      let u = dynamicMetaUnpack specification p
       case u of
         Left e -> expectationFailure $ "could not unpack dynamically generated type: '" ++ T.unpack e ++ "'. Type was: " ++ show t ++ ". Bytes were: " ++ show (B.unpack p) ++ "."
         Right (t', b) -> if t' /= t
