@@ -41,11 +41,13 @@ library
                        Cauterize.Dynamic.Pack,
                        Cauterize.Dynamic.Unpack,
                        Cauterize.Dynamic.Gen,
+                       Cauterize.Dynamic.Pretty,
                        Cauterize.Dynamic.Meta,
                        Cauterize.Dynamic.Meta.Gen,
                        Cauterize.Dynamic.Meta.Pack,
                        Cauterize.Dynamic.Meta.Unpack,
                        Cauterize.Dynamic.Meta.Types,
+                       Cauterize.Dynamic.Meta.Pretty,
                        Cauterize.Common.ParserUtils,
                        Cauterize.Generate
 
