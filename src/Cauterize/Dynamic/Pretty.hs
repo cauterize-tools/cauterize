@@ -12,7 +12,7 @@ import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 
 dynamicPretty :: Spec -> CautType -> T.Text
-dynamicPretty s t = displayT $ renderPretty 0.1 120 $ dp s t
+dynamicPretty s t = displayT $ renderPretty 0.9 80 $ dp s t
 
 dp :: Spec -> CautType -> Doc
 dp s (CautType n d) = prettyDetails sm n d
@@ -29,20 +29,20 @@ prettyDetails _ n (CDSynonym bid) = parens $ "synonym" <+> text n <+> prettyBuil
 prettyDetails s n (CDArray elems) =
   parens ("array" <+> text n <$> indent 2 (parens $ "elems" <$> indent 2 vs))
   where
-    vs = sep $ map (prettyDetails s elemsName) elems
+    vs = fillSep $ map (prettyDetails s elemsName) elems
     Array { unArray = TArray { arrayRef = elemsName } } = n `lu` s
 prettyDetails s n (CDVector elems) =
   parens ("vector" <+> text n <$> indent 2 (parens $ "elems" <$> indent 2 vs))
   where
-    vs = sep $ map (prettyDetails s elemsName) elems
+    vs = fillSep $ map (prettyDetails s elemsName) elems
     Vector { unVector = TVector { vectorRef = elemsName } } = n `lu` s
 prettyDetails s n (CDRecord fields) =
-  parens ("record" <+> text n <$> indent 2 (parens $ "fields" <$> indent 2 fs))
+  parens ("record" <+> text n <$> indent 2 fs)
     where
       fs = sep $ map prettyRecField (M.toList fields)
       prettyRecField m = prettyField s n m (recordFields . unRecord)
 prettyDetails s n (CDCombination fields) =
-  parens ("combination" <+> text n <$> indent 2 (parens $ "fields" <$> indent 2 fs))
+  parens ("combination" <+> text n <$> indent 2 fs)
     where
       fs = sep $ map prettyCombField (M.toList fields)
       prettyCombField m = prettyField s n m (combinationFields . unCombination)
@@ -53,17 +53,20 @@ prettyDetails s n (CDUnion fieldName fieldValue) =
 
 
 prettyBuiltIn :: BIDetails -> Doc
-prettyBuiltIn (BDu8 v) = integer $ fromIntegral v
-prettyBuiltIn (BDu16 v) = integer $ fromIntegral v
-prettyBuiltIn (BDu32 v) = integer $ fromIntegral v
-prettyBuiltIn (BDu64 v) = integer $ fromIntegral v
-prettyBuiltIn (BDs8 v) = integer $ fromIntegral v
-prettyBuiltIn (BDs16 v) = integer $ fromIntegral v
-prettyBuiltIn (BDs32 v) = integer $ fromIntegral v
-prettyBuiltIn (BDs64 v) = integer $ fromIntegral v
+prettyBuiltIn (BDu8 v) = ii v
+prettyBuiltIn (BDu16 v) = ii v
+prettyBuiltIn (BDu32 v) = ii v
+prettyBuiltIn (BDu64 v) = ii v
+prettyBuiltIn (BDs8 v) = ii v
+prettyBuiltIn (BDs16 v) = ii v
+prettyBuiltIn (BDs32 v) = ii v
+prettyBuiltIn (BDs64 v) = ii v
 prettyBuiltIn (BDf32 v) = float v
 prettyBuiltIn (BDf64 v) = double v
 prettyBuiltIn (BDbool v) = bool v
+
+ii :: Integral a => a -> Doc
+ii = integer . fromIntegral
 
 prettyField :: M.Map T.Text SpType -- the spec type map
             -> T.Text -- the field's parent type name
