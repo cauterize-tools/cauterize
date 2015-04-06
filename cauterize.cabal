@@ -54,7 +54,7 @@ library
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.
 executable cauterize
-  hs-source-dirs:      cauterize-cmd
+  hs-source-dirs:      bin
   ghc-options:         -Wall -O2 -threaded
   main-is:             Main.hs
   build-depends:       base,
