@@ -63,27 +63,6 @@ executable cauterize
                        optparse-applicative >=0.11.0.1
   default-language:    Haskell2010
 
--- `cauterize-test` is a tool to generate arbitrary testing data. At the
--- moment, it only produces schemas or specifications with a specified number
--- of types.
-executable cauterize-test
-  hs-source-dirs:      cauterize-test
-  ghc-options:         -Wall -O2 -threaded
-  main-is:             Main.hs
-  build-depends:       base,
-                       cauterize,
-                       optparse-applicative >=0.11.0.1,
-                       wl-pprint-text,
-                       split,
-                       containers,
-                       bytestring,
-                       QuickCheck >=2.7,
-                       text,
-                       time,
-                       process,
-                       directory
-  default-language:    Haskell2010
-
 test-suite spec
   type:                exitcode-stdio-1.0
   hs-source-dirs:      tests
