@@ -144,6 +144,16 @@ specific rules about capitalization. Without the restrictive name pattern
 Cauterize uses, code generators would have to do a lot more work to emit code
 that is readable and matches the target language's normal conventions.
 
+### Comments
+
+Line comments are defined by using two `;` characters in a row. Here's an example.
+
+```
+(schema example 0.0.1
+  ;; this is comment
+  (some type definition))
+```
+
 ### Built-In Types
 
 There are several types that represent the foundation of the Cauterize types.
