@@ -55,7 +55,7 @@ library
 -- schemas into specifications.
 executable cauterize
   hs-source-dirs:      bin
-  ghc-options:         -Wall -O2 -threaded
+  ghc-options:         -Wall -O2 -threaded -static
   main-is:             Main.hs
   build-depends:       base,
                        cauterize,
