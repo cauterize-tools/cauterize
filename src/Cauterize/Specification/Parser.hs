@@ -6,6 +6,7 @@ module Cauterize.Specification.Parser
 import Text.Parsec
 import Text.Parsec.Text.Lazy
 
+import Cauterize.Lexer
 import Cauterize.Specification.Types
 import Cauterize.Common.ParserUtils
 import Cauterize.Common.Types
@@ -26,14 +27,15 @@ parseText path str =
 
 parseSpec :: Parser Spec
 parseSpec = do
+  whiteSpace
   s <- pSpec
-  spacedEof
+  eof
   return s
   where
     pSpec = pSexp "specification" $ do
-      qname <- spacedSchemaName
-      qver <- spacedSchemaVersion
-      qhash <- spacedFormHash
+      qname <- identifier
+      qver <- parseSchemaVersion
+      qhash <- parseFormHash
       sz <- parseRangeSize
       depth <- parseDepth
       tyTag <- parseTypeTagWidth
@@ -41,9 +43,7 @@ parseSpec = do
       types <- pTypes
       return $ Spec qname qver qhash sz depth tyTag lnTag types
     pTypes :: Parser [SpType]
-    pTypes = option [] $ do
-      spaces1
-      parseType `sepBy` spaces1
+    pTypes = option [] $ many parseType
 
 parseType :: Parser SpType
 parseType = choice $ map try
@@ -58,108 +58,104 @@ parseType = choice $ map try
 
 parseBuiltin :: Parser SpType
 parseBuiltin = pSexp "builtin" $ do
-  bi <- liftM TBuiltIn spacedBuiltIn
-  hs <- spacedFormHash
+  bi <- liftM TBuiltIn parseBuiltInName
+  hs <- parseFormHash
   sz <- parseFixedSize
   return $ BuiltIn bi hs sz
 
 parseSynonym :: Parser SpType
 parseSynonym = pSexp "synonym" $ do
-  n <- spacedName
-  hs <- spacedFormHash
+  n <- identifier
+  hs <- parseFormHash
   sz <- parseFixedSize
-  bi <- spacedBuiltIn
+  bi <- parseBuiltInName
   return $ Synonym (TSynonym n bi) hs sz
 
 parseArray :: Parser SpType
 parseArray = pSexp "array" $ do
-  n <- spacedName
-  hs <- spacedFormHash
+  n <- identifier
+  hs <- parseFormHash
   sz <- parseRangeSize
-  len <- spacedNumber
-  t <- spacedName
+  len <- natural
+  t <- identifier
   return $ Array (TArray n t len) hs sz
 
 parseVector :: Parser SpType
 parseVector = pSexp "vector" $ do
-  n <- spacedName
-  hs <- spacedFormHash
+  n <- identifier
+  hs <- parseFormHash
   sz <- parseRangeSize
-  repr <- spaces1 >> parseLengthRepr
-  len <- spacedNumber
-  t <- spacedName
+  repr <- parseLengthRepr
+  len <- natural
+  t <- identifier
   return $ Vector (TVector n t len) hs sz repr
 
 parseRecord :: Parser SpType
 parseRecord = pSexp "record" $ do
-  n <- spacedName
-  hs <- spacedFormHash
+  n <- identifier
+  hs <- parseFormHash
   sz <- parseRangeSize
-  fs <- spaces1 >> parseFields
+  fs <- parseFields
   return $ Record (TRecord n fs) hs sz
 
 parseCombination :: Parser SpType
 parseCombination = pSexp "combination" $ do
-  n <- spacedName
-  hs <- spacedFormHash
+  n <- identifier
+  hs <- parseFormHash
   sz <- parseRangeSize
-  repr <- spaces1 >> parseFlagsRepr
-  fs <- spaces1 >> parseFields
+  repr <- parseFlagsRepr
+  fs <- parseFields
   return $ Combination (TCombination n fs) hs sz repr
 
 parseUnion :: Parser SpType
 parseUnion = pSexp "union" $ do
-  n <- spacedName
-  hs <- spacedFormHash
+  n <- identifier
+  hs <- parseFormHash
   sz <- parseRangeSize
-  repr <- spaces1 >> parseTagRepr
-  fs <- spaces1 >> parseFields
+  repr <- parseTagRepr
+  fs <- parseFields
   return $ Union (TUnion n fs) hs sz repr
 
 parseFieldList :: Parser [Field]
-parseFieldList = option [] $ do
-      spaces1
-      parseField `sepBy` spaces1
+parseFieldList = option [] $ many parseField
 
 parseFixedSize :: Parser FixedSize
-parseFixedSize = (>>) spaces1 $ pSexp "fixed-size" $ liftM FixedSize spacedNumber
+parseFixedSize = pSexp "fixed-size" $ liftM FixedSize natural
 
 parseRangeSize :: Parser RangeSize
-parseRangeSize = (>>) spaces1 $ pSexp "range-size" $ liftM2 RangeSize spacedNumber spacedNumber
+parseRangeSize = pSexp "range-size" $ liftM2 RangeSize natural natural
 
 parseDepth :: Parser Depth
-parseDepth = (>>) spaces1 $ pSexp "depth" (liftM Depth spacedNumber)
+parseDepth = pSexp "depth" (liftM Depth natural)
 
 parseTypeTagWidth :: Parser TypeTagWidth
-parseTypeTagWidth = (>>) spaces1 $ pSexp "type-width" (liftM TypeTagWidth spacedNumber)
+parseTypeTagWidth = pSexp "type-width" (liftM TypeTagWidth natural)
 
 parseLengthTagWidth :: Parser LengthTagWidth
-parseLengthTagWidth = (>>) spaces1 $ pSexp "length-width" (liftM LengthTagWidth spacedNumber)
+parseLengthTagWidth = pSexp "length-width" (liftM LengthTagWidth natural)
 
 parseField :: Parser Field
 parseField = pSexp "field" $ do
-  n <- spacedName
+  n <- identifier
   try (parseFullField n) <|> parseEmptyField n
 
 parseFullField :: T.Text -> Parser Field
 parseFullField n = do
-  t <- spacedName
-  ix <- spacedNumber
+  t <- identifier
+  ix <- natural
   return $ Field n t ix
 
 parseEmptyField :: T.Text -> Parser Field
-parseEmptyField n = do
-  ix <- spacedNumber
-  return $ EmptyField n ix
+parseEmptyField n = liftM (EmptyField n) natural
 
 parseLengthRepr :: Parser LengthRepr
-parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr spacedBuiltIn
+parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr parseBuiltInName
 
 parseTagRepr :: Parser TagRepr
-parseTagRepr = pSexp "tag-repr" $ liftM TagRepr spacedBuiltIn
+parseTagRepr = pSexp "tag-repr" $ liftM TagRepr parseBuiltInName
 
 parseFlagsRepr :: Parser FlagsRepr
-parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr spacedBuiltIn
+parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr parseBuiltInName
 
 parseFields :: Parser Fields
 parseFields = pSexp "fields" $ liftM Fields parseFieldList

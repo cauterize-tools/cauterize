@@ -13,6 +13,7 @@ import Text.Parsec.Text.Lazy
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 
+import Cauterize.Lexer
 import Cauterize.Common.ParserUtils
 import Cauterize.Common.Types
 import Cauterize.Schema.Types
@@ -28,16 +29,17 @@ parseText path str =
 
 parseSchema :: Parser Schema
 parseSchema = do
+  whiteSpace
   s <- pSchema
-  spacedEof
+  eof
   return s
   where
     pSchema = pSexp "schema" $ do
-      qname <- spacedSchemaName
-      qver <- spacedSchemaVersion
+      qname <- identifier
+      qver <- parseSchemaVersion
       forms <- pTypes
       return $ Schema qname qver (bis ++ forms)
-    pTypes = option [] $ spaces1 >> parseType `sepBy` spaces1
+    pTypes = option [] $ many parseType
     bis = map (BuiltIn . TBuiltIn) [minBound .. maxBound]
 
 parseType :: Parser ScType
@@ -52,8 +54,8 @@ parseType = choice $ map try
 
 parseSynonym :: Parser ScType
 parseSynonym = pSexp "synonym" $ do
-  n <- spacedName
-  b <- spacedBuiltIn
+  n <- identifier
+  b <- parseBuiltInName
   return $ Synonym $ TSynonym n b
 
 parseArray :: Parser ScType
@@ -64,38 +66,38 @@ parseVector = parseArr "vector" (\n m i -> Vector $ TVector n m i)
 
 parseArr :: String -> (Name -> Name -> Integer -> a) -> Parser a
 parseArr identStr mkArrFn = pSexp identStr $ do
-  n <- spacedName
-  m <- spacedName
-  i <- spacedNumber
+  n <- identifier
+  m <- identifier
+  i <- natural
   return $ mkArrFn n m i
 
 parseField :: Parser (Integer -> Field)
 parseField = pSexp "field" $ do
-  n <- spacedName
-  m <- optionMaybe spacedName
+  n <- identifier
+  m <- optionMaybe identifier
   return $ \i -> case m of
                     Just m' -> Field n m' i
                     Nothing -> EmptyField n i
 
 parseSpacedFields :: Parser [Integer -> Field]
-parseSpacedFields = many $ spaces1 >> parseField
+parseSpacedFields = many parseField
 
 parseRecord :: Parser ScType
 parseRecord = pSexp "record" $ do
-  n <- spacedName
-  fs <- spaces1 >> parseFields
+  n <- identifier
+  fs <- parseFields
   return $ Record $ TRecord n fs
 
 parseUnion :: Parser ScType
 parseUnion = pSexp "union" $ do
-  n <- spacedName
-  fs <- spaces1 >> parseFields
+  n <- identifier
+  fs <- parseFields
   return $ Union $ TUnion n fs
 
 parseCombination :: Parser ScType
 parseCombination = pSexp "combination" $ do
-  n <- spacedName
-  fs <- spaces1 >> parseFields
+  n <- identifier
+  fs <- parseFields
   return $ Combination $ TCombination n fs
 
 tagWithIndex :: (Enum a, Num a) => [a -> b] -> [b]

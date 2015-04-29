@@ -18,6 +18,7 @@ library
   build-depends:       base < 5,
                        mtl >=2.2,
                        parsec,
+                       transformers,
                        cryptohash,
                        QuickCheck,
                        containers,
@@ -30,6 +31,7 @@ library
   exposed-modules:     Cauterize.Common.Types,
                        Cauterize.Schema.Types,
                        Cauterize.Specification.Types,
+                       Cauterize.Lexer,
                        Cauterize.Schema,
                        Cauterize.Schema.Parser,
                        Cauterize.Specification.Parser
