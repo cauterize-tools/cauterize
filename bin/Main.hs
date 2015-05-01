@@ -5,13 +5,15 @@ import Cauterize.Options
 import Cauterize.Schema as Sc
 import Cauterize.Specification as Sp
 
+import System.Exit
+
 import qualified Data.Text.Lazy.IO as T
 
 main :: IO ()
-main = runWithOptions $ \opts -> Sc.parseFile (schemaFile opts) >>= render
+main = runWithOptions $ \opts -> Sc.parseFile (schemaFile opts) >>= render (specPath opts) >>= exitWith
   where
-    render (Left s) = print s
-    render (Right s) =
+    render _ (Left s) = print s >> return (ExitFailure (-1))
+    render outFile (Right s) =
       case checkSchema s of
-        [] -> T.putStrLn $ Sp.prettyPrint $ fromSchema s
-        es -> print es
+        [] -> T.writeFile outFile (Sp.prettyPrint . fromSchema $ s) >> return ExitSuccess
+        es -> print es >> return (ExitFailure (length es))

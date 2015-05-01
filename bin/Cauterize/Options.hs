@@ -4,6 +4,7 @@ import Options.Applicative
 
 data CautOpts = CautOpts
   { schemaFile :: FilePath
+  , specPath :: FilePath
   } deriving (Show)
 
 runWithOptions :: (CautOpts -> IO ()) -> IO ()
@@ -21,4 +22,9 @@ optParser = CautOpts
     ( long "schema"
    <> metavar "FILE_PATH"
    <> help "Input Cauterize schema file."
+    )
+  <*> strOption
+    ( long "output"
+   <> metavar "OUTPUT_PATH"
+   <> help "Output path for specification file."
     )
