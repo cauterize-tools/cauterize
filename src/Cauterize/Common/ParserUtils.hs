@@ -39,7 +39,7 @@ parseFormHash = pSexp "sha1" $
   lexeme $ liftM (FormHash . BS.pack . hexStrToWord8s) $ count 40 $ oneOf (['a'..'f'] ++ ['0'..'9'])
 
 pSexp :: String -> Parser a -> Parser a
-pSexp n p = lexeme . parens $ symbol n >> p
+pSexp n p = lexeme (parens $ reserved n >> p)
 
 hexStrToWord8s :: String -> [Word8]
 hexStrToWord8s (a:b:rs) = let w = (fst . head) $ readHex [a,b]

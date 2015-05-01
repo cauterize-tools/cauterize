@@ -5,7 +5,7 @@ module Cauterize.Lexer
   , natural
   , integer
   , float
-  , symbol
+  , reserved
   , lexeme
   , whiteSpace
   , parens
@@ -49,8 +49,8 @@ integer = TOK.integer lexer
 float :: CauterizeP Double
 float = TOK.float lexer
 
-symbol :: String -> CauterizeP T.Text
-symbol s = liftM T.pack $ TOK.symbol lexer s
+reserved :: String -> CauterizeP ()
+reserved = TOK.reserved lexer
 
 lexeme :: CauterizeP a -> CauterizeP a
 lexeme = TOK.lexeme lexer
