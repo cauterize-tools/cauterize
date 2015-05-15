@@ -1,15 +1,17 @@
 name:                cauterize
 version:             0.1.0.0
-synopsis:            Cauterize core library and tools.
--- description:         
+synopsis:            Compiler for the Cauterize data description language.
+description:
+  A command line compiler to translate Cauterize schema files into Cauterize
+  specification files.
+homepage:            http://cauterize.info/
 license:             BSD3
 license-file:        LICENSE
 author:              John Van Enk
-maintainer:          vanenkj@gmail.com
--- copyright:           
-category:            Data
+maintainer:          sw17ch@gmail.com
+copyright:           2015, John Van Enk
+category:            Language
 build-type:          Simple
--- extra-source-files:  
 cabal-version:       >=1.10
 
 library
