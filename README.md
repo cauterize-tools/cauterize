@@ -832,7 +832,8 @@ TODO: Write about me.
 
 In this section, we'll try and justify a few of the obvious questions that come
 up when reading this document. Cauterize has some odd restrictions, but they
-are conscious decisions. If you have a question
+are normally conscious decisions. If you have a question that you feel is
+obvious and isn't listed here, feel free to open an issue with the question.
 
 ## Why isn't there a string type?
 
