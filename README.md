@@ -86,30 +86,33 @@ Code generators consume the specification and output a library capable of
 encoding and decoding data represented by the schema.
 
 
-### Primary Goals
+### Goals
 
-From this goal, we can extract the following more specific goals:
+Cauterize should be suitable for hard-real-time systems without dynamic memory
+allocation. From this goal, we can extract the following more specific goals:
 
 * Must be achievable with static memory allocation - not all embedded systems
   support dynamic allocation.
 * Must be achievable in bounded execution time - hard-real-time systems must
   know how long each operation can possibly take.
-* Must have methods for detecting protocol drift early - embedded systems are
-  often harder to update than desktop systems. They have longer deployment in
-  more unusual conditions. Therefore, it is very important that the version of
-  the messages being used by the embedded systems is detectable by its partner
-  systems and that they be kept in sync.
+* Must support methods for detecting protocol drift early - embedded systems
+  are often harder to update than desktop systems. They have longer deployment
+  in more unusual conditions. Therefore, it is very important that the version
+  of the messages being used by the embedded systems is detectable by its
+  partner systems and that they be kept in sync.
 * Specifications must be precise in as many ways as possible - many embedded
   systems vary from standard desktop and server systems in unusual ways. These
   variations can can include things such as: the number of bits in a byte, the
   amount of memory available on the system, the representation of pointers, the
   endianness of the processor, and the format of floating point numbers.
+
+After dealing with these points that enable Cauterize to be used in constrained
+systems, there are several other goals that make the quality of life for users
+better.
+
 * Should not preclude other systems - though embedded systems are a primary
   target, design choices for Cauterize should not preclude the use of Cauterize
   on systems such as mobile, desktop, and web development.
-
-### Secondary Goals
-
 * Ease of implementation - code generators should be able to represent the
   specification in idioms common in the target language. In C, this is structs,
   enumerations, and unions. In Ruby, this would likely be classes. Furthermore,
