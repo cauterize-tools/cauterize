@@ -188,14 +188,14 @@ where 0 represents `false` and 1 represents `true`.
 
   * `bool` - 8 bits wide
 
+#### Floating Point Types
+
 Floating point types are hard. Their definitions can be different (or missing
 entirely!) across CPU architectures. Therefore, Cauterize only defines the
 `f32`  and `f64` types. These are the [IEEE 754 single and double
 precision floating point
 values](http://en.wikipedia.org/wiki/IEEE_floating_point). The single precision
 value uses 32 bits while the double-precision value uses 64 bits.
-
-#### Floating Point Types
 
 Floating point types:
 
