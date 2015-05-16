@@ -67,7 +67,7 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [bond](https://github.com/Microsoft/bond)
 * [extprot](https://github.com/mfp/extprot)
 
-## Schema, Specification, and Code Generation
+### Schema, Specification, and Code Generation
 
 Cauterize consists of several parts: a _schema language_ for describing
 ordinary data, a compiler to translate a schema into an intermediate
