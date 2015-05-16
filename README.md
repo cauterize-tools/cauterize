@@ -9,8 +9,9 @@
 
 # Cauterize
 
-Cauterize is a data-description language that must always be able to target a
-hard-real time embedded system without dynamic memory allocation.
+Cauterize is a data-description language suitable for hard-real-time systems
+and systems without dynamic memory allocation. It can be used instead of other
+data description languages like JSON, XML, or ProtocolBuffers.
 
 ## Introduction
 
