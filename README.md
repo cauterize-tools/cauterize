@@ -125,12 +125,6 @@ better.
   operations in order to emit code. Concepts should be simple in nature and
   have at least one obvious method for implementation.
 
-## Conventions
-
-In this document the following terms have concrete meanings:
-
-  * byte - an array of 8 bits of data
-
 ## Schema Language
 
 The schema language uses parentheses to enclose each of its expressions. All
@@ -169,7 +163,8 @@ types. It is not possible to define new built-in types in a schema.
 
 #### Unsigned Types
 
-Unsigned values are encoded as little endian.
+Unsigned values are encoded as [little
+endian](http://en.wikipedia.org/wiki/Endianness).
 
   * `u8` - 8 bits wide
   * `u16` - 16 bits wide
@@ -202,7 +197,8 @@ entirely!) across CPU architectures. Therefore, Cauterize only defines the
 `f32`  and `f64` types. These are the [IEEE 754 single and double
 precision floating point
 values](http://en.wikipedia.org/wiki/IEEE_floating_point). The single precision
-value uses 32 bits while the double-precision value uses 64 bits.
+value uses 32 bits while the double-precision value uses 64 bits. Both flavors
+are encoded in [little endian](http://en.wikipedia.org/wiki/Endianness).
 
 Floating point types:
 
