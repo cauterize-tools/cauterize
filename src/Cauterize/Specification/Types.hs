@@ -446,30 +446,31 @@ pShow :: (Show a) => a -> Doc
 pShow = text . T.pack . show
 
 instance Pretty Spec where
-  pretty (Spec n v h sz d tt lt fs) = parens $ nest 1 (ps <$> pfs)
+  pretty (Spec n v h sz d tt lt fs) = parens $ nest 2 (ps <$> pfs)
     where
-      ps = "specification" <+> text n <+> text v <+> pretty h <+> pretty sz <+> pretty d <+> pretty tt <+> pretty lt
+      ps = ("specification" <+> text n <+> text v) <$> details
       pfs = vcat $ map pretty fs
+      details = vcat [pretty h, pretty sz <+> pretty d <+> pretty tt <+> pretty lt]
 
 -- When printing spec types, the following is the general order of fields
 --  (type name hash [references] [representations] [lengths])
 instance Pretty SpType where
-  pretty (BuiltIn (TBuiltIn b) h sz) = parens (pt <+> pa)
+  pretty (BuiltIn (TBuiltIn b) h sz) = parens $ nest 2 (pt <$> pa)
     where
-      pt = text "builtin" <+> pShow b <+> pretty h
-      pa = pretty sz
-  pretty (Synonym (TSynonym n b) h sz) = parens $ nest 1 (pt <$> pa)
+      pt = text "builtin" <+> pShow b
+      pa = pretty h <$> pretty sz
+  pretty (Synonym (TSynonym n b) h sz) = parens $ nest 2 (pt <$> pa)
     where
-      pt = text "synonym" <+> text n <+> pretty h <+> pretty sz
-      pa = pShow b
-  pretty (Array (TArray n m i) h sz) = parens $ nest 1 (pt <$> pa)
+      pt = text "synonym" <+> text n
+      pa = pretty h <$> pretty sz <$> pShow b
+  pretty (Array (TArray n m i) h sz) = parens $ nest 2 (pt <$> pa)
     where
-      pt = text "array" <+> text n <+> pretty h <+> pretty sz
-      pa = integer i <+> text m
-  pretty (Vector (TVector n m i) h sz bi) = parens $ nest 1 (pt <$> pa)
+      pt = text "array" <+> text n
+      pa = pretty h <$> pretty sz <$> (integer i <+> text m)
+  pretty (Vector (TVector n m i) h sz bi) = parens $ nest 2 (pt <$> pa)
     where
-      pt = text "vector" <+> text n <+> pretty h <+> pretty sz
-      pa = pretty bi <$> integer i <+> text m
+      pt = text "vector" <+> text n
+      pa = pretty h <$> pretty sz <$> pretty bi <$> (integer i <+> text m)
   pretty (Record (TRecord n rs) h sz) = prettyFieldedB0 "record" n rs sz h
   pretty (Combination (TCombination n rs) h sz bi) = prettyFieldedB1 "combination" n rs sz bi h
   pretty (Union (TUnion n rs) h sz bi) = prettyFieldedB1 "union" n rs sz bi h
@@ -477,22 +478,22 @@ instance Pretty SpType where
 -- Printing fielded-types involves hanging the name, the sizes, and the hash on
 -- one line and the fields on following lines.
 prettyFieldedB0 :: (Pretty sz) => T.Text -> T.Text -> Fields -> sz -> FormHash -> Doc
-prettyFieldedB0 t n fs sz hash = parens $ nest 1 (pt <$> pfs)
+prettyFieldedB0 t n fs sz hash = parens $ nest 2 (pt <$> pfs)
   where
-    pt = text t <+> text n <+> pretty hash <+> pretty sz
-    pfs = specPrettyFields fs
+    pt = text t <+> text n
+    pfs = pretty hash <$> pretty sz <$> specPrettyFields fs
 
 prettyFieldedB1 :: (Pretty sz, Pretty bi) => T.Text -> T.Text -> Fields -> sz -> bi -> FormHash -> Doc
-prettyFieldedB1 t n fs sz repr hash = parens $ nest 1 (pt <$> pfs)
+prettyFieldedB1 t n fs sz repr hash = parens $ nest 2 (pt <$> pfs)
   where
-    pt = text t <+> text n <+> pretty hash <+> pretty sz
-    pfs = pretty repr <$> specPrettyFields fs
+    pt = text t <+> text n
+    pfs = pretty hash <$> pretty sz <$> pretty repr <$> specPrettyFields fs
 
 specPrettyRefs :: Field -> Doc
 specPrettyRefs (EmptyField n i) = parens $ text "field" <+> text n <+> integer i
 specPrettyRefs (Field n m i) = parens $ text "field" <+> text n <+> text m <+> integer i
 
 specPrettyFields :: Fields -> Doc
-specPrettyFields (Fields fs) = parens $ nest 1 ("fields" <$> pfs)
+specPrettyFields (Fields fs) = parens $ nest 2 ("fields" <$> pfs)
   where
     pfs = vcat $ map specPrettyRefs fs
