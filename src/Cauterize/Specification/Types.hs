@@ -446,7 +446,7 @@ pShow :: (Show a) => a -> Doc
 pShow = text . T.pack . show
 
 instance Pretty Spec where
-  pretty (Spec n v h sz d tt lt fs) = parens $ nest 2 (ps <$> pfs)
+  pretty (Spec n v h sz d tt lt fs) = parens (nest 2 (ps <$> pfs)) <+> line
     where
       ps = ("specification" <+> text n <+> text v) <$> details
       pfs = vcat $ map pretty fs
