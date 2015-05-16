@@ -92,7 +92,7 @@ From this goal, we can extract the following more specific goals:
   know how long each operation can possibly take.
 * Must have methods for detecting protocol drift early - embedded systems are
   often harder to update than desktop systems. They have longer deployment in
-  more unusual conditions. Therefor, it is very important that the version of
+  more unusual conditions. Therefore, it is very important that the version of
   the messages being used by the embedded systems is detectable by its partner
   systems and that they be kept in sync.
 * Specifications must be precise in as many ways as possible - many embedded
@@ -189,7 +189,7 @@ where 0 represents `false` and 1 represents `true`.
   * `bool` - 8 bits wide
 
 Floating point types are hard. Their definitions can be different (or missing
-entirely!) across CPU architectures. Therefor, Cauterize only defines the
+entirely!) across CPU architectures. Therefore, Cauterize only defines the
 `f32`  and `f64` types. These are the [IEEE 754 single and double
 precision floating point
 values](http://en.wikipedia.org/wiki/IEEE_floating_point). The single precision
@@ -810,7 +810,7 @@ expressed in little endian, so this yields the final hex value of 0x04AF, or
 At this point, there's nothing else to decode! We are out of bytes and the type
 `union_unsigned` needs no more bytes to be complete.
 
-Therefor, we can say that our `union_unsigned` value wraps a `u16` with the
+Therefore, we can say that our `union_unsigned` value wraps a `u16` with the
 value of 1199.
 
 ### Decoding a Combination
