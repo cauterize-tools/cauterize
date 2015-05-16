@@ -14,21 +14,6 @@ hard-real time embedded system without dynamic memory allocation.
 
 ## Introduction
 
-Cauterize consists of several parts: a _schema language_ for describing
-ordinary data, a compiler to translate a schema into an intermediate
-representation known as a _specification_, and code generators that translate
-specifications into encoders and decoders.
-
-A schema is written by humans and it describes the semantic meaning in all
-types.
-
-The specification is created by the cauterize compiler and it describes all
-inferable information from the schema in order to make the creation of _code
-generators_ easier.
-
-Code generators consume the specification and output a library capable of
-encoding and decoding data represented by the schema.
-
 Cauterize is _first_ intended to serve the constraints of [hard
 real-time](http://en.wikipedia.org/wiki/Real-time_computing) embedded systems
 programming, but is still suitable for a variety of other situations. All
@@ -81,6 +66,24 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [XDR](http://en.wikipedia.org/wiki/External_Data_Representation)
 * [bond](https://github.com/Microsoft/bond)
 * [extprot](https://github.com/mfp/extprot)
+
+## Schema, Specification, and Code Generation
+
+Cauterize consists of several parts: a _schema language_ for describing
+ordinary data, a compiler to translate a schema into an intermediate
+representation known as a _specification_, and code generators that translate
+specifications into encoders and decoders.
+
+A schema is written by humans and it describes the semantic meaning in all
+types.
+
+The specification is created by the cauterize compiler and it describes all
+inferable information from the schema in order to make the creation of _code
+generators_ easier.
+
+Code generators consume the specification and output a library capable of
+encoding and decoding data represented by the schema.
+
 
 ### Primary Goals
 
