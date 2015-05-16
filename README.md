@@ -54,9 +54,11 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [Apache Thrift](https://thrift.apache.org/)
 * [BERT-RPC](http://bert-rpc.org/)
 * [Binary JSON (BSON)](http://bsonspec.org/)
+* [bond](https://github.com/Microsoft/bond)
 * [Cap'n Proto](https://capnproto.org/)
 * [Concise Binary Object Representation (CBOR)](http://cbor.io/)
 * [Extensible Binary Meta Language (EBML)](http://ebml.sourceforge.net/)
+* [extprot](https://github.com/mfp/extprot)
 * [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
 * [Fressian (Datomic)](https://github.com/Datomic/fressian)
 * [Message Pack](http://msgpack.org/)
@@ -65,8 +67,6 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [Simple Binary Encoding (SBE)](http://mechanical-sympathy.blogspot.com/2014/05/simple-binary-encoding.html)
 * [Transit](https://github.com/cognitect/transit-format)
 * [XDR](http://en.wikipedia.org/wiki/External_Data_Representation)
-* [bond](https://github.com/Microsoft/bond)
-* [extprot](https://github.com/mfp/extprot)
 
 ### Schema, Specification, and Code Generation
 
