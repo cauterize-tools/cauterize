@@ -159,7 +159,9 @@ Line comments are defined by using two `;` characters in a row. Here's an exampl
 
 There are several types that represent the foundation of the Cauterize types.
 These are the fundamental types available for creating your own more complex
-types. It is not possible to define new built-in types in a schema.
+types. It is not possible to define new built-in types in a schema. All
+builtins referenced by a schema will have definitions in the output
+specification.
 
 #### Unsigned Types
 
@@ -181,7 +183,6 @@ endian](http://en.wikipedia.org/wiki/Endianness) values.
   * `s16` - 16 bits wide
   * `s32` - 32 bits wide
   * `s64` - 64 bits wide
-
 
 #### Boolean Type
 
