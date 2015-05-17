@@ -443,7 +443,7 @@ For a schema with a maximum length of 68: `(length-width 1)`.
 
 For a schema with a maximum length of 257: `(length-width 2)`.
 
-For a schema with a maximum length of 70,000: `(length-width 2)`.
+For a schema with a maximum length of 70,000: `(length-width 4)`.
 
 For a schema with a maximum length of 17,000,000: `(length-width 4)`.
 
