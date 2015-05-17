@@ -745,7 +745,17 @@ In the following exercises, all encoded messages will be listed in hexadecimal.
 
 ## Decoding a BuiltIn
 
-TODO: Write about me.
+The following is an encoded `u64` type:
+
+```
+2a75030000000000
+```
+
+Decoding builtins is pretty simple. Each builtin type has a `fixed-size`
+expression in the type. To decode a builtin, read that many bytes from the
+encoded string as a little endian value of the proper type.
+
+The above example is, therefore, the following 64-bit value: `0x000000000003752A`.
 
 ## Decoding an Array
 
@@ -819,7 +829,54 @@ value of 1199.
 
 ### Decoding a Combination
 
-TODO: Write about me
+The following is an encoded `comb_unsigned`.
+
+```
+032cd506
+```
+
+To interpret this, we can reference the `comb_unsigned` type in our
+specification.
+
+```
+(combination comb_unsigned
+  (sha1 d67b5d0a49e122140f418c12ad445ed013a52fc3)
+  (range-size 1 16)
+  (flags-repr u8)
+  (fields
+    (field fu8 u8 0)
+    (field fu16 u16 1)
+    (field fu32 u32 2)
+    (field fu64 u64 3)))
+```
+
+Combinations use a set of flags to indicate which fields in the message are
+encoded. The flags are always at the beginning of the message. We can look at
+the `flags-repr` expression in the combination specification to determine how
+wide the word used to represent the flags is. In the case of `comb_unsigned`,
+the flags are represented as a `u8`.
+
+We can see, based on the `flags-repr` expression in `comb_unsigned` that, the
+flags in our current example are represented by the byte `0x03`--the first byte
+of our message. Remember, if `flags-repr` was a differrent type, we'd use more
+than one byte for our flags.
+
+To start decoding fields in our combination, we start with the first field,
+shift `1` to the left by the index of the field, and check whether or not the
+bit is set in our flags. If the bit is set, we can then decode that type out of
+the binary string. If the bit is not set, the field is skipped and we move on
+to the next one.
+
+We can see that our example has bits `(1 << 0)` (bit index 0) and `(1 << 1)`
+(bit index 1) set. This means that our first two fields, `fu8` and `fu16` are
+present in the binary string. The first field has type `u8` and the second
+field has type `u16`. The field `fu8` deocdes as the value `0x2C` and the field
+`fu16` decodes as the value `0x06d5` (remember, all builtin types are little
+endian).
+
+Our final type is, therefore, a `comb_unsigned` with the field `fu8` set to the
+value `0x2C` and the field `fu16` set to the value `0x06d5`. The fields `fu32`
+and `fu64` are not set in this encoded instance.
 
 # Message Interface
 
