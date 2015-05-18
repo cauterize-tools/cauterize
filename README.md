@@ -751,6 +751,14 @@ The following is an encoded `u64` type:
 2a75030000000000
 ```
 
+Let's take a look at the `u64` specification:
+
+```
+(builtin u64
+  (sha1 ca58000caffa24364cf821488e348159a5d3ed11)
+  (fixed-size 8))
+```
+
 Decoding builtins is pretty simple. Each builtin type has a `fixed-size`
 expression in the type. To decode a builtin, read that many bytes from the
 encoded string as a little endian value of the proper type.
@@ -759,7 +767,36 @@ The above example is, therefore, the following 64-bit value: `0x000000000003752A
 
 ## Decoding an Array
 
-TODO: Write about me.
+Decoding arrays is more complex than decoding builtins, but not much more.
+Array types all have a specific length. When decoding an array, one has to look
+at the array's element type and decode as many of that type as the array's
+length expression specifies.
+
+The following is an encoded `arr_u32` type.
+
+```
+8c0f0000a30a0000d30d00002c080000
+```
+
+Let's take a look at the `arr_u32` specification:
+
+```
+(array arr_u32
+  (sha1 965f3610970341adb1132d27a668a4c94e9e3d57)
+  (range-size 16 16)
+  4 u32))
+```
+
+We know, from the specification, that an `arr_u32` type has a length of 4 and
+its element type is `u32`. We know, from its specification, that each `u32` is
+made up of 4 bytes. So, all we need to do is read 4 `u32` types from the binary
+string.
+
+Therefore, we know that our decoded array is the folling list of `u32` values:
+
+```
+[ 0x00000f8c, 0x00000aa3, 0x00000dd3, 0x0000082c ]
+```
 
 ## Decoding a Record
 
