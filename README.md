@@ -836,7 +836,37 @@ So, we end up with the following list of decoded values:
 
 ## Decoding a Vector
 
-TODO: Write about me.
+Decoding a vector is very similar to decoding an array. The only difference is
+that the number of elements to decode is goverend by a length tag rather than
+by the type. Vectors define a maximum number of elements to decode rather than
+a constant number of elements to decode.
+
+The following is an example of an encoded `vec_u32`.
+
+```
+02f8050000aa030000
+```
+
+Let's take a look at the specification for a `vec_u32` again.
+
+```
+(vector vec_u32
+  (sha1 35832f3b7bd6dbeb8d3b5c92f73b2f06759d2e7a)
+  (range-size 1 17)
+  (length-repr u8)
+  4 u32)
+```
+
+The specification for a vector has a `length-repr` expression. This tells us
+what type is used to encode the length of this vector. In this case, a `u8` is
+used to encode the length. Decoding a single byte from our binary string yields
+a value of `0x02`. Therefore, we know that our encoded vector contains two
+elements. Since our element type is `u32`, we know to decode two `u32` values
+from the binary string. This yields a vector of length 2 with the following value:
+
+```
+[ 0x000005F8, 0x000003AA ]
+```
 
 ## Decoding a Union
 
