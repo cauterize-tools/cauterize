@@ -795,12 +795,44 @@ string.
 Therefore, we know that our decoded array is the folling list of `u32` values:
 
 ```
-[ 0x00000f8c, 0x00000aa3, 0x00000dd3, 0x0000082c ]
+[ 0x00000F8C, 0x00000AA3, 0x00000DD3, 0x0000082C ]
 ```
 
 ## Decoding a Record
 
-TODO: Write about me.
+Decoding a record is quite similar to decoding an array. Both types have a
+fixed number of types to decode. The major difference is that arrays decode a
+specific number of the same types while records decode a specific number of
+varrying types.
+
+The following is an encoded `rec_unsigned` type.
+
+```
+fb5e0f0b080000ce85000000000000
+```
+
+Let's take a look at the `rec_unsigned` specification:
+
+```
+(record rec_unsigned
+  (sha1 b58dd55deef9faf22ac07ced17cf6f87d1c95111)
+  (range-size 15 15)
+  (fields
+    (field fu8 u8 0)
+    (field fu16 u16 1)
+    (field fu32 u32 2)
+    (field fu64 u64 3)))
+```
+
+To decode a record, we only need to decode each of the record's fields in order
+until we've decoded all the fields. For `rec_unsigned`, this means that we
+start by decodin `fu8` and finish by decoding `fu64`.
+
+So, we end up with the following list of decoded values:
+
+```
+[ 0xFB, 0x0F5E, 0x0000080B, 0x00000000000085CE ]
+```
 
 ## Decoding a Vector
 
