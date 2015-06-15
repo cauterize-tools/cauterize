@@ -240,7 +240,7 @@ Arrays are fixed-length sequences of identially typed objects. These are to be
 used when the sequence only makes sense with a fixed number of elements.
 
 ```
-(array [type name] [element type] [array length)
+(array [type name] [element type] [array length])
 ```
 
 Consider the following example that defines a type `mac` that encodes a Media
@@ -304,8 +304,8 @@ not they like cats:
 
 ```
 (record person (fields (field age u8)
-                       (field height u8))
-                       (field likes_cats bool))
+                       (field height u8)
+                       (field likes_cats bool)))
 ```
 
 #### Union
@@ -486,7 +486,7 @@ length. It only occurs in `vector` specifications.
 
 #### `flags-repr` Expression
 
-The `flags-repo` expression represents the type used to encode a combination's
+The `flags-repr` expression represents the type used to encode a combination's
 flags. It only occurs in `combination` specifications.
 
 ##### Example
@@ -753,7 +753,7 @@ When we inspect the specification, we see the following:
     4 u32))
 ```
 
-Using this document and the knowledge of what type where trying to decode, we
+Using this document and the knowledge of what type we're trying to decode, we
 can decode any encoded message for a particular specification.
 
 It's important to remember that an encoded type, on its own, does not contain
