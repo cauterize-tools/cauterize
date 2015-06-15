@@ -527,6 +527,28 @@ All built-in expressions have the following layout:
 (builtin [type name] (sha1 ...) (fixed-size ...))
 ```
 
+It should be noted that all builtin types have the same hash in every schema.
+This is because the hash is calculated by taking the SHA1 sum of the builtin
+type name.
+
+For example: `sha1("f64") == 41e1543a419fc7200b80fd9cf7a5673551ddb2fc`.
+
+The hashes for the builtin types are as follows.
+
+```
+u8   :: 3c3c92ff20335765dbadd2930de367c0a8a9d9cb
+u16  :: 496042011a876c687fd713edb8388ab69e8b0bc6
+u32  :: 13f56a24961b824565b27c3f7416dbd041ae6308
+u64  :: ca58000caffa24364cf821488e348159a5d3ed11
+s8   :: 535ef5ca16209340872eb261f409065ac457c249
+s16  :: 4adf241e28122c703cf2114da78a378e24d9dcf8
+s32  :: 0fff94187f39bdda61fa4895b0305e24cc319f2c
+s64  :: 11ed8bc946c52edffcf60718f6719bf9602e8146
+f32  :: ef36790b487559cff915a358e27813681db6a6ea
+f64  :: 41e1543a419fc7200b80fd9cf7a5673551ddb2fc
+bool :: 5039d155a71c0a5f7a2b2654ad49cb7ee47a8980
+```
+
 ### `synonym` Specification Expression
 
 All synonym expressions have the following layout:
