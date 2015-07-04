@@ -1,35 +1,16 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms #-}
 module Cauterize.Schema.ParserNew
   ( parseSchema
-
-  , Schema(..)
-  , Type(..)
-  , TypeDesc(..)
-  , Prim(..)
-  , Field(..)
-  , Offset
-  , Size
-  , Identifier, mkIdentifier
-
   ) where
 
-import Data.Char
-import Data.Int
-import Data.Maybe
 import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
-import Data.String
-import Data.Text (Text, pack, empty)
-import Data.Word
+import Data.Text (Text, pack, unpack)
 import Text.Parsec
 import Text.Parsec.Text
 
-data Schema = Schema
-  { schemaName :: Text
-  , schemaVersion :: Text
-  , schemaTypes :: [Type]
-  } deriving (Show)
+import Cauterize.Schema.TypesNew
 
 defaultSchema :: Schema
 defaultSchema = Schema
@@ -37,61 +18,6 @@ defaultSchema = Schema
   , schemaVersion = "0.0.0.0"
   , schemaTypes = []
   }
-
-data Type = Type
-  { typeName :: Identifier
-  , typeDesc :: TypeDesc
-  } deriving (Show)
-
-data TypeDesc
-  = Synonym Identifier
-  | Range Offset Size
-  | Array Identifier Size
-  | Vector Identifier Size
-  | Enumeration [Identifier]
-  | Record [Field]
-  | Combination [Field]
-  | Union [Field]
-  deriving (Show)
-
-data Prim
-  = PU8
-  | PU16
-  | PU32
-  | PU64
-  | PS8
-  | PS16
-  | PS32
-  | PS64
-  | PF32
-  | PF64
-  | PBool
-  deriving (Show, Eq)
-
-data Field
-  = DataField Identifier Identifier
-  | EmptyField Identifier
-  deriving (Show)
-
-type Offset = Int64
-type Size = Word64
-newtype Identifier = Identifier Text deriving (Show, Eq)
-
-mkIdentifier :: String -> Maybe Identifier
-mkIdentifier [] = Just (Identifier empty)
-mkIdentifier i@(s:r) =
-    if first && rest
-      then Just (Identifier $ pack i)
-      else Nothing
-  where
-    first = isAsciiLower s
-    rest = all (\c -> isAsciiLower c || isDigit c || ('_' == c)) r
-
-instance IsString Identifier where
-  fromString s =
-    fromMaybe
-      (error $ "IsString Identifier: invalid input string \"" ++ s ++ "\"")
-      (mkIdentifier s)
 
 data Atom
   = Number Integer
@@ -148,13 +74,23 @@ toType (tproto:tbody) =
     A (Ident "array") -> toArray tbody
     A (Ident "vector") -> toVector tbody
     A (Ident "enumeration") -> toEnumeration tbody
+    A (Ident "record") -> toRecord tbody
+    A (Ident "combination") -> toCombination tbody
+    A (Ident "union") -> toUnion tbody
     A (Ident x) -> Left ("Invalid prototype: " ++ show x)
     y -> Left ("Invalid type expression: " ++ show y)
   where
-    mkTD n t = (Right . TypeDef) (Type (Identifier n) t)
+    umi = unsafeMkIdentifier . unpack
+    mkTD n t = (Right . TypeDef) (Type (umi n) t)
+
+    toField (L [A (Ident "field"), A (Ident name), A (Ident ref)]) =
+      Right $ DataField (umi name) (umi ref)
+    toField (L [A (Ident "empty"), A (Ident name)]) =
+      Right $ EmptyField (umi name)
+    toField x = Left ("Unexpected field body: " ++ show x)
 
     toSynonym [A (Ident name), A (Ident ref)] =
-      mkTD name (Synonym (Identifier ref))
+      mkTD name (Synonym (umi ref))
     toSynonym x = Left ("Unexpected synonym body: " ++ show x)
 
     toRange [A (Ident name), A (Number rmin), A (Number rmax)] =
@@ -162,20 +98,34 @@ toType (tproto:tbody) =
     toRange x = Left ("Unexpected range body: " ++ show x)
 
     toArray [A (Ident name), A (Ident ref), A (Number size)] =
-      mkTD name (Array (Identifier ref) (fromIntegral size))
+      mkTD name (Array (umi ref) (fromIntegral size))
     toArray x = Left ("Unexpected array body: " ++ show x)
 
     toVector [A (Ident name), A (Ident ref), A (Number size)] =
-      mkTD name (Vector (Identifier ref) (fromIntegral size))
+      mkTD name (Vector (umi ref) (fromIntegral size))
     toVector x = Left ("Unexpected vector body: " ++ show x)
 
-    toEnumeration :: [WellFormedSExpr Atom] -> Either String Component
     toEnumeration [A (Ident name), L (A (Ident "values"):vs)] = do
-      let toValues (A (Ident val)) = Right (Identifier val)
-          toValues x = Left ("Unexpected value: " ++ show x)
-      vs' <- mapM toValues vs
+      let toValue (A (Ident val)) = Right (umi val)
+          toValue x = Left ("Unexpected value: " ++ show x)
+      vs' <- mapM toValue vs
       mkTD name (Enumeration vs')
     toEnumeration x = Left ("Unexpected enumeration body: " ++ show x)
+
+    toRecord [A (Ident name), L (A (Ident "fields"):fs)] = do
+      fs' <- mapM toField fs
+      mkTD name (Record fs')
+    toRecord x = Left ("Unexpected record body: " ++ show x)
+
+    toCombination [A (Ident name), L (A (Ident "fields"):fs)] = do
+      fs' <- mapM toField fs
+      mkTD name (Combination fs')
+    toCombination x = Left ("Unexpected combination body: " ++ show x)
+
+    toUnion [A (Ident name), L (A (Ident "fields"):fs)] = do
+      fs' <- mapM toField fs
+      mkTD name (Union fs')
+    toUnion x = Left ("Unexpected union body: " ++ show x)
 
 fromComponent :: Component -> WellFormedSExpr Atom
 fromComponent c =
