@@ -11,7 +11,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 newtype Hash = Hash { unHash :: B.ByteString }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
 
 mkHash :: T.Text -> Hash
 mkHash t = let h = SHA1.init `SHA1.update` T.encodeUtf8 t
@@ -23,4 +23,7 @@ hashToHex (Hash bs) = T.concat $ map showByte (B.unpack bs)
     showByte b = case showHex b "" of
                   [x,y] -> T.pack [x, y]
                   [x]   -> T.pack ['0', x]
-                  _     -> error "This should be impossible."
+                  _     -> error "hashToHex: This should be impossible."
+
+instance Show Hash where
+  show h = "SHA1:" ++ T.unpack (hashToHex h)
