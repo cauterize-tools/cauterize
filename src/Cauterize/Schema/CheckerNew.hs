@@ -117,6 +117,9 @@ checkForDuplicateEnumValues s =
 {-
  - There are some ranges that cannot be represented in a single 64 bit word
  - that can be represented in the Cauterize schema. Make sure we catch these.
+ -
+ - If the range has a negative offset, then we must be sure that the maximum
+ - value of the range fits within at least (maxBound :: Int64).
  -}
 checkForInexpressibleRange :: Schema -> Maybe String
 checkForInexpressibleRange s =
@@ -125,7 +128,7 @@ checkForInexpressibleRange s =
     es -> Just ("Cannot express range type: " ++ show es)
   where
     signedMax = fromIntegral (maxBound :: Int64) :: Word64
-    checkType (Type n (Range ofst size)) | (ofst < 0) && (size > signedMax)
+    checkType (Type n (Range ofst size)) | (ofst < 0) && ((fromIntegral ofst + size) > signedMax)
       = Just (n, (ofst,size))
     checkType _ = Nothing
 
