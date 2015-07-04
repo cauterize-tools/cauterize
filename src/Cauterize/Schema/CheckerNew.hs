@@ -29,6 +29,9 @@ instance IsSchema CheckedSchema where
  -    * duplicate field names
  -    * duplicate enumeration values
  -    * inexpressible range type
+ -    ! ensure Record prototypes do not contain empty fields
+ -    ! ensure schemas have at least one type
+ -    ! ensure schema name conforms to C identifier rules
  -}
 
 checkSchema :: Schema -> Either String CheckedSchema
