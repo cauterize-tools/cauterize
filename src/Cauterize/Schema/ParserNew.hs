@@ -98,12 +98,14 @@ toType (tproto:tbody) =
       mkTD name (Range (fromIntegral rmin) (fromIntegral (rmax - rmin)))
     toRange x = Left ("Unexpected range body: " ++ show x)
 
-    toArray [A (Ident name), A (Ident ref), A (Number size)] =
-      mkTD name (Array (umi ref) (fromIntegral size))
+    toArray [A (Ident name), A (Ident ref), A (Number size)]
+      | size < 0 = Left ("Size must be positive: " ++ show size)
+      | otherwise = mkTD name (Array (umi ref) (fromIntegral size))
     toArray x = Left ("Unexpected array body: " ++ show x)
 
-    toVector [A (Ident name), A (Ident ref), A (Number size)] =
-      mkTD name (Vector (umi ref) (fromIntegral size))
+    toVector [A (Ident name), A (Ident ref), A (Number size)]
+      | size < 0 = Left ("Size must be positive: " ++ show size)
+      | otherwise = mkTD name (Vector (umi ref) (fromIntegral size))
     toVector x = Left ("Unexpected vector body: " ++ show x)
 
     toEnumeration [A (Ident name), L (A (Ident "values"):vs)] = do

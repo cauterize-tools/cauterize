@@ -4,10 +4,11 @@ module Cauterize.Schema.CheckerNew
   , checkSchema
   ) where
 
+import Data.Graph
+import Data.Int
 import Data.List (intersect, group, sort)
 import Data.Maybe
-import Data.Graph
-import Debug.Trace
+import Data.Word
 
 import Cauterize.Schema.TypesNew
 import Cauterize.Schema.UtilNew
@@ -25,12 +26,10 @@ instance IsSchema CheckedSchema where
  -    * reuse of primitive names
  -    * cycles
  -    * reference to non-existent types
- -    ! duplicate field names
- -    ! duplicate enumeration values
- -    ! negative sizes
- -    ! inexpressible range type
+ -    * duplicate field names
+ -    * duplicate enumeration values
+ -    * inexpressible range type
  -}
-
 
 checkSchema :: Schema -> Either String CheckedSchema
 checkSchema s =
@@ -45,6 +44,8 @@ checkSchema s =
       , checkCycles
       , checkReferenceToNonExistentType
       , checkForDuplicateFieldNames
+      , checkForDuplicateEnumValues
+      , checkForInexpressibleRange
       ]
 
 checkDuplicateNames :: Schema -> Maybe String
@@ -99,6 +100,33 @@ checkForDuplicateFieldNames s =
     checkType (Type n (Record fs)) = checkFields n fs
     checkType (Type n (Combination fs)) = checkFields n fs
     checkType (Type n (Union fs)) = checkFields n fs
+    checkType _ = Nothing
+
+checkForDuplicateEnumValues :: Schema -> Maybe String
+checkForDuplicateEnumValues s =
+  case mapMaybe checkType (schemaTypes s) of
+    [] -> Nothing
+    es -> Just ("Found duplicate enumeration values: " ++ show es)
+  where
+    checkType (Type n (Enumeration vs)) =
+      case duplicates vs of
+        [] -> Nothing
+        ds -> Just (n, ds)
+    checkType _ = Nothing
+
+{-
+ - There are some ranges that cannot be represented in a single 64 bit word
+ - that can be represented in the Cauterize schema. Make sure we catch these.
+ -}
+checkForInexpressibleRange :: Schema -> Maybe String
+checkForInexpressibleRange s =
+  case mapMaybe checkType (schemaTypes s) of
+    [] -> Nothing
+    es -> Just ("Cannot express range type: " ++ show es)
+  where
+    signedMax = fromIntegral (maxBound :: Int64) :: Word64
+    checkType (Type n (Range ofst size)) | (ofst < 0) && (size > signedMax)
+      = Just (n, (ofst,size))
     checkType _ = Nothing
 
 duplicates :: Ord b => [b] -> [b]
