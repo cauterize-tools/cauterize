@@ -38,9 +38,7 @@ library
                        Cauterize.Lexer,
                        Cauterize.Schema,
                        Cauterize.Schema.Parser,
-                       Cauterize.Schema.ParserNew,
-                       Cauterize.Schema.TypesNew,
-                       Cauterize.Specification.Parser
+                       Cauterize.Specification.Parser,
                        Cauterize.Specification,
                        Cauterize.FormHash,
                        Cauterize.Dynamic,
@@ -57,7 +55,11 @@ library
                        Cauterize.Dynamic.Meta.Types,
                        Cauterize.Dynamic.Meta.Pretty,
                        Cauterize.Common.ParserUtils,
-                       Cauterize.Generate
+                       Cauterize.Generate,
+
+                       Cauterize.Schema.ParserNew,
+                       Cauterize.Schema.TypesNew
+                       Cauterize.Schema.CheckerNew
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.
