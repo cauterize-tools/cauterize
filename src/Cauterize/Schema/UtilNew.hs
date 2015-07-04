@@ -5,10 +5,14 @@ module Cauterize.Schema.UtilNew
   , schemaTypeNames
   , typeReferences
   , typeMap
+  , typeHashMap
   ) where
 
 import Cauterize.Schema.TypesNew
-import Data.Map (Map, fromList)
+import Cauterize.HashNew
+import Data.Maybe
+import qualified Data.Map as M
+import qualified Data.Text as T
 
 primToText :: Prim -> Identifier
 primToText PU8    = "u8"
@@ -46,8 +50,53 @@ typeReferences (Type _ d) = go d
     fieldReference (DataField _ r) = [r]
     fieldReference (EmptyField _) = []
 
-typeMap :: IsSchema a => a -> Map Identifier Type
-typeMap s = fromList pairs
+typeMap :: IsSchema a => a -> M.Map Identifier Type
+typeMap s = M.fromList pairs
   where
     ts = (schemaTypes . getSchema) s
     pairs = zip (map typeName ts) ts
+
+typeHashMap :: IsSchema a => a -> M.Map Identifier (T.Text,Hash)
+typeHashMap schema = th
+  where
+    s = getSchema schema
+    tm = typeMap s
+    th = primHashMap `M.union` fmap typeHash tm
+    lu k = hashToHex . snd $
+            fromMaybe
+              (error $ "typeHashMap: key '" ++ (T.unpack . unIdentifier) k ++ "' not in map")
+              (k `M.lookup` th)
+
+    typeHash (Type n d) =
+      let n' = unIdentifier n
+          fmt _ [] = error "typeHashMap: fmt must have some parts"
+          fmt p parts = T.concat ["<",p,":",T.intercalate ":" parts,">"]
+
+          fmtField (DataField fn fr) = T.concat ["[datafield:", unIdentifier fn, ":", unIdentifier fr, ":", lu fr, "]"]
+          fmtField (EmptyField fn) = T.concat ["[emptyfield:", unIdentifier fn, "]"]
+
+          hstr =
+            case d of
+              Synonym r       -> fmt "synonym" [n',unIdentifier r,lu r]
+              Range o l       -> fmt "range" [n',showNumSigned o,showNumSigned l]
+              Array r l       -> fmt "array" [n',unIdentifier r,showNumSigned l]
+              Vector r l      -> fmt "vector" [n',unIdentifier r,showNumSigned l]
+              Enumeration vs  -> fmt "enumeration" (n':map unIdentifier vs)
+              Record fs       -> fmt "record" (n':map fmtField fs)
+              Combination fs  -> fmt "combination" (n':map fmtField fs)
+              Union fs        -> fmt "union" (n':map fmtField fs)
+      in (hstr, mkHash hstr)
+
+primHashMap :: M.Map Identifier (T.Text,Hash)
+primHashMap = M.fromList (zip allPrimNames vs)
+  where
+    ns = map unIdentifier allPrimNames
+    hs = map mkHash ns
+    vs = zip ns hs
+
+showNumSigned :: (Ord a, Show a, Num a) => a -> T.Text
+showNumSigned v = let v' = abs v
+                      v'' = T.pack . show $ v'
+                  in if v < 0
+                       then '-' `T.cons` v''
+                       else '+' `T.cons` v''
