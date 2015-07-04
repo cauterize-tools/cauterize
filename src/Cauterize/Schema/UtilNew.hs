@@ -4,9 +4,11 @@ module Cauterize.Schema.UtilNew
   , allPrimNames
   , schemaTypeNames
   , typeReferences
+  , typeMap
   ) where
 
 import Cauterize.Schema.TypesNew
+import Data.Map (Map, fromList)
 
 primToText :: Prim -> Identifier
 primToText PU8    = "u8"
@@ -37,9 +39,15 @@ typeReferences (Type _ d) = go d
     go (Array r _) = [r]
     go (Vector r _) = [r]
     go (Enumeration _) = []
-    go (Record fs) = concatMap fieldRef fs
-    go (Combination fs) = concatMap fieldRef fs
-    go (Union fs) = concatMap fieldRef fs
+    go (Record fs) = concatMap fieldReference fs
+    go (Combination fs) = concatMap fieldReference fs
+    go (Union fs) = concatMap fieldReference fs
 
-    fieldRef (DataField _ r) = [r]
-    fieldRef (EmptyField _) = []
+    fieldReference (DataField _ r) = [r]
+    fieldReference (EmptyField _) = []
+
+typeMap :: IsSchema a => a -> Map Identifier Type
+typeMap s = fromList pairs
+  where
+    ts = (schemaTypes . getSchema) s
+    pairs = zip (map typeName ts) ts

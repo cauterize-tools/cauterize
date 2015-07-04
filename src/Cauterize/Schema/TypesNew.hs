@@ -5,7 +5,7 @@ module Cauterize.Schema.TypesNew
   , Prim(..)
   , Field(..)
   , Offset
-  , Size
+  , Length
   , Identifier
     , unIdentifier
     , unsafeMkIdentifier
@@ -34,14 +34,14 @@ data Type = Type
   } deriving (Show)
 
 data TypeDesc
-  = Synonym Identifier
-  | Range Offset Size
-  | Array Identifier Size
-  | Vector Identifier Size
-  | Enumeration [Identifier]
-  | Record [Field]
-  | Combination [Field]
-  | Union [Field]
+  = Synonym { synonymRef :: Identifier }
+  | Range { rangeOffset :: Offset, rangeLength :: Length }
+  | Array { arrayRef :: Identifier, arrayLength :: Length }
+  | Vector { vectorRef :: Identifier, vectorLength :: Length }
+  | Enumeration { enumerationValues :: [Identifier] }
+  | Record { recordFields :: [Field] }
+  | Combination { combinationFields :: [Field] }
+  | Union { unionFields :: [Field] }
   deriving (Show)
 
 data Prim
@@ -64,7 +64,7 @@ data Field
   deriving (Show)
 
 type Offset = Int64
-type Size = Word64
+type Length = Word64
 newtype Identifier = Identifier { unIdentifier :: Text }
   deriving (Eq, Ord)
 
