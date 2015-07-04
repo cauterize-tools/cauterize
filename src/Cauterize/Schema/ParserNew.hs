@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms #-}
 module Cauterize.Schema.ParserNew
   ( parseSchema
+  , defaultSchema
   ) where
 
 import Data.SCargot.General

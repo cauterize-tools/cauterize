@@ -6,7 +6,11 @@ module Cauterize.Schema.TypesNew
   , Field(..)
   , Offset
   , Size
-  , Identifier, unsafeMkIdentifier, mkIdentifier
+  , Identifier
+    , unIdentifier
+    , unsafeMkIdentifier
+    , mkIdentifier
+  , IsSchema(..)
   ) where
 
 -- TODO: Add a safe constructor for Text -> Identifier
@@ -52,16 +56,17 @@ data Prim
   | PF32
   | PF64
   | PBool
-  deriving (Show, Eq)
+  deriving (Show, Eq, Enum, Bounded)
 
 data Field
-  = DataField Identifier Identifier
-  | EmptyField Identifier
+  = DataField { fieldName :: Identifier, fieldRef :: Identifier }
+  | EmptyField { fieldName :: Identifier }
   deriving (Show)
 
 type Offset = Int64
 type Size = Word64
-newtype Identifier = Identifier Text deriving (Show, Eq)
+newtype Identifier = Identifier { unIdentifier :: Text }
+  deriving (Eq, Ord)
 
 isValidIdentifier :: String -> Bool
 isValidIdentifier [] = False
@@ -88,3 +93,12 @@ instance IsString Identifier where
     fromMaybe
       (error $ "IsString Identifier: invalid input string \"" ++ s ++ "\"")
       (mkIdentifier s)
+
+instance Show Identifier where
+  show (Identifier i) = "i" ++ show i
+
+class IsSchema a where
+  getSchema :: a -> Schema
+
+instance IsSchema Schema where
+  getSchema = id
