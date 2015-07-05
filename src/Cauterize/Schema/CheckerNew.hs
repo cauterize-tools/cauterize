@@ -32,6 +32,7 @@ instance IsSchema CheckedSchema where
  -    ! ensure Record prototypes do not contain empty fields
  -    ! ensure schemas have at least one type
  -    ! ensure schema name conforms to C identifier rules
+ -    ! ensure Combinations do not have more than 64 fields
  -}
 
 checkSchema :: Schema -> Either String CheckedSchema

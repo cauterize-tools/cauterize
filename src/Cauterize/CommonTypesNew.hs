@@ -14,6 +14,8 @@ module Cauterize.CommonTypesNew
   , Tag(..)
     , tagToText
     , tagToSize
+    , tagRequired
+    , tagForBits
   , Size
     , sizeMin
     , sizeMax
@@ -126,6 +128,25 @@ tagToSize T1 = mkConstSize 1
 tagToSize T2 = mkConstSize 2
 tagToSize T4 = mkConstSize 4
 tagToSize T8 = mkConstSize 8
+
+tagRequired :: Integral a => a -> Tag
+tagRequired i | (0          <= i') && (i' < 256) = T1
+              | (256        <= i') && (i' < 65536) = T2
+              | (25536      <= i') && (i' < 4294967296) = T4
+              | (4294967296 <= i') && (i' <= 18446744073709551615) = T8
+              | otherwise = error $ "Cannot express tag for value: " ++ show i'
+  where
+    i' = fromIntegral i :: Integer
+
+tagForBits :: Integral a => a -> Tag
+tagForBits v | 0 <= v' && v' <= 8 = T1
+             | 0 <= v' && v' <= 16 = T2
+             | 0 <= v' && v' <= 32 = T4
+             | 0 <= v' && v' <= 64 = T8
+             | otherwise = error
+                 $ "Cannot express '" ++ show v' ++ "' bits in a bitfield."
+  where
+    v' = fromIntegral v :: Integer
 
 instance IsString Identifier where
   fromString s =

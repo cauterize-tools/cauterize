@@ -5,6 +5,7 @@ module Cauterize.Schema.UtilNew
   , typeMap
   , typeHashMap
   , typeSizeMap
+  , typeDepthMap
   , tagForType
   ) where
 
@@ -114,6 +115,30 @@ typeSizeMap schema = sm
     fieldSize (DataField _ r) = let sz = lu r
                                 in (sizeMin sz, sizeMax sz)
 
+typeDepthMap :: IsSchema a => a -> M.Map Identifier Integer
+typeDepthMap schema = dm
+  where
+    s = getSchema schema
+    tm = typeMap s
+    dm = primDepthMap `M.union` fmap typeDepth tm
+    lu n = fromJust $ n `M.lookup` dm
+
+    typeDepth (Type _ d) =
+      let rdepth =
+            case d of
+              Synonym r      -> lu r
+              Range _ _      -> 0
+              Array r _      -> lu r
+              Vector r _     -> lu r
+              Enumeration _  -> 0
+              Record fs      -> maximum $ map fieldDepth fs
+              Combination fs -> maximum $ map fieldDepth fs
+              Union fs       -> maximum $ map fieldDepth fs
+      in 1 + rdepth
+
+    fieldDepth (EmptyField _) = 0
+    fieldDepth (DataField _ r) = lu r
+
 tagForType :: Type -> Tag
 tagForType (Type _ d) =
   case d of
@@ -140,28 +165,15 @@ primSizeMap = M.fromList $ zip ns sz
     ns = map primToText allPrims
     sz = map primToSize allPrims
 
+primDepthMap :: M.Map Identifier Integer
+primDepthMap = M.fromList $ zip ns ds
+  where
+    ns = map primToText allPrims
+    ds = repeat 1
+
 showNumSigned :: (Ord a, Show a, Num a) => a -> T.Text
 showNumSigned v = let v' = abs v
                       v'' = T.pack . show $ v'
                   in if v < 0
                        then '-' `T.cons` v''
                        else '+' `T.cons` v''
-
-tagRequired :: Integral a => a -> Tag
-tagRequired i | (0          <= i') && (i' < 256) = T1
-              | (256        <= i') && (i' < 65536) = T2
-              | (25536      <= i') && (i' < 4294967296) = T4
-              | (4294967296 <= i') && (i' <= 18446744073709551615) = T8
-              | otherwise = error $ "Cannot express tag for value: " ++ show i'
-  where
-    i' = fromIntegral i :: Integer
-
-tagForBits :: Integral a => a -> Tag
-tagForBits v | 0 <= v' && v' <= 8 = T1
-             | 0 <= v' && v' <= 16 = T2
-             | 0 <= v' && v' <= 32 = T4
-             | 0 <= v' && v' <= 64 = T8
-             | otherwise = error
-                 $ "Cannot express '" ++ show v' ++ "' bits in a bitfield."
-  where
-    v' = fromIntegral v :: Integer

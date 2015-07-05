@@ -2,9 +2,11 @@ module Cauterize.HashNew
   ( Hash(unHash)
   , mkHash
   , hashToHex
+  , hashToBytes
   ) where
 
 import Numeric
+import Data.Word (Word8)
 import qualified Crypto.Hash.SHA1 as SHA1
 import qualified Data.ByteString as B
 import qualified Data.Text as T
@@ -25,5 +27,9 @@ hashToHex (Hash bs) = T.concat $ map showByte (B.unpack bs)
                   [x]   -> T.pack ['0', x]
                   _     -> error "hashToHex: This should be impossible."
 
+hashToBytes :: Hash -> [Word8]
+hashToBytes (Hash b) = B.unpack b
+
 instance Show Hash where
   show h = "SHA1:" ++ T.unpack (hashToHex h)
+
