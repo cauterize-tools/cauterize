@@ -142,29 +142,29 @@ toType (tproto:tbody) =
     toSize (L [ AI "size", AN smin, AN smax ]) = Right $ mkSize smin smax
     toSize x = ueb "size" x
 
-    toHash (L [ AI "fingerprint", AH h]) = Right $ h
+    toHash (L [ AI "fingerprint", AH h]) = Right h
     toHash x = ueb "fingerprint" x
 
     toField (L [AI "field", AI fname, AN ix, AI ref]) = Right $ DataField (umi fname) ix (umi ref)
     toField (L [AI "empty", AI fname, AN ix]) = Right $ EmptyField (umi fname) ix
     toField x = ueb "field" x
 
-    toSynonym [AI name, f, s, AI ref] = do
+    toSynonym [AI name, f, s, AI ref] =
       mkTD name f s (Synonym $ umi ref)
     toSynonym x = ueb "synonym" x
 
-    toRange [AI name, f, s, AN rmin, AN rmax, AT t] = do
+    toRange [AI name, f, s, AN rmin, AN rmax, AT t] =
       mkTD name f s (Range o l t)
       where
         o = fromIntegral rmin
         l = fromIntegral rmax - fromIntegral rmin
     toRange x = ueb "range" x
 
-    toArray [AI name, f, s, AI ref, AN l] = do
+    toArray [AI name, f, s, AI ref, AN l] =
       mkTD name f s (Array (umi ref) (fromIntegral l))
     toArray x = ueb "array" x
 
-    toVector [AI name, f, s, AI ref, AN l, AT t] = do
+    toVector [AI name, f, s, AI ref, AN l, AT t] =
       mkTD name f s (Vector (umi ref) (fromIntegral l) t)
     toVector x = ueb "vector" x
 
@@ -179,19 +179,16 @@ toType (tproto:tbody) =
     toRecord [AI name, f, s, L (AI "fields":fs)] = do
         fs' <- mapM toField fs
         mkTD name f s (Record fs')
-      where
     toRecord x = ueb "record" x
 
     toCombination [AI name, f, s, AT t, L (AI "fields":fs)] = do
         fs' <- mapM toField fs
         mkTD name f s (Combination fs' t)
-      where
     toCombination x = ueb "combination" x
 
     toUnion [AI name, f, s, AT t, L (AI "fields":fs)] = do
         fs' <- mapM toField fs
         mkTD name f s (Union fs' t)
-      where
     toUnion x = ueb "combination" x
 
 fromComponent :: Component -> WellFormedSExpr Atom
@@ -209,13 +206,46 @@ fromComponent c =
     (TypeDef t) -> fromType t
 
   where
-    ident = A . Ident . pack
+    ident = A . Ident
     hash = A . Hash
     number = A . Number
     tag = A . Tag
 
 fromType :: Type -> WellFormedSExpr Atom
-fromType t = undefined
+fromType (Type n f s d) = L (A (Ident "type") : rest)
+  where
+    na = A (Ident (unIdentifier n))
+    fl = L [ ai "fingerprint", ah f ]
+    sl = L [ ai "size", an (sizeMin s), an (sizeMax s) ]
+
+    aiu = A . Ident . unIdentifier
+    ai = A . Ident
+    an = A . Number
+    ah = A . Hash
+    at = A . Tag
+
+    fromField (DataField fn ix fr) = L [ai "field", aiu fn, an ix, aiu fr]
+    fromField (EmptyField fn ix) = L [ai "empty", aiu fn, an ix]
+
+    fromEnumVal (EnumVal v i) = L [ ai "value", aiu v, an i ]
+
+    rest =
+      case d of
+        Synonym r -> [ai "synonym", na, fl, sl, aiu r]
+        Range o l t ->
+          let rmin = fromIntegral o
+              rmax = (fromIntegral o + fromIntegral l)
+          in [ai "range", na, fl, an rmin, an rmax, at t]
+        Array r l -> [ai "array", na, fl, sl, aiu r, an (fromIntegral l)]
+        Vector r l t -> [ai "vector", na, fl, sl, aiu r, an (fromIntegral l), at t]
+        Enumeration vs t ->
+          ai "enumeration" : na : fl : sl : at t : map fromEnumVal vs
+        Record fs ->
+          [ai "record", na, fl, sl, L (ai "fields" : map fromField fs)]
+        Combination fs t ->
+          [ai "combination", na, fl, sl, at t, L (ai "fields" : map fromField fs)]
+        Union fs t ->
+          [ai "union", na, fl, sl, at t, L (ai "fields" : map fromField fs)]
 
 cauterizeSpec :: SExprSpec Atom Component
 cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom
