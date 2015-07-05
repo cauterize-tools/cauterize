@@ -24,7 +24,7 @@ data Specification = Specification
   , specHash :: Hash
   , specSize :: Size
   , specDepth :: Integer
-  , specTypeTagLength :: Integer
+  , specTypeLength :: Integer
   , specLengthTag :: Tag
   , specTypes :: [Type]
   } deriving (Show)
@@ -69,7 +69,7 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
   , specHash = mkSpecHash
   , specSize = mkSpecSize
   , specDepth = mkSpecDepth
-  , specTypeTagLength = mkSpecTypeTag
+  , specTypeLength = mkSpecTypeTag
   , specLengthTag = mkSpecLengthTag
   , specTypes = topoSort schemaTypeMap $ map convertType schemaTypes
   }
@@ -142,3 +142,27 @@ uniquePrefixes ls = let count = length ls
                     in case dropWhile (\l -> length l < count) $ map L.nub $ L.transpose $ map L.inits ls of
                           [] -> Nothing
                           l -> (Just . head) l
+
+instance Schema.IsSchema Specification where
+  getSchema spec =
+    Schema.Schema
+      { Schema.schemaName = specName spec
+      , Schema.schemaVersion = specVersion spec
+      , Schema.schemaTypes = map extractType (specTypes spec)
+      }
+    where
+      extractType (Type n _ _ d) =
+        let
+          d' = case d of
+                Synonym r        -> Schema.Synonym r
+                Range o l _      -> Schema.Range o l
+                Array r l        -> Schema.Array r l
+                Vector r l _     -> Schema.Vector r l
+                Enumeration vs _ -> Schema.Enumeration vs
+                Record fs        -> Schema.Record (map extractField fs)
+                Combination fs _ -> Schema.Combination (map extractField fs)
+                Union fs _       -> Schema.Union (map extractField fs)
+        in Schema.Type n d'
+
+      extractField (EmptyField n _)  = Schema.EmptyField n
+      extractField (DataField n _ r) = Schema.DataField n r
