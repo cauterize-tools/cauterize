@@ -13,7 +13,6 @@ import Data.Graph
 import Data.Maybe
 import qualified Cauterize.Schema.TypesNew as Schema
 import qualified Cauterize.Schema.UtilNew as Schema
-import qualified Data.ByteString as B
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -21,7 +20,7 @@ import qualified Data.Text as T
 data Specification = Specification
   { specName :: T.Text
   , specVersion :: T.Text
-  , specHash :: Hash
+  , specFingerprint :: Hash
   , specSize :: Size
   , specDepth :: Integer
   , specTypeLength :: Integer
@@ -31,7 +30,7 @@ data Specification = Specification
 
 data Type = Type
   { typeName :: Identifier
-  , typeHash :: Hash
+  , typeFingerprint :: Hash
   , typeSize :: Size
   , typeDesc :: TypeDesc
   } deriving (Show)
@@ -66,7 +65,7 @@ compile :: Schema.Schema -> Specification
 compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
   { specName = schemaName
   , specVersion = schemaVersion
-  , specHash = mkSpecHash
+  , specFingerprint = mkSpecHash
   , specSize = mkSpecSize
   , specDepth = mkSpecDepth
   , specTypeLength = mkSpecTypeTag
@@ -123,10 +122,10 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
                 Schema.Union fs        -> Union (convertFields fs) tt
       in Type sn tha tsz d'
 
-    convertFields fs = map convertField (zip [0..] fs)
+    convertFields = zipWith convertField [0 ..]
 
-    convertField (ix, Schema.EmptyField sn) = EmptyField sn ix
-    convertField (ix, Schema.DataField sn r) = DataField sn ix r
+    convertField ix (Schema.EmptyField sn) = EmptyField sn ix
+    convertField ix (Schema.DataField sn r) = DataField sn ix r
 
 topoSort :: M.Map Identifier Schema.Type -> [Type] -> [Type]
 topoSort m types = flattenSCCs . stronglyConnComp $ map mkNode types
