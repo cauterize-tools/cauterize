@@ -4,6 +4,7 @@ module Cauterize.Specification.TypesNew
   , Type(..)
   , TypeDesc(..)
   , Field(..)
+  , EnumVal(..)
   , mkSpecification
   ) where
 
@@ -42,7 +43,7 @@ data TypeDesc
   | Array { arrayRef :: Identifier, arrayLength :: Length }
   | Vector { vectorRef :: Identifier, vectorLength :: Length
            , vectorTag :: Tag }
-  | Enumeration { enumerationValues :: [Identifier]
+  | Enumeration { enumerationValues :: [EnumVal]
                 , enumerationTag :: Tag }
   | Record { recordFields :: [Field] }
   | Combination { combinationFields :: [Field]
@@ -54,6 +55,9 @@ data TypeDesc
 data Field
   = DataField { fieldName :: Identifier, fieldIndex :: Integer, fieldRef :: Identifier }
   | EmptyField { fieldName :: Identifier, fieldIndex :: Integer }
+  deriving (Show)
+
+data EnumVal = EnumVal { enumValName :: Identifier, enumValIndex :: Integer }
   deriving (Show)
 
 mkSpecification :: Schema.IsSchema a => a -> Specification
@@ -116,7 +120,7 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
                 Schema.Range o l       -> Range o l tt
                 Schema.Array r l       -> Array r l
                 Schema.Vector r l      -> Vector r l tt
-                Schema.Enumeration vs  -> Enumeration vs tt
+                Schema.Enumeration vs  -> Enumeration (zipWith EnumVal vs [0..]) tt
                 Schema.Record fs       -> Record (convertFields fs)
                 Schema.Combination fs  -> Combination (convertFields fs) tt
                 Schema.Union fs        -> Union (convertFields fs) tt
@@ -157,7 +161,7 @@ instance Schema.IsSchema Specification where
                 Range o l _      -> Schema.Range o l
                 Array r l        -> Schema.Array r l
                 Vector r l _     -> Schema.Vector r l
-                Enumeration vs _ -> Schema.Enumeration vs
+                Enumeration vs _ -> Schema.Enumeration (map enumValName vs)
                 Record fs        -> Schema.Record (map extractField fs)
                 Combination fs _ -> Schema.Combination (map extractField fs)
                 Union fs _       -> Schema.Union (map extractField fs)

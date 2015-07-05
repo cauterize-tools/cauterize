@@ -10,7 +10,6 @@ import Data.SCargot.Repr.WellFormed
 import Data.Text (Text, pack, unpack)
 import Text.Parsec
 import Text.Parsec.Text
-import Text.Parsec.Char
 
 import Cauterize.Specification.TypesNew
 import Cauterize.CommonTypesNew
@@ -63,6 +62,7 @@ pAtom = try pString <|> try pTag <|> try pHash <|> pNumber <|> pIdent
                 '2' -> Tag T2
                 '4' -> Tag T4
                 '8' -> Tag T8
+                _ -> error "pAtom: should never happen."
     pNumber = do
       sign <- option '+' (oneOf "-+")
       v <- fmap (read :: String -> Integer) (many1 digit)
@@ -86,23 +86,113 @@ sAtom (Number n) = pack (show n)
 sAtom (Ident i) = i
 sAtom (Str s) = pack ("\"" ++ show s ++ "\"")
 sAtom (Hash h) = H.hashToHex h
+sAtom (Tag t) = unIdentifier $ tagToText t
+
+pattern AI x = A (Ident x)
+pattern AN x = A (Number x)
+pattern AS x = A (Str x)
+pattern AH x = A (Hash x)
+pattern AT x = A (Tag x)
 
 toComponent :: WellFormedSExpr Atom -> Either String Component
 toComponent = asList go
   where
-    go [A (Ident "name"), A (Str name)] = Right (Name name)
-    go [A (Ident "version"), A (Str version)] = Right (Version version)
-    go [A (Ident "fingerprint"), A (Hash h)] = Right (Fingerprint h)
-    go [A (Ident "size"), A (Number smin), A (Number smax)] = Right (SpecSize $ mkSize smin smax)
-    go [A (Ident "size"), A (Number sz)] = Right (SpecSize $ mkConstSize sz)
-    go [A (Ident "depth"), A (Number d)] = Right (Depth d)
-    go [A (Ident "typelength"), A (Number d)] = Right (TypeLength d)
-    go [A (Ident "lengthtag"), A (Tag t)] = Right (LengthTag t)
+    go [A (Ident "name"), AS name] = Right (Name name)
+    go [A (Ident "version"), AS version] = Right (Version version)
+    go [A (Ident "fingerprint"), AH h] = Right (Fingerprint h)
+    go [A (Ident "size"), AN smin, AN smax] = Right (SpecSize $ mkSize smin smax)
+    go [A (Ident "depth"), AN d] = Right (Depth d)
+    go [A (Ident "typelength"), AN d] = Right (TypeLength d)
+    go [A (Ident "lengthtag"), AT t] = Right (LengthTag t)
 
-    -- go (A (Ident "type") : rs ) = toType rs
+    go (A (Ident "type") : rs ) = toType rs
 
     go (A (Ident x) : _ ) = Left ("Unhandled component: " ++ show x)
     go y = Left ("Invalid component: " ++ show y)
+
+toType :: [WellFormedSExpr Atom] -> Either String Component
+toType [] = Left "Empty type expression."
+toType (tproto:tbody) =
+  case tproto of
+    AI "synonym" -> toSynonym tbody
+    AI "range" -> toRange tbody
+    AI "array" -> toArray tbody
+    AI "vector" -> toVector tbody
+    AI "enumeration" -> toEnumeration tbody
+    AI "record" -> toRecord tbody
+    AI "combination" -> toCombination tbody
+    AI "union" -> toUnion tbody
+    AI x -> Left ("Invalid prototype: " ++ show x)
+    y -> Left ("Invalid type expression: " ++ show y)
+  where
+    umi = unsafeMkIdentifier . unpack
+
+    mkTD :: Text
+         -> WellFormedSExpr Atom -- Hash atom
+         -> WellFormedSExpr Atom -- Size atom
+         -> TypeDesc
+         -> Either String Component
+    mkTD n f s t = do
+      f' <- toHash f
+      s' <- toSize s
+      return (TypeDef $ Type (umi n) f' s' t)
+
+    ueb p b = Left ("Unexpected " ++ p ++ " body: " ++ show b)
+
+    toSize (L [ AI "size", AN smin, AN smax ]) = Right $ mkSize smin smax
+    toSize x = ueb "size" x
+
+    toHash (L [ AI "fingerprint", AH h]) = Right $ h
+    toHash x = ueb "fingerprint" x
+
+    toField (L [AI "field", AI fname, AN ix, AI ref]) = Right $ DataField (umi fname) ix (umi ref)
+    toField (L [AI "empty", AI fname, AN ix]) = Right $ EmptyField (umi fname) ix
+    toField x = ueb "field" x
+
+    toSynonym [AI name, f, s, AI ref] = do
+      mkTD name f s (Synonym $ umi ref)
+    toSynonym x = ueb "synonym" x
+
+    toRange [AI name, f, s, AN rmin, AN rmax, AT t] = do
+      mkTD name f s (Range o l t)
+      where
+        o = fromIntegral rmin
+        l = fromIntegral rmax - fromIntegral rmin
+    toRange x = ueb "range" x
+
+    toArray [AI name, f, s, AI ref, AN l] = do
+      mkTD name f s (Array (umi ref) (fromIntegral l))
+    toArray x = ueb "array" x
+
+    toVector [AI name, f, s, AI ref, AN l, AT t] = do
+      mkTD name f s (Vector (umi ref) (fromIntegral l) t)
+    toVector x = ueb "vector" x
+
+    toEnumeration [AI name, f, s, AT t, L (AI "values":vs)] = do
+        vs' <- mapM toValue vs
+        mkTD name f s (Enumeration vs' t)
+      where
+        toValue (L [AI "value", AI n, AN ix]) = Right $ EnumVal (umi n) ix
+        toValue x = ueb "value" x
+    toEnumeration x = ueb "enumeration" x
+
+    toRecord [AI name, f, s, L (AI "fields":fs)] = do
+        fs' <- mapM toField fs
+        mkTD name f s (Record fs')
+      where
+    toRecord x = ueb "record" x
+
+    toCombination [AI name, f, s, AT t, L (AI "fields":fs)] = do
+        fs' <- mapM toField fs
+        mkTD name f s (Combination fs' t)
+      where
+    toCombination x = ueb "combination" x
+
+    toUnion [AI name, f, s, AT t, L (AI "fields":fs)] = do
+        fs' <- mapM toField fs
+        mkTD name f s (Union fs' t)
+      where
+    toUnion x = ueb "combination" x
 
 fromComponent :: Component -> WellFormedSExpr Atom
 fromComponent c =
@@ -116,13 +206,16 @@ fromComponent c =
     (TypeLength l) -> L [ ident "typelength", number l ]
     (LengthTag t) -> L [ ident "lengthtag", tag t ]
 
-    -- (TypeDef t) -> fromType t
+    (TypeDef t) -> fromType t
 
   where
     ident = A . Ident . pack
     hash = A . Hash
     number = A . Number
     tag = A . Tag
+
+fromType :: Type -> WellFormedSExpr Atom
+fromType t = undefined
 
 cauterizeSpec :: SExprSpec Atom Component
 cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom
