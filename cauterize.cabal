@@ -64,6 +64,7 @@ library
                        Cauterize.Schema.TypesNew,
                        Cauterize.Schema.UtilNew
                        Cauterize.Specification.TypesNew
+                       Cauterize.Specification.ParserNew
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.
