@@ -33,6 +33,8 @@ instance IsSchema CheckedSchema where
  -    ! ensure schemas have at least one type
  -    ! ensure schema name conforms to C identifier rules
  -    ! ensure Combinations do not have more than 64 fields
+ -    ! ensure that Records/Combinations/Unions/Enumerations all have at least
+ -      one field/value
  -}
 
 checkSchema :: Schema -> Either String CheckedSchema
