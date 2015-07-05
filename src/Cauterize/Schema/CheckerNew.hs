@@ -1,4 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
 module Cauterize.Schema.CheckerNew
   ( CheckedSchema
   , checkSchema
@@ -11,6 +10,7 @@ import Data.Maybe
 import Data.Word
 
 import Cauterize.Schema.TypesNew
+import Cauterize.CommonTypesNew
 import Cauterize.Schema.UtilNew
 
 data CheckedSchema = CheckedSchema Schema

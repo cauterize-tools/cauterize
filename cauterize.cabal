@@ -58,10 +58,12 @@ library
                        Cauterize.Generate,
 
                        Cauterize.HashNew,
+                       Cauterize.CommonTypesNew,
                        Cauterize.Schema.CheckerNew,
                        Cauterize.Schema.ParserNew,
                        Cauterize.Schema.TypesNew,
                        Cauterize.Schema.UtilNew
+                       Cauterize.Specification.TypesNew
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.

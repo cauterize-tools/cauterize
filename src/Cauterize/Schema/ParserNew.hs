@@ -12,6 +12,7 @@ import Text.Parsec
 import Text.Parsec.Text
 
 import Cauterize.Schema.TypesNew
+import Cauterize.CommonTypesNew
 
 defaultSchema :: Schema
 defaultSchema = Schema

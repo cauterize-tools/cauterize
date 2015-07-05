@@ -2,25 +2,14 @@ module Cauterize.Schema.TypesNew
   ( Schema(..)
   , Type(..)
   , TypeDesc(..)
-  , Prim(..)
   , Field(..)
   , Offset
   , Length
-  , Identifier
-    , unIdentifier
-    , unsafeMkIdentifier
-    , mkIdentifier
   , IsSchema(..)
   ) where
 
--- TODO: Add a safe constructor for Text -> Identifier
-
-import Data.Char
-import Data.Int
-import Data.Maybe
-import Data.String
-import Data.Text (Text, pack, empty)
-import Data.Word
+import Cauterize.CommonTypesNew
+import Data.Text (Text)
 
 data Schema = Schema
   { schemaName :: Text
@@ -44,58 +33,10 @@ data TypeDesc
   | Union { unionFields :: [Field] }
   deriving (Show)
 
-data Prim
-  = PU8
-  | PU16
-  | PU32
-  | PU64
-  | PS8
-  | PS16
-  | PS32
-  | PS64
-  | PF32
-  | PF64
-  | PBool
-  deriving (Show, Eq, Enum, Bounded)
-
 data Field
   = DataField { fieldName :: Identifier, fieldRef :: Identifier }
   | EmptyField { fieldName :: Identifier }
   deriving (Show)
-
-type Offset = Int64
-type Length = Word64
-newtype Identifier = Identifier { unIdentifier :: Text }
-  deriving (Eq, Ord)
-
-isValidIdentifier :: String -> Bool
-isValidIdentifier [] = False
-isValidIdentifier (s:r) = first && rest
-  where
-    first = isAsciiLower s
-    rest = all (\c -> isAsciiLower c || isDigit c || ('_' == c)) r
-
-unsafeMkIdentifier :: String -> Identifier
-unsafeMkIdentifier s =
-  fromMaybe
-    (error $ "unsafeMkIdentifier: invalid input string \"" ++ s ++ "\"")
-    (mkIdentifier s)
-
-mkIdentifier :: String -> Maybe Identifier
-mkIdentifier [] = Just (Identifier empty)
-mkIdentifier i =
-    if isValidIdentifier i
-      then Just (Identifier $ pack i)
-      else Nothing
-
-instance IsString Identifier where
-  fromString s =
-    fromMaybe
-      (error $ "IsString Identifier: invalid input string \"" ++ s ++ "\"")
-      (mkIdentifier s)
-
-instance Show Identifier where
-  show (Identifier i) = "i" ++ show i
 
 class IsSchema a where
   getSchema :: a -> Schema
