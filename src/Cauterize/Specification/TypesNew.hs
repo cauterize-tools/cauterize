@@ -1,28 +1,30 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Specification.TypesNew
   ( Specification(..)
   , Type(..)
   , TypeDesc(..)
-  , Tag(..)
   , Field(..)
+  , mkSpecification
   ) where
 
+import Cauterize.CommonTypesNew
 import Cauterize.HashNew
-import Cauterize.Specification.TypesInternalNew
-import Data.Text (Text)
-import Data.Word
+import Data.List (sort)
+import Data.Maybe
+import Data.Graph
+import qualified Data.Text as T
 import qualified Cauterize.Schema.TypesNew as Schema
-
--- TODO: these types probably belongs outside of the Schema module
-import Cauterize.Schema.TypesNew (Identifier, Prim, Offset, Length)
+import qualified Cauterize.Schema.UtilNew as Schema
+import qualified Data.Map as M
 
 data Specification = Specification
-  { specName :: Text
-  , specVersion :: Text
+  { specName :: T.Text
+  , specVersion :: T.Text
   , specHash :: Hash
   , specSize :: Size
   , specDepth :: Integer
-  , specTypeTagWidth :: Integer
-  , specLengthTagWidth :: Integer
+  , specTypeTag :: Integer
+  , specLengthTag :: Integer
   , specTypes :: [Type]
   } deriving (Show)
 
@@ -48,19 +50,46 @@ data TypeDesc
           , unionTag :: Tag}
   deriving (Show)
 
-data Tag = T1 | T2 | T4 | T8
-  deriving (Show, Eq)
-
 data Field
   = DataField { fieldName :: Identifier, fieldIndex :: Integer, fieldRef :: Identifier }
   | EmptyField { fieldName :: Identifier, fieldIndex :: Integer }
   deriving (Show)
 
 mkSpecification :: Schema.IsSchema a => a -> Specification
-mkSpecification schema = undefined
+mkSpecification schema = compile s
   where
     s = Schema.getSchema schema
 
-convTypes :: Schema.Schema -> [Type]
-convTypes s@Schema.Schema { Schema.schemaTypes = ts } = undefined
+compile :: Schema.Schema -> Specification
+compile s@(Schema.Schema n v ts) = Specification
+  { specName = n
+  , specVersion = v
+  , specHash = mkSpecHash
+  , specSize = mkSpecSize
+  , specDepth = undefined -- mkSpecDepth s
+  , specTypeTag = undefined -- mkSpecTypeTag s
+  , specLengthTag = undefined -- mkSpecLengthTag s
+  , specTypes = undefined -- topoSort $ map convertType ts
+  }
+  where
+    schemaHashMap = Schema.typeHashMap s
+    schemaSizeMap = Schema.typeSizeMap s
 
+    sortedTypeNames = sort $ map Schema.typeName ts
+    sortedTypeHashes = map (\tn -> fromJust $ tn `M.lookup` schemaHashMap) sortedTypeNames
+
+    -- <name:version:[hash(t1)]:[hash(t2)]:...>
+    mkSpecHash =
+      let hstr = "<" `T.append` T.intercalate ":" (n : v : map (hashToHex . snd) sortedTypeHashes) `T.append` ">"
+      in mkHash hstr
+
+    mkSpecSize = let sizes = map snd $ M.toList schemaSizeMap
+                     mins = map sizeMin sizes
+                     maxes = map sizeMax sizes
+                 in mkSize (minimum mins) (maximum maxes)
+
+-- topoSort :: [Type] -> [Type]
+-- topoSort sps = flattenSCCs . stronglyConnComp $ map m sps
+--   where
+--     m t = let n = typeName t
+--           in (t, n, referencesOf t)
