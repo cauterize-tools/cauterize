@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms  #-}
 module Cauterize.Specification.Parser
   ( parseSpecification
-  , formatSpecificiation
+  , formatSpecification
   ) where
 
 import Control.Monad
@@ -280,5 +280,5 @@ specToComponents s =
 parseSpecification :: Text -> Either String Specification
 parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec t
 
-formatSpecificiation :: Specification -> Text
-formatSpecificiation s = encode cauterizeSpec (specToComponents s)
+formatSpecification :: Specification -> Text
+formatSpecification s = encode cauterizeSpec (specToComponents s)

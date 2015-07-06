@@ -16,5 +16,5 @@ main = runWithOptions $ \opts -> Sc.parseSchemaFromFile (schemaFile opts) >>= re
     render _ (Left s) = print s >> return (ExitFailure (-1))
     render outFile (Right s) =
       case Sc.checkSchema s of
-        Right cs -> T.writeFile outFile (Sp.formatSpecificiation . Sp.mkSpecification $ cs) >> return ExitSuccess
+        Right cs -> T.writeFile outFile (Sp.formatSpecification . Sp.mkSpecification $ cs) >> return ExitSuccess
         Left es -> print es >> return (ExitFailure 1)
