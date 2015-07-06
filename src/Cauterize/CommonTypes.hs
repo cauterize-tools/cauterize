@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
-module Cauterize.CommonTypesNew
+{-# LANGUAGE OverloadedStrings, DeriveDataTypeable #-}
+module Cauterize.CommonTypes
   ( Offset
   , Length
   , Identifier
@@ -29,13 +29,14 @@ import Data.Int
 import Data.Char
 import Data.Text (Text, pack, empty)
 import Data.Maybe
+import Data.Data
 
 type Offset = Int64
 
 type Length = Word64
 
 newtype Identifier = Identifier { unIdentifier :: Text }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Data, Typeable)
 
 data Prim
   = PU8
