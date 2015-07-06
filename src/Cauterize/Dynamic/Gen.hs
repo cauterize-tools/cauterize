@@ -9,91 +9,97 @@ import Cauterize.Dynamic.Types
 import Control.Monad
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
-import qualified Cauterize.Common.Types as C
+import qualified Cauterize.CommonTypes as C
 import qualified Cauterize.Specification as S
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 
-dynamicGen :: S.Spec -> IO CautType
+dynamicGen :: S.Specification -> IO CautType
 dynamicGen s = do
   n <- generate $ elements $ M.keys m
   dynamicGenType s n
   where
     m = S.specTypeMap s
 
-dynamicGenType :: S.Spec -> T.Text -> IO CautType
+dynamicGenType :: S.Specification -> C.Identifier -> IO CautType
 dynamicGenType s n = generate $ dynamicGenType' s n
 
-dynamicGenType' :: S.Spec -> T.Text -> Gen CautType
+dynamicGenType' :: S.Specification -> C.Identifier -> Gen CautType
 dynamicGenType' s n = do
   d <- dynamicGenDetails m n
   return CautType { ctName = n, ctDetails = d }
   where
     m = S.specTypeMap s
 
-dynamicGenDetails :: TyMap -> T.Text -> Gen CautDetails
+dynamicGenDetails :: TyMap -> C.Identifier -> Gen CautDetails
 dynamicGenDetails m n =
-  case n `lu` m of
-   S.BuiltIn { S.unBuiltIn = bi } -> dynamicGenBuiltIn m bi
-   S.Synonym { S.unSynonym = sy } -> dynamicGenSynonym m sy
-   S.Array { S.unArray = a } -> dynamicGenArray m a
-   S.Vector { S.unVector = v } -> dynamicGenVector m v
-   S.Record { S.unRecord = r } -> dynamicGenRecord m r
-   S.Combination { S.unCombination = c } -> dynamicGenCombination m c
-   S.Union { S.unUnion = u } -> dynamicGenUnion m u
+  case S.typeDesc (n `lu` m) of
+   S.Synonym { S.synonymRef = sy } -> dynamicGenSynonym m sy
+   S.Range { S.rangeOffset = o, S.rangeLength = l } -> dynamicGenRange o l
+   S.Array { S.arrayRef = a, S.arrayLength = l } -> dynamicGenArray m a l
+   S.Vector { S.vectorRef = v, S.vectorLength = l } -> dynamicGenVector m v l
+   S.Enumeration { S.enumerationValues = vs } -> dynamicGenEnumeration vs
+   S.Record { S.recordFields = r } -> dynamicGenRecord m r
+   S.Combination { S.combinationFields = c } -> dynamicGenCombination m c
+   S.Union { S.unionFields = u } -> dynamicGenUnion m u
 
-dynamicGenBuiltIn :: TyMap -> C.TBuiltIn -> Gen CautDetails
-dynamicGenBuiltIn _ b = liftM CDBuiltIn (genBuiltIn $ C.unTBuiltIn b)
+dynamicGenPrim :: C.Prim -> Gen PrimDetails
+dynamicGenPrim p =
+  case p of
+    C.PU8   -> liftM PDu8 arbitrary
+    C.PU16  -> liftM PDu16 arbitrary
+    C.PU32  -> liftM PDu32 arbitrary
+    C.PU64  -> liftM PDu64 arbitrary
+    C.PS8   -> liftM PDs8 arbitrary
+    C.PS16  -> liftM PDs16 arbitrary
+    C.PS32  -> liftM PDs32 arbitrary
+    C.PS64  -> liftM PDs64 arbitrary
+    C.PF32  -> liftM PDf32 arbitrary
+    C.PF64  -> liftM PDf64 arbitrary
+    C.PBool -> liftM PDbool arbitrary
 
-dynamicGenSynonym :: TyMap -> C.TSynonym -> Gen CautDetails
-dynamicGenSynonym _ s = liftM CDSynonym (genBuiltIn $ C.synonymRepr s)
+dynamicGenSynonym :: TyMap -> C.Identifier -> Gen CautDetails
+dynamicGenSynonym m s = liftM CDSynonym (dynamicGenDetails m s)
 
-dynamicGenArray :: TyMap -> C.TArray -> Gen CautDetails
-dynamicGenArray m (C.TArray { C.arrayRef = r, C.arrayLen = l }) =
+dynamicGenRange :: C.Offset -> C.Length -> Gen CautDetails
+dynamicGenRange o l = do
+  v <- choose (0, l)
+  return $ CDRange (fromIntegral v + fromIntegral o)
+
+dynamicGenArray :: TyMap -> C.Identifier -> C.Length -> Gen CautDetails
+dynamicGenArray m r l =
   liftM CDArray $ replicateM (fromIntegral l) getter
   where
     getter = dynamicGenDetails m r
 
-dynamicGenVector :: TyMap -> C.TVector -> Gen CautDetails
-dynamicGenVector m (C.TVector { C.vectorRef = r, C.vectorMaxLen = maxLen }) = do
+dynamicGenVector :: TyMap -> C.Identifier -> C.Length -> Gen CautDetails
+dynamicGenVector m r maxLen = do
   len <- choose (0, maxLen)
   liftM CDVector $ replicateM (fromIntegral len) getter
   where
     getter = dynamicGenDetails m r
 
-dynamicGenRecord :: TyMap -> C.TRecord -> Gen CautDetails
-dynamicGenRecord m (C.TRecord { C.recordFields = C.Fields { C.unFields = fs } }) =
+dynamicGenEnumeration :: [S.EnumVal] -> Gen CautDetails
+dynamicGenEnumeration vs = liftM CDEnumeration (elements (map S.enumValName vs))
+
+dynamicGenRecord :: TyMap -> [S.Field] -> Gen CautDetails
+dynamicGenRecord m fs =
   liftM (CDRecord . M.fromList) $ mapM (genField m) fs
 
-dynamicGenCombination :: TyMap -> C.TCombination -> Gen CautDetails
-dynamicGenCombination m (C.TCombination { C.combinationFields = C.Fields { C.unFields = fs } }) = do
+dynamicGenCombination :: TyMap -> [S.Field] -> Gen CautDetails
+dynamicGenCombination m fs = do
   fields <- subset fs
   liftM (CDCombination . M.fromList) $ mapM (genField m) fields
 
-dynamicGenUnion :: TyMap -> C.TUnion -> Gen CautDetails
-dynamicGenUnion m (C.TUnion { C.unionFields = C.Fields { C.unFields = fs } }) = do
+dynamicGenUnion :: TyMap -> [S.Field] -> Gen CautDetails
+dynamicGenUnion m fs = do
   f <- elements fs
   (n, d) <- genField m f
   return CDUnion { cdUnionFieldName = n, cdUnionFieldDetails = d }
 
-genBuiltIn :: C.BuiltIn -> Gen BIDetails
-genBuiltIn b =
-  case b of
-    C.BIu8 -> liftM BDu8 arbitrary
-    C.BIu16 -> liftM BDu16 arbitrary
-    C.BIu32 -> liftM BDu32 arbitrary
-    C.BIu64 -> liftM BDu64 arbitrary
-    C.BIs8 -> liftM BDs8 arbitrary
-    C.BIs16 -> liftM BDs16 arbitrary
-    C.BIs32 -> liftM BDs32 arbitrary
-    C.BIs64 -> liftM BDs64 arbitrary
-    C.BIf32 -> liftM BDf32 arbitrary
-    C.BIf64 -> liftM BDf64 arbitrary
-    C.BIbool -> liftM BDbool arbitrary
-
-genField :: TyMap -> C.Field -> Gen (T.Text, FieldValue)
-genField _ (C.EmptyField { C.fName = n }) = return (n, EmptyField)
-genField m (C.Field { C.fName = n, C.fRef = r }) =
+genField :: TyMap -> S.Field -> Gen (C.Identifier, FieldValue)
+genField _ (S.EmptyField { S.fieldName = n }) = return (n, EmptyField)
+genField m (S.DataField  { S.fieldName = n, S.fieldRef = r }) =
   liftM (\d -> (n, DataField d)) (dynamicGenDetails m r)
 
 subset :: [a] -> Gen [a]

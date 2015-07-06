@@ -8,29 +8,30 @@ import Cauterize.Dynamic.Pack
 import Cauterize.Dynamic.Types
 import Control.Exception
 import Data.Serialize.Put
+import qualified Cauterize.CommonTypes as C
 import qualified Cauterize.Specification as Spec
 import qualified Data.ByteString as B
 import qualified Data.Map as M
-import qualified Cauterize.FormHash as F
+import qualified Cauterize.Hash as H
 
-dynamicMetaPack :: Spec.Spec -> MetaType -> B.ByteString
+dynamicMetaPack :: Spec.Specification -> MetaType -> B.ByteString
 dynamicMetaPack spec t =
   let (h, p) = dynamicMetaPackHeaderAndPayload spec t
   in h `B.append` p
 
-dynamicMetaPackHeaderAndPayload :: Spec.Spec -> MetaType -> (B.ByteString, B.ByteString)
+dynamicMetaPackHeaderAndPayload :: Spec.Specification -> MetaType -> (B.ByteString, B.ByteString)
 dynamicMetaPackHeaderAndPayload spec t =
   case tn `M.lookup` m of
     Nothing -> throw $ InvalidType tn
     Just ty ->
-      let prefix = take (fromIntegral tw) $ F.hashToBytes $ Spec.spHash ty
+      let prefix = take (fromIntegral tw) $ H.hashToBytes $ Spec.typeFingerprint ty
           h = runPut $ do
-                packLengthWithWidth (fromIntegral . B.length $ ctPacked) (fromIntegral dl)
+                packLengthWithWidth (fromIntegral . B.length $ ctPacked) dl
                 putByteString (B.pack prefix)
       in (h, ctPacked)
   where
-    (Spec.LengthTagWidth dl) = Spec.specLengthTagWidth spec
-    (Spec.TypeTagWidth tw) = Spec.specTypeTagWidth spec
+    dl = (C.sizeMax . C.tagToSize . Spec.specLengthTag) spec
+    tw = Spec.specTypeLength spec
     ct = unMetaType t
     tn = ctName ct
     m = Spec.specTypeMap spec

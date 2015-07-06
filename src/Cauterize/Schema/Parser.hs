@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms #-}
 module Cauterize.Schema.Parser
   ( parseSchema
+  , parseSchemaFromFile
   , formatSchema
   ) where
 
+import Control.Monad
 import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Text.Parsec
 import Text.Parsec.Text
 
@@ -196,3 +199,6 @@ parseSchema t = componentsToSchema `fmap` decode cauterizeSpec t
 
 formatSchema :: IsSchema a => a -> Text
 formatSchema s = encode cauterizeSpec (specToComponents (getSchema s))
+
+parseSchemaFromFile :: FilePath -> IO (Either String Schema)
+parseSchemaFromFile p = liftM parseSchema (T.readFile p)

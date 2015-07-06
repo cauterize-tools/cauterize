@@ -6,7 +6,7 @@ import Cauterize.Specification
 import Cauterize.Dynamic.Pretty
 import Cauterize.Dynamic.Meta.Types
 
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
-dynamicMetaPretty :: Spec -> MetaType -> T.Text
+dynamicMetaPretty :: Specification -> MetaType -> T.Text
 dynamicMetaPretty s (MetaType t) = dynamicPretty s t

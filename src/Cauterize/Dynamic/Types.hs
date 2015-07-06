@@ -2,7 +2,7 @@
 module Cauterize.Dynamic.Types
   ( CautType(..)
   , CautDetails(..)
-  , BIDetails(..)
+  , PrimDetails(..)
   , FieldValue(..)
   , TyMap
   , Exceptions(..)
@@ -15,55 +15,60 @@ import Data.Word
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
+import qualified Cauterize.CommonTypes as C
 
 data CautType =
-  CautType { ctName :: T.Text
+  CautType { ctName :: C.Identifier
            , ctDetails :: CautDetails
            }
   deriving (Show, Ord, Eq)
 
 data CautDetails
-  = CDBuiltIn BIDetails
-  | CDSynonym BIDetails
+  = CDSynonym { cdSynonymRef :: CautDetails }
+  | CDRange { cdRangeValue :: Integer }
   | CDArray { cdArrayElems :: [CautDetails] }
-  | CDVector { cdVectorelems :: [CautDetails] }
-  | CDRecord { cdRecordFields :: M.Map T.Text FieldValue }
-  | CDCombination { cdCombinationFields :: M.Map T.Text FieldValue }
-  | CDUnion { cdUnionFieldName :: T.Text, cdUnionFieldDetails :: FieldValue }
+  | CDVector { cdVectorElems :: [CautDetails] }
+  | CDEnumeration { cdEnumVal :: C.Identifier }
+  | CDRecord { cdRecordFields :: M.Map C.Identifier FieldValue }
+  | CDCombination { cdCombinationFields :: M.Map C.Identifier FieldValue }
+  | CDUnion { cdUnionFieldName :: C.Identifier, cdUnionFieldDetails :: FieldValue }
   deriving (Show, Ord, Eq, Data, Typeable)
 
-data BIDetails = BDu8 Word8
-               | BDu16 Word16
-               | BDu32 Word32
-               | BDu64 Word64
-               | BDs8 Int8
-               | BDs16 Int16
-               | BDs32 Int32
-               | BDs64 Int64
-               | BDf32 Float
-               | BDf64 Double
-               | BDbool Bool
+data PrimDetails = PDu8 Word8
+                 | PDu16 Word16
+                 | PDu32 Word32
+                 | PDu64 Word64
+                 | PDs8 Int8
+                 | PDs16 Int16
+                 | PDs32 Int32
+                 | PDs64 Int64
+                 | PDf32 Float
+                 | PDf64 Double
+                 | PDbool Bool
   deriving (Show, Ord, Eq, Data, Typeable)
 
 data FieldValue = DataField CautDetails
                 | EmptyField
   deriving (Show, Ord, Eq, Data, Typeable)
 
-type TyMap = M.Map T.Text S.SpType
+type TyMap = M.Map C.Identifier S.Type
 
-data Exceptions = TypeMisMatch { tmmExpected :: T.Text, tmmActual :: T.Text }
-                | PrototypeMisMatch { ptmmTypeName :: T.Text, ptmmDetailType :: T.Text }
+data Exceptions = TypeMisMatch { tmmExpected :: C.Identifier, tmmActual :: C.Identifier }
+                | PrototypeMisMatch { ptmmTypeName :: C.Identifier, ptmmDetailType :: T.Text }
                 | IncorrectArrayLength { ialExpected :: Integer, ialActual :: Integer }
                 | IncorrectVectorLength { ivlMaximum :: Integer, ivlActual :: Integer }
-                | InvalidType { invType :: T.Text }
+                | RangeOutOfBounds { robMin :: Integer, robMax :: Integer, robValue :: Integer }
+                | RangeDecodeOutOfBounds { rdobOffset :: C.Offset, rdobLength :: C.Length, rdobValue :: Integer }
+                | InvalidType { invType :: C.Identifier }
                 | InvalidTagForRepresentation { invTag :: Integer, invRepresentation :: T.Text }
                 | InvalidLengthForLengthWidth { ilflwLength :: Integer, ilflwWidth :: Integer }
                 | InvalidLengthWidth { ilwWidth :: Integer }
+                | InvalidEnumerable { ieName :: C.Identifier }
                 | NotATagType { invTagType :: T.Text }
-                | MissingField { mfField :: T.Text }
-                | UnexpectedFields { ufFields :: [T.Text] }
-                | UnexpectedDataField { udfField :: T.Text, udfData :: CautDetails }
-                | UnexpectedEmptyField { udfField :: T.Text }
+                | MissingField { mfField :: C.Identifier }
+                | UnexpectedFields { ufFields :: [C.Identifier] }
+                | UnexpectedDataField { udfField :: C.Identifier, udfData :: CautDetails }
+                | UnexpectedEmptyField { udfField :: C.Identifier }
   deriving (Show, Eq, Data, Typeable)
 
 instance Exception Exceptions

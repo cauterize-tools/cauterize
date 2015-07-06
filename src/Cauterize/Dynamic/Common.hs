@@ -6,10 +6,11 @@ module Cauterize.Dynamic.Common
   , fieldsToIndexMap
   , fieldNameSet
 
-  , isBuiltIn
   , isSynonym
+  , isRange
   , isArray
   , isVector
+  , isEnumeration
   , isRecord
   , isCombination
   , isUnion
@@ -20,65 +21,69 @@ import Control.Exception
 import Data.Maybe
 import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
-import qualified Cauterize.Common.Types as C
+import qualified Cauterize.CommonTypes as C
 import qualified Data.Map as M
 import qualified Data.Set as Set
 
-lu :: T.Text -> TyMap -> S.SpType
+lu :: C.Identifier -> TyMap -> S.Type
 lu n m = fromMaybe (throw $ InvalidType n)
                    (n `M.lookup` m)
 
-fieldsToNameMap :: [C.Field] -> M.Map T.Text C.Field
+fieldsToNameMap :: [S.Field] -> M.Map C.Identifier S.Field
 fieldsToNameMap fs = M.fromList $ map go fs
   where
-    go f = (C.fName f, f)
+    go f = (S.fieldName f, f)
 
-fieldsToIndexMap :: [C.Field] -> M.Map Integer C.Field
+fieldsToIndexMap :: [S.Field] -> M.Map Integer S.Field
 fieldsToIndexMap fs = M.fromList $ map go fs
   where
-    go f = (C.fIndex f, f)
+    go f = (S.fieldIndex f, f)
 
-fieldNameSet :: [C.Field] -> Set.Set T.Text
-fieldNameSet fs = Set.fromList $ map C.fName fs
+fieldNameSet :: [S.Field] -> Set.Set C.Identifier
+fieldNameSet fs = Set.fromList $ map S.fieldName fs
 
-isNameOf :: T.Text -> BIDetails -> Bool
-isNameOf "u8" (BDu8 _) = True
-isNameOf "u16" (BDu16 _) = True
-isNameOf "u32" (BDu32 _) = True
-isNameOf "u64" (BDu64 _) = True
-isNameOf "s8" (BDs8 _) = True
-isNameOf "s16" (BDs16 _) = True
-isNameOf "s32" (BDs32 _) = True
-isNameOf "s64" (BDs64 _) = True
-isNameOf "f32" (BDf32 _) = True
-isNameOf "f64" (BDf64 _) = True
-isNameOf "bool" (BDbool _) = True
+isNameOf :: T.Text -> PrimDetails -> Bool
+isNameOf "u8"   (PDu8 _) = True
+isNameOf "u16"  (PDu16 _) = True
+isNameOf "u32"  (PDu32 _) = True
+isNameOf "u64"  (PDu64 _) = True
+isNameOf "s8"   (PDs8 _) = True
+isNameOf "s16"  (PDs16 _) = True
+isNameOf "s32"  (PDs32 _) = True
+isNameOf "s64"  (PDs64 _) = True
+isNameOf "f32"  (PDf32 _) = True
+isNameOf "f64"  (PDf64 _) = True
+isNameOf "bool" (PDbool _) = True
 isNameOf _ _ = False
 
-isBuiltIn :: S.SpType -> Bool
-isBuiltIn (S.BuiltIn {}) = True
-isBuiltIn _ = False
-
-isSynonym :: S.SpType -> Bool
-isSynonym (S.Synonym {}) = True
+isSynonym :: S.Type -> Bool
+isSynonym (S.Type _ _ _ (S.Synonym {})) = True
 isSynonym _ = False
 
-isArray :: S.SpType -> Bool
-isArray (S.Array {}) = True
+isRange :: S.Type -> Bool
+isRange (S.Type _ _ _ (S.Range {})) = True
+isRange _ = False
+
+isArray :: S.Type -> Bool
+isArray (S.Type _ _ _ (S.Array {})) = True
 isArray _ = False
 
-isVector :: S.SpType -> Bool
-isVector (S.Vector {}) = True
+isVector :: S.Type -> Bool
+isVector (S.Type _ _ _ (S.Vector {})) = True
 isVector _ = False
 
-isRecord :: S.SpType -> Bool
-isRecord (S.Record {}) = True
+isEnumeration :: S.Type -> Bool
+isEnumeration (S.Type _ _ _ (S.Enumeration {})) = True
+isEnumeration _ = False
+
+isRecord :: S.Type -> Bool
+isRecord (S.Type _ _ _ (S.Record {})) = True
 isRecord _ = False
 
-isCombination :: S.SpType -> Bool
-isCombination (S.Combination {}) = True
+isCombination :: S.Type -> Bool
+isCombination (S.Type _ _ _ (S.Combination {})) = True
 isCombination _ = False
 
-isUnion :: S.SpType -> Bool
-isUnion (S.Union {}) = True
+isUnion :: S.Type -> Bool
+isUnion (S.Type _ _ _ (S.Union {})) = True
 isUnion _ = False

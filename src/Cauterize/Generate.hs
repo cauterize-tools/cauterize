@@ -11,12 +11,12 @@ module Cauterize.Generate
   , defaultMargin
   ) where
 
-import Cauterize.Common.Types
+import Cauterize.CommonTypes
 import Control.Monad
 import Test.QuickCheck.Gen
 import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 data PrototypeVariant
   = PVSynonym
@@ -37,14 +37,14 @@ generateSchemaWith' :: Integer -> Integer -> Double -> [PrototypeVariant] -> Gen
 generateSchemaWith' maximumTypes maximumSize margin allowedPrototypes =
   liftM3 Schema.Schema (elements schemaNames)
                        (elements schemaNames)
-                       (go maximumTypes maximumSize allNames schemaBuiltIns)
+                       (go maximumTypes maximumSize allNames [])
   where
     -- Returns the size of the schema
-    size :: [Schema.ScType] -> Integer
-    size ts = let s = Spec.specSize . Spec.fromSchema $ Schema.Schema "temp_schema" "0" ts
-              in Spec.maxSize s
+    size :: [Schema.Type] -> Integer
+    size ts = let s = Spec.specSize . Spec.mkSpecification $ Schema.Schema "temp_schema" "0" ts
+              in sizeMax s
 
-    go :: Integer -> Integer -> [T.Text] -> [Schema.ScType] -> Gen [Schema.ScType]
+    go :: Integer -> Integer -> [Identifier] -> [Schema.Type] -> Gen [Schema.Type]
     go _ _ [] _ = error "Ran out of names!"
     go tCount remSz (n:names) s
       | tCount <= 0 = return s
@@ -64,7 +64,7 @@ generateSchemaWith' maximumTypes maximumSize margin allowedPrototypes =
               then return s -- if we're within 10% of the size, give up and return what we have
               else go tCount maximumSize (n:names) s
 
-genVariant :: [Schema.ScType] -> [PrototypeVariant] -> T.Text -> Gen Schema.ScType
+genVariant :: [Schema.Type] -> [PrototypeVariant] -> Identifier -> Gen Schema.Type
 genVariant [] _ _ = error "Cannot create new prototype without preexisting types."
 genVariant _ [] _ = error "Must specify at least one prototype variant."
 genVariant existingTypes variants name = do
@@ -77,13 +77,14 @@ genVariant existingTypes variants name = do
     PVCombination -> genCombination
     PVUnion -> genUnion
   where
-    existingNames = map Schema.typeName existingTypes
-    genSynonym = liftM (Schema.Synonym . TSynonym name) (elements bis)
-    genArray = liftM2 (\t l -> Schema.Array $ TArray name t l) (elements existingNames) arbLength
-    genVector = liftM2 (\t l -> Schema.Vector $ TVector name t l) (elements existingNames) arbLength
-    genRecord = liftM (Schema.Record . TRecord name) (genFieldsWithoutEmpty existingNames)
-    genCombination = liftM (Schema.Combination . TCombination name) (genFields existingNames)
-    genUnion = liftM (Schema.Union . TUnion name) (genFields existingNames)
+    twrap = Schema.Type name
+    existingNames = allPrimNames ++ map Schema.typeName existingTypes
+    genSynonym = liftM (twrap . Schema.Synonym) (elements existingNames)
+    genArray = liftM2 (\t l -> twrap (Schema.Array t (fromIntegral l))) (elements existingNames) arbLength
+    genVector = liftM2 (\t l -> twrap (Schema.Vector t (fromIntegral l))) (elements existingNames) arbLength
+    genRecord = liftM (\fs -> twrap (Schema.Record fs)) (genFieldsWithoutEmpty existingNames)
+    genCombination = liftM (\fs -> twrap (Schema.Combination fs)) (genFields existingNames)
+    genUnion = liftM (\fs -> twrap (Schema.Union fs)) (genFields existingNames)
 
 defaultMaximumTypes :: Integer
 defaultMaximumTypes = 10
@@ -103,26 +104,16 @@ defaultMargin = 0.9
 -- A few functions for generating then names we'll use throughout this
 -- generation process.
 schemaNames :: [T.Text]
-schemaNames = take 100 allNames
+schemaNames = map unIdentifier $ take 100 allNames
 
-allNames :: [T.Text]
+allNames :: [Identifier]
 allNames = let syms = ["a","e","i","o","u","y"]
-           in map (T.pack . concat) $ sequences syms
+           in map (unsafeMkIdentifier . concat) $ sequences syms
 
 sequences :: [a] -> [[a]]
 sequences ls = ls' ++ [i ++ [a] | i <- sequences ls, a <- ls]
   where
     ls' = map (:[]) ls
-
--- Functions for working with BuiltIn types.
-bis :: [BuiltIn]
-bis = [minBound .. maxBound]
-
-biTypes :: [TBuiltIn]
-biTypes = map TBuiltIn bis
-
-schemaBuiltIns :: [Schema.ScType]
-schemaBuiltIns = map Schema.BuiltIn biTypes
 
 -- This helps pick a size for a lengthed type like an array or vector. It favors shorter sizes.
 arbLength :: Gen Integer
@@ -139,25 +130,23 @@ arbLength = frequency [ (1000, choose (pow0,  pow8  - 1))
     pow64 = (2 :: Integer)^(64 :: Integer)
 
 -- This is used to build a set of fields for the types that use a field set.
-genFields_ :: (Num b, Enum b) => Gen (T.Text -> b -> c) -> Gen [c]
+genFields_ :: Gen (Identifier -> c) -> Gen [c]
 genFields_ cstorGen = do
   count <- fieldCount
   fieldCstors <- replicateM count cstorGen
   let withNames = zipWith ($) fieldCstors allNames
-  let withIndicies = zipWith ($) withNames [0..]
-  return withIndicies
+  return withNames
   where
     fieldCount = let ixs = [1..64]
                      freqs = reverse ixs
                      gens = map return ixs
                  in frequency $ zip freqs gens
 
-genFields :: [T.Text] -> Gen Fields
-genFields ts = liftM Fields gf
-  where gf = genFields_ $ frequency [(1, liftM (\d n ix -> Field n d ix) (elements ts))
-                                    ,(1, return EmptyField)
-                                    ]
+genFields :: [Identifier] -> Gen [Schema.Field]
+genFields ts =
+  genFields_ $ frequency [(1, liftM (flip Schema.DataField) (elements ts))
+                         ,(1, return Schema.EmptyField)
+                         ]
 
-genFieldsWithoutEmpty :: [T.Text] -> Gen Fields
-genFieldsWithoutEmpty ts = liftM Fields gf
-  where gf = genFields_ $ liftM (\d n ix -> Field n d ix) (elements ts)
+genFieldsWithoutEmpty :: [Identifier] -> Gen [Schema.Field]
+genFieldsWithoutEmpty ts = genFields_ $ liftM (flip Schema.DataField) (elements ts)

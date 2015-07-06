@@ -7,12 +7,14 @@ module Cauterize.Specification.Types
   , EnumVal(..)
   , mkSpecification
   , specTypeMap
+  , specTypeTagMap
   ) where
 
 import Cauterize.CommonTypes
 import Cauterize.Hash
 import Data.Graph
 import Data.Maybe
+import Data.Word
 import qualified Cauterize.Schema.Types as Schema
 import qualified Cauterize.Schema.Util as Schema
 import qualified Data.List as L
@@ -152,6 +154,11 @@ specTypeMap s = M.fromList $ zip ns ts
   where
     ns = map typeName ts
     ts = specTypes s
+
+specTypeTagMap :: Specification -> M.Map [Word8] Type
+specTypeTagMap (Specification { specTypes = ts, specTypeLength = tl }) =
+  let hs = map (take (fromIntegral tl) . hashToBytes . typeFingerprint) ts
+  in M.fromList $ zip hs ts
 
 instance Schema.IsSchema Specification where
   getSchema spec =

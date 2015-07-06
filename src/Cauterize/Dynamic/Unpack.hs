@@ -12,70 +12,98 @@ import Data.Bits
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
-import qualified Cauterize.Common.Types as C
+import qualified Cauterize.CommonTypes as C
 import qualified Data.ByteString as B
 
 import Data.Serialize.IEEE754
 import Data.Serialize.Get
 
-dynamicUnpack :: S.Spec -> T.Text -> B.ByteString -> Either T.Text CautType
+dynamicUnpack :: S.Specification -> C.Identifier -> B.ByteString -> Either T.Text CautType
 dynamicUnpack s n b = case flip runGet b $ dynamicUnpack' s n of
                         Left e -> Left $ T.pack e
                         Right r -> Right r
 
-dynamicUnpack' :: S.Spec -> T.Text -> Get CautType
+dynamicUnpack' :: S.Specification -> C.Identifier -> Get CautType
 dynamicUnpack' s n =
   let m = S.specTypeMap s
   in do d <- dynamicUnpackDetails m n
         return CautType { ctName = n, ctDetails = d }
 
-dynamicUnpackDetails :: TyMap -> T.Text -> Get CautDetails
+dynamicUnpackDetails :: TyMap -> C.Identifier -> Get CautDetails
 dynamicUnpackDetails m n =
-  let t = n `lu` m
-  in case t of
-      S.BuiltIn { S.unBuiltIn = b } -> dynamicUnpackBuiltIn m b
-      S.Synonym { S.unSynonym = s } -> dynamicUnpackSynonym m s
-      S.Array { S.unArray = a } -> dynamicUnpackArray m a
-      S.Vector { S.unVector = v, S.lenRepr = lr } -> dynamicUnpackVector m v lr
-      S.Record { S.unRecord = r } -> dynamicUnpackRecord m r
-      S.Combination { S.unCombination = c, S.flagsRepr = fr } -> dynamicUnpackCombination m c fr
-      S.Union { S.unUnion = u, S.tagRepr = tr } -> dynamicUnpackUnion m u tr
+  let ty = n `lu` m
+  in case S.typeDesc ty of
+      S.Synonym { S.synonymRef = s } -> dynamicUnpackSynonym m s
+      S.Range { S.rangeOffset = o, S.rangeLength = l, S.rangeTag = t } -> dynamicUnpackRange o l t
+      S.Array { S.arrayRef = a, S.arrayLength = l } -> dynamicUnpackArray m a l
+      S.Vector { S.vectorRef = v, S.vectorLength = l, S.vectorTag = t } -> dynamicUnpackVector m v l t
+      S.Enumeration { S.enumerationValues = vs, S.enumerationTag = t } -> dynamicUnpackEnumeration vs t
+      S.Record { S.recordFields = fs } -> dynamicUnpackRecord m fs
+      S.Combination { S.combinationFields = fs, S.combinationTag = t } -> dynamicUnpackCombination m fs t
+      S.Union { S.unionFields = fs, S.unionTag = t } -> dynamicUnpackUnion m fs t
 
-dynamicUnpackBuiltIn :: TyMap -> C.TBuiltIn -> Get CautDetails
-dynamicUnpackBuiltIn _ (C.TBuiltIn b) = liftM CDBuiltIn (unpackBuiltIn b)
+dynamicUnpackPrim :: C.Prim -> Get PrimDetails
+dynamicUnpackPrim b =
+  case b of
+    C.PU8   -> liftM PDu8 getWord8
+    C.PU16  -> liftM PDu16 getWord16le
+    C.PU32  -> liftM PDu32 getWord32le
+    C.PU64  -> liftM PDu64 getWord64le
+    C.PS8   -> liftM (PDs8 . fromIntegral) getWord8
+    C.PS16  -> liftM (PDs16 . fromIntegral) getWord16le
+    C.PS32  -> liftM (PDs32 . fromIntegral) getWord32le
+    C.PS64  -> liftM (PDs64 . fromIntegral) getWord64le
+    C.PF32  -> liftM PDf32 getFloat32le
+    C.PF64  -> liftM PDf64 getFloat64le
+    C.PBool -> do
+      w8 <- getWord8
+      case w8 of
+        0 -> return $ PDbool False
+        1 -> return $ PDbool True
+        x -> fail $ "unexpected value for boolean: " ++ show x
 
-dynamicUnpackSynonym :: TyMap -> C.TSynonym -> Get CautDetails
-dynamicUnpackSynonym _ (C.TSynonym { C.synonymRepr = r }) = liftM CDSynonym (unpackBuiltIn r)
+dynamicUnpackSynonym :: TyMap -> C.Identifier -> Get CautDetails
+dynamicUnpackSynonym m i = liftM CDSynonym (dynamicUnpackDetails m i)
 
-dynamicUnpackArray :: TyMap -> C.TArray -> Get CautDetails
-dynamicUnpackArray m (C.TArray { C.arrayRef = r, C.arrayLen = l }) =
+dynamicUnpackRange :: C.Offset -> C.Length -> C.Tag -> Get CautDetails
+dynamicUnpackRange o l t = do
+  tag <- unpackTag t
+  if fromIntegral tag > l
+    then throw $ RangeDecodeOutOfBounds o l tag
+    else return $ CDRange tag
+
+dynamicUnpackArray :: TyMap -> C.Identifier -> C.Length -> Get CautDetails
+dynamicUnpackArray m r l =
   liftM CDArray $ replicateM (fromIntegral l) getter
   where
     getter = dynamicUnpackDetails m r
 
-dynamicUnpackVector :: TyMap -> C.TVector -> S.LengthRepr -> Get CautDetails
-dynamicUnpackVector m (C.TVector { C.vectorRef = r, C.vectorMaxLen = maxLen }) (S.LengthRepr lr) = do
-  len <- unpackTag lr
-  if len > maxLen
+dynamicUnpackVector :: TyMap -> C.Identifier -> C.Length -> C.Tag -> Get CautDetails
+dynamicUnpackVector m r maxLen t = do
+  len <- unpackTag t
+  if len > fromIntegral maxLen
     then fail $ "vector length out of bounds: " ++ show len ++ " > " ++ show maxLen
     else liftM CDVector $ replicateM (fromIntegral len) getter
   where
     getter = dynamicUnpackDetails m r
 
-dynamicUnpackRecord :: TyMap -> C.TRecord -> Get CautDetails
-dynamicUnpackRecord m (C.TRecord { C.recordFields = C.Fields { C.unFields = fs } }) =
+dynamicUnpackEnumeration :: [S.EnumVal] -> C.Tag -> Get CautDetails
+dynamicUnpackEnumeration = undefined
+
+dynamicUnpackRecord :: TyMap -> [S.Field] -> Get CautDetails
+dynamicUnpackRecord m fs =
   liftM (CDRecord . M.fromList) $ mapM (unpackField m) fs
 
-dynamicUnpackCombination :: TyMap -> C.TCombination -> S.FlagsRepr -> Get CautDetails
-dynamicUnpackCombination m (C.TCombination { C.combinationFields = C.Fields { C.unFields = fs } }) (S.FlagsRepr fr) = do
-  flags <- unpackTag fr
+dynamicUnpackCombination :: TyMap -> [S.Field] -> C.Tag -> Get CautDetails
+dynamicUnpackCombination m fs t = do
+  flags <- unpackTag t
   liftM (CDCombination . M.fromList) $ mapM (unpackField m) (setFields flags)
   where
-    setFields flags = filter (\f -> flags `testBit` (fromIntegral . C.fIndex $ f)) fs
+    setFields flags = filter (\f -> flags `testBit` (fromIntegral . S.fieldIndex $ f)) fs
 
-dynamicUnpackUnion :: TyMap -> C.TUnion -> S.TagRepr -> Get CautDetails
-dynamicUnpackUnion m (C.TUnion { C.unionFields = C.Fields { C.unFields = fs } }) (S.TagRepr { S.unTagRepr = tr } ) = do
-  tag <- liftM fromIntegral $ unpackTag tr
+dynamicUnpackUnion :: TyMap -> [S.Field] -> C.Tag -> Get CautDetails
+dynamicUnpackUnion m fs t = do
+  tag <- liftM fromIntegral $ unpackTag t
   case tag `M.lookup` fm of
     Nothing -> fail $ "invalid union tag: " ++ show tag
     Just f -> do
@@ -84,34 +112,13 @@ dynamicUnpackUnion m (C.TUnion { C.unionFields = C.Fields { C.unFields = fs } })
   where
     fm = fieldsToIndexMap fs
 
-unpackField :: TyMap -> C.Field -> Get (T.Text, FieldValue)
-unpackField _ (C.EmptyField { C.fName = n }) = return (n, EmptyField)
-unpackField m (C.Field { C.fName = n, C.fRef = r }) =
+unpackField :: TyMap -> S.Field -> Get (C.Identifier, FieldValue)
+unpackField _ (S.EmptyField { S.fieldName = n }) = return (n, EmptyField)
+unpackField m (S.DataField { S.fieldName = n, S.fieldRef = r }) =
   liftM (\d -> (n, DataField d)) (dynamicUnpackDetails m r)
 
-unpackBuiltIn :: C.BuiltIn -> Get BIDetails
-unpackBuiltIn b =
-  case b of
-    C.BIu8 -> liftM BDu8 getWord8
-    C.BIu16 -> liftM BDu16 getWord16le
-    C.BIu32 -> liftM BDu32 getWord32le
-    C.BIu64 -> liftM BDu64 getWord64le
-    C.BIs8 -> liftM (BDs8 . fromIntegral) getWord8
-    C.BIs16 -> liftM (BDs16 . fromIntegral) getWord16le
-    C.BIs32 -> liftM (BDs32 . fromIntegral) getWord32le
-    C.BIs64 -> liftM (BDs64 . fromIntegral) getWord64le
-    C.BIf32 -> liftM BDf32 getFloat32le
-    C.BIf64 -> liftM BDf64 getFloat64le
-    C.BIbool -> do
-      w8 <- getWord8
-      case w8 of
-        0 -> return $ BDbool False
-        1 -> return $ BDbool True
-        x -> fail $ "unexpected value for boolean: " ++ show x
-
-unpackTag :: C.BuiltIn -> Get Integer
-unpackTag C.BIu8  = liftM fromIntegral getWord8
-unpackTag C.BIu16 = liftM fromIntegral getWord16le
-unpackTag C.BIu32 = liftM fromIntegral getWord32le
-unpackTag C.BIu64 = liftM fromIntegral getWord64le
-unpackTag b = throw $ NotATagType (T.pack . show $ b)
+unpackTag :: C.Tag -> Get Integer
+unpackTag C.T1 = liftM fromIntegral getWord8
+unpackTag C.T2 = liftM fromIntegral getWord16le
+unpackTag C.T4 = liftM fromIntegral getWord32le
+unpackTag C.T8 = liftM fromIntegral getWord64le
