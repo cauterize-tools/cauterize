@@ -31,6 +31,8 @@ prettyDetails :: M.Map Identifier Type -> Identifier -> CautDetails -> Doc
 prettyDetails m n (CDSynonym s) = parens $ "synonym" <+> (prettyDetails m r s)
   where
     Type { typeDesc = (Synonym { synonymRef = r }) } = n `lu` m
+prettyDetails _ n (CDRange v) =
+  parens ("range" <+> ident n <$> ii v)
 prettyDetails s n (CDArray elems) =
   parens ("array" <+> ident n <$> indent 2 (parens $ "elems" <$> indent 2 vs))
   where
@@ -41,6 +43,8 @@ prettyDetails s n (CDVector elems) =
   where
     vs = fillSep $ map (prettyDetails s elemsName) elems
     Type { typeDesc = Vector { vectorRef = elemsName } } = n `lu` s
+prettyDetails _ n (CDEnumeration v) =
+  parens ("enumeration" <+> ident n <$> ident v)
 prettyDetails s n (CDRecord fields) =
   parens ("record" <+> ident n <$> indent 2 fs)
     where
