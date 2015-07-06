@@ -55,6 +55,7 @@ library
                        Cauterize.Schema.Util,
                        Cauterize.Specification,
                        Cauterize.Specification.Parser,
+                       Cauterize.Specification.Compile,
                        Cauterize.Specification.Types
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns

@@ -5,12 +5,16 @@ module Cauterize.Specification.Types
   , TypeDesc(..)
   , Field(..)
   , EnumVal(..)
+  , specTypeMap
+  , specTypeTagMap
   ) where
 
 import Cauterize.CommonTypes
 import Cauterize.Hash
+import Data.Word
 import qualified Cauterize.Schema.Types as Schema
 import qualified Data.Text as T
+import qualified Data.Map as M
 
 data Specification = Specification
   { specName :: T.Text
@@ -54,6 +58,16 @@ data Field
 data EnumVal = EnumVal { enumValName :: Identifier, enumValIndex :: Integer }
   deriving (Show)
 
+specTypeMap :: Specification -> M.Map Identifier Type
+specTypeMap s = M.fromList $ zip ns ts
+  where
+    ns = map typeName ts
+    ts = specTypes s
+
+specTypeTagMap :: Specification -> M.Map [Word8] Type
+specTypeTagMap (Specification { specTypes = ts, specTypeLength = tl }) =
+  let hs = map (take (fromIntegral tl) . hashToBytes . typeFingerprint) ts
+  in M.fromList $ zip hs ts
 
 instance Schema.IsSchema Specification where
   getSchema spec =

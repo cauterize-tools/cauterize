@@ -12,7 +12,6 @@ import Test.QuickCheck.Gen
 import qualified Cauterize.CommonTypes as C
 import qualified Cauterize.Specification as S
 import qualified Data.Map as M
-import qualified Data.Text.Lazy as T
 
 dynamicGen :: S.Specification -> IO CautType
 dynamicGen s = do

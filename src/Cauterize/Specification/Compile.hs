@@ -8,7 +8,6 @@ import Cauterize.Hash
 import Cauterize.Specification.Types
 import Data.Graph
 import Data.Maybe
-import Data.Word
 import qualified Cauterize.Schema.Types as Schema
 import qualified Cauterize.Schema.Util as Schema
 import qualified Data.List as L
@@ -100,14 +99,3 @@ uniquePrefixes ls = let count = length ls
                     in case dropWhile (\l -> length l < count) $ map L.nub $ L.transpose $ map L.inits ls of
                           [] -> Nothing
                           l -> (Just . head) l
-
-specTypeMap :: Specification -> M.Map Identifier Type
-specTypeMap s = M.fromList $ zip ns ts
-  where
-    ns = map typeName ts
-    ts = specTypes s
-
-specTypeTagMap :: Specification -> M.Map [Word8] Type
-specTypeTagMap (Specification { specTypes = ts, specTypeLength = tl }) =
-  let hs = map (take (fromIntegral tl) . hashToBytes . typeFingerprint) ts
-  in M.fromList $ zip hs ts
