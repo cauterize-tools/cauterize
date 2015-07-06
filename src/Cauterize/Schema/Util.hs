@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Cauterize.Schema.UtilNew
+module Cauterize.Schema.Util
   ( schemaTypeNames
   , typeReferences
   , typeMap
@@ -9,9 +9,9 @@ module Cauterize.Schema.UtilNew
   , tagForType
   ) where
 
-import Cauterize.Schema.TypesNew
-import Cauterize.HashNew
-import Cauterize.CommonTypesNew
+import Cauterize.Schema.Types
+import Cauterize.Hash
+import Cauterize.CommonTypes
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text as T

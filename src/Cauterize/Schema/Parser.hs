@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms #-}
-module Cauterize.Schema.ParserNew
+module Cauterize.Schema.Parser
   ( parseSchema
   , formatSchema
   ) where
@@ -12,8 +12,8 @@ import qualified Data.Text as T
 import Text.Parsec
 import Text.Parsec.Text
 
-import Cauterize.Schema.TypesNew
-import Cauterize.CommonTypesNew
+import Cauterize.Schema.Types
+import Cauterize.CommonTypes
 
 defaultSchema :: Schema
 defaultSchema = Schema

@@ -1,4 +1,4 @@
-module Cauterize.Schema.CheckerNew
+module Cauterize.Schema.Checker
   ( CheckedSchema
   , checkSchema
   ) where
@@ -9,9 +9,9 @@ import Data.List (intersect, group, sort)
 import Data.Maybe
 import Data.Word
 
-import Cauterize.Schema.TypesNew
-import Cauterize.CommonTypesNew
-import Cauterize.Schema.UtilNew
+import Cauterize.Schema.Types
+import Cauterize.CommonTypes
+import Cauterize.Schema.Util
 
 data CheckedSchema = CheckedSchema Schema
   deriving (Show)

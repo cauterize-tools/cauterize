@@ -1,4 +1,4 @@
-module Cauterize.Schema.TypesNew
+module Cauterize.Schema.Types
   ( Schema(..)
   , Type(..)
   , TypeDesc(..)
@@ -8,7 +8,7 @@ module Cauterize.Schema.TypesNew
   , IsSchema(..)
   ) where
 
-import Cauterize.CommonTypesNew
+import Cauterize.CommonTypes
 import Data.Text (Text)
 
 data Schema = Schema
