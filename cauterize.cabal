@@ -32,39 +32,30 @@ library
                        GraphSCC,
                        s-cargot
   default-language:    Haskell2010
-  exposed-modules:     Cauterize.Common.Types,
-                       Cauterize.Schema.Types,
-                       Cauterize.Specification.Types,
-                       Cauterize.Lexer,
-                       Cauterize.Schema,
-                       Cauterize.Schema.Parser,
-                       Cauterize.Specification.Parser,
-                       Cauterize.Specification,
-                       Cauterize.FormHash,
+  exposed-modules:     Cauterize.CommonTypes,
                        Cauterize.Dynamic,
                        Cauterize.Dynamic.Common,
-                       Cauterize.Dynamic.Types,
-                       Cauterize.Dynamic.Pack,
-                       Cauterize.Dynamic.Unpack,
                        Cauterize.Dynamic.Gen,
-                       Cauterize.Dynamic.Pretty,
                        Cauterize.Dynamic.Meta,
                        Cauterize.Dynamic.Meta.Gen,
                        Cauterize.Dynamic.Meta.Pack,
-                       Cauterize.Dynamic.Meta.Unpack,
-                       Cauterize.Dynamic.Meta.Types,
                        Cauterize.Dynamic.Meta.Pretty,
-                       Cauterize.Common.ParserUtils,
+                       Cauterize.Dynamic.Meta.Types,
+                       Cauterize.Dynamic.Meta.Unpack,
+                       Cauterize.Dynamic.Pack,
+                       Cauterize.Dynamic.Pretty,
+                       Cauterize.Dynamic.Types,
+                       Cauterize.Dynamic.Unpack,
                        Cauterize.Generate,
-
-                       Cauterize.HashNew,
-                       Cauterize.CommonTypesNew,
-                       Cauterize.Schema.CheckerNew,
-                       Cauterize.Schema.ParserNew,
-                       Cauterize.Schema.TypesNew,
-                       Cauterize.Schema.UtilNew
-                       Cauterize.Specification.TypesNew
-                       Cauterize.Specification.ParserNew
+                       Cauterize.Hash,
+                       Cauterize.Schema,
+                       Cauterize.Schema.Checker,
+                       Cauterize.Schema.Parser,
+                       Cauterize.Schema.Types,
+                       Cauterize.Schema.Util,
+                       Cauterize.Specification,
+                       Cauterize.Specification.Parser,
+                       Cauterize.Specification.Types
 
 -- `cauterize` is the main entry point into the compiler/converter. This turns
 -- schemas into specifications.
