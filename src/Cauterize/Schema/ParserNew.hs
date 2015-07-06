@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms #-}
 module Cauterize.Schema.ParserNew
   ( parseSchema
+  , formatSchema
   ) where
 
 import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
 import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T
 import Text.Parsec
 import Text.Parsec.Text
 
@@ -55,7 +57,7 @@ pAtom = try pString <|> pNumber <|> pIdent
 sAtom :: Atom -> Text
 sAtom (Ident t) = t
 sAtom (Number n) = pack (show n)
-sAtom (Str v) = pack ("\"" ++ show v ++ "\"")
+sAtom (Str v) = T.concat ["\"", v, "\""]
 
 toComponent :: WellFormedSExpr Atom -> Either String Component
 toComponent = asList go
@@ -155,7 +157,7 @@ fromType (Type n d) = L (A (Ident "type") : rest)
         Vector { vectorRef = r, vectorLength = l } ->
           [ai "vector", na, aiu r, an (fromIntegral l)]
         Enumeration { enumerationValues = vs } ->
-          ai "enumeration" : na : map aiu vs
+          [ai "enumeration", na, L (ai "values" : map aiu vs)]
         Record { recordFields = fs } ->
           [ai "record", na, L (ai "fields" : map fromField fs)]
         Combination { combinationFields = fs } ->
@@ -166,8 +168,8 @@ fromType (Type n d) = L (A (Ident "type") : rest)
 fromComponent :: Component -> WellFormedSExpr Atom
 fromComponent c =
   case c of
-    (Name n) -> L [ ident "name", A . Ident $ n ]
-    (Version v) -> L [ ident "version", A . Ident $ v ]
+    (Name n) -> L [ ident "name", A . Str $ n ]
+    (Version v) -> L [ ident "version", A . Str $ v ]
     (TypeDef t) -> fromType t
   where
     ident = A . Ident . pack
@@ -183,5 +185,14 @@ componentsToSchema = foldl go defaultSchema
     go s (TypeDef t) = let ts = schemaTypes s
                         in s { schemaTypes = t:ts }
 
-parseSchema :: String -> Either String Schema
-parseSchema t = componentsToSchema `fmap` decode cauterizeSpec (pack t)
+specToComponents :: Schema -> [Component]
+specToComponents s =
+    Name (schemaName s)
+  : Version (schemaVersion s)
+  : map TypeDef (schemaTypes s)
+
+parseSchema :: Text -> Either String Schema
+parseSchema t = componentsToSchema `fmap` decode cauterizeSpec t
+
+formatSchema :: IsSchema a => a -> Text
+formatSchema s = encode cauterizeSpec (specToComponents (getSchema s))
