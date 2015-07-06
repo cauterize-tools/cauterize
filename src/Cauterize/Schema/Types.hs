@@ -1,166 +1,45 @@
-{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
-module Cauterize.Schema.Types
-  ( Cycle
-  , Schema(..)
-  , ScType(..)
-
-  , schemaTypeMap
-  , checkSchema
-  , typeName
-  , referredNames
-
-  , prettyPrint
+module Cauterize.Schema.TypesNew
+  ( Schema(..)
+  , Type(..)
+  , TypeDesc(..)
+  , Field(..)
+  , Offset
+  , Length
+  , IsSchema(..)
   ) where
 
-import Cauterize.Common.Types
+import Cauterize.CommonTypesNew
+import Data.Text (Text)
 
-import Data.Maybe
+data Schema = Schema
+  { schemaName :: Text
+  , schemaVersion :: Text
+  , schemaTypes :: [Type]
+  } deriving (Show)
 
-import Data.Graph
+data Type = Type
+  { typeName :: Identifier
+  , typeDesc :: TypeDesc
+  } deriving (Show)
 
-import qualified Data.Set as L
-import qualified Data.Map as M
-import qualified Data.Text.Lazy as T
-
-import Text.PrettyPrint.Leijen.Text
-
-type Cycle = [T.Text]
-
-data Schema = Schema { schemaName :: T.Text
-                     , schemaVersion :: Version
-                     , schemaTypes :: [ScType]
-                     }
+data TypeDesc
+  = Synonym { synonymRef :: Identifier }
+  | Range { rangeOffset :: Offset, rangeLength :: Length }
+  | Array { arrayRef :: Identifier, arrayLength :: Length }
+  | Vector { vectorRef :: Identifier, vectorLength :: Length }
+  | Enumeration { enumerationValues :: [Identifier] }
+  | Record { recordFields :: [Field] }
+  | Combination { combinationFields :: [Field] }
+  | Union { unionFields :: [Field] }
   deriving (Show)
 
-data ScType = BuiltIn     TBuiltIn
-            | Synonym     TSynonym
-            | Array       TArray
-            | Vector      TVector
-            | Record      TRecord
-            | Combination TCombination
-            | Union       TUnion
-  deriving (Show, Ord, Eq)
-
-schemaTypeMap :: Schema -> M.Map Name ScType
-schemaTypeMap (Schema _ _ fs) = M.fromList $ map (\t -> (typeName t, t)) fs
-
-typeName :: ScType -> Name
-typeName (BuiltIn (TBuiltIn b)) = (T.pack . show) b
-typeName (Synonym (TSynonym n _)) = n
-typeName (Array (TArray n _ _)) = n
-typeName (Vector (TVector n _ _)) = n
-typeName (Record (TRecord n _)) = n
-typeName (Combination (TCombination n _)) = n
-typeName (Union (TUnion n _)) = n
-
-referredNames :: ScType -> [Name]
-referredNames (BuiltIn t) = referencesOf t
-referredNames (Synonym t) = referencesOf t
-referredNames (Array t) = referencesOf t
-referredNames (Vector t) = referencesOf t
-referredNames (Record t) = referencesOf t
-referredNames (Combination t) = referencesOf t
-referredNames (Union t) = referencesOf t
-
-data SchemaErrors = DuplicateNames [Name]
-                  | Cycles [Cycle]
-                  | NonExistent [Name]
-                  | DuplicateFields [(Name, Name)]
+data Field
+  = DataField { fieldName :: Identifier, fieldRef :: Identifier }
+  | EmptyField { fieldName :: Identifier }
   deriving (Show)
 
--- |If checkSchema returns [], then the Schema should be safe to operate on
--- with any of the methods provided in the Cauterize.Schema module.
-checkSchema :: Schema -> [SchemaErrors]
-checkSchema s@(Schema _ _ ts) = catMaybes [ duplicateNames
-                                          , cycles
-                                          , nonExistent
-                                          , duplicateFieldNames
-                                          ]
-  where
-    tns  = map typeName ts
-    duplicateNames = case duplicates tns of
-                        [] -> Nothing
-                        ds -> Just $ DuplicateNames ds
-    cycles = case schemaCycles s of
-                [] -> Nothing
-                cs -> Just $ Cycles cs
-    nonExistent = let rSet = L.fromList $ concatMap referredNames ts
-                      tnSet = L.fromList tns
-                  in case L.toList $ rSet `L.difference` tnSet of
-                      [] -> Nothing
-                      bn -> Just $ NonExistent bn
-    duplicateFieldNames = case concatMap duplicateFields ts of
-                            [] -> Nothing
-                            df -> Just $ DuplicateFields df
+class IsSchema a where
+  getSchema :: a -> Schema
 
-schemaCycles :: Schema -> [Cycle]
-schemaCycles s = typeCycles (map snd $ M.toList tyMap)
-  where
-    tyMap = schemaTypeMap s
-
-    typeCycles :: [ScType] -> [Cycle]
-    typeCycles ts = let ns = map (\t -> (typeName t, typeName t, referredNames t)) ts
-                    in mapMaybe isScc (stronglyConnComp ns)
-      where
-        isScc (CyclicSCC vs) = Just vs
-        isScc _ = Nothing
-
-duplicates :: (Eq a, Ord a) => [a] -> [a]
-duplicates ins = map fst $ M.toList dups
-  where
-    dups = M.filter (>1) counts
-    counts = foldl insertWith M.empty ins
-    insertWith m x = M.insertWith ((+) :: (Int -> Int -> Int)) x 1 m
-
-duplicateFields :: ScType -> [(Name, Name)]
-duplicateFields t = fieldDups
-  where
-    tn = typeName t
-    names (Fields fs) = map fName fs
-    dups fs = map (\f -> (tn,f)) $ M.keys $ M.filter (> 1) $ countThings (names fs)
-    fieldDups = case t of
-                  Record (TRecord _ fs) -> dups fs
-                  Combination (TCombination _ fs) -> dups fs
-                  Union (TUnion _ fs) -> dups fs
-                  _ -> []
-
-countThings :: (Ord a, Eq a) => [a] -> M.Map a Int
-countThings = foldl (\m t -> M.insertWith (+) t 1 m) M.empty
-
--- Instances
-
-prettyPrint :: Schema -> T.Text
-prettyPrint = displayT . renderPretty 1 120 . pretty
-
-pShow :: (Show a) => a -> Doc
-pShow = text . T.pack . show
-
-instance Pretty Schema where
-  pretty (Schema n v fs) = parens $ nest 1 (ps <$> pfs)
-    where
-      ps = text "schema" <+> text n <+> text v
-      pfs = vcat $ map pretty fs
-
-instance Pretty ScType where
-  pretty (BuiltIn _) = empty
-  pretty (Synonym (TSynonym n b)) = parens $ "synonym" <+> text n <+> pShow b
-  pretty (Array (TArray n m s)) = parens $ "array" <+> text n <+> text m <+> integer s
-  pretty (Vector (TVector n m s)) = parens $ "vector" <+> text n <+> text m <+> integer s
-  pretty (Record (TRecord n fs)) = prettyFielded "record" n fs
-  pretty (Combination (TCombination n fs)) = prettyFielded "combination" n fs
-  pretty (Union (TUnion n fs)) = prettyFielded "union" n fs
-
-prettyFielded :: T.Text -> Name -> Fields -> Doc
-prettyFielded t n fs = parens $ nest 1 (pt <$> pfs)
-  where
-    pt = text t <+> text n
-    pfs = schemaPrettyFields fs
-
-schemaPrettyFields :: Fields -> Doc
-schemaPrettyFields (Fields fs) = parens $ nest 1 ("fields" <$> pfs)
-  where
-    pfs = vcat $ map schemaPrettyRefs fs
-
-schemaPrettyRefs :: Field -> Doc
-schemaPrettyRefs  (EmptyField n _) = parens $ text "field" <+> text n
-schemaPrettyRefs  (Field n m _) = parens $ text "field" <+> text n <+> text m
+instance IsSchema Schema where
+  getSchema = id

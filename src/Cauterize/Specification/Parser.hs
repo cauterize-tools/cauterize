@@ -1,161 +1,284 @@
-module Cauterize.Specification.Parser
-  ( parseFile
-  , parseText
+{-# LANGUAGE OverloadedStrings, PatternSynonyms  #-}
+module Cauterize.Specification.ParserNew
+  ( parseSpecification
+  , formatSpecificiation
   ) where
 
-import Text.Parsec
-import Text.Parsec.Text.Lazy
-
-import Cauterize.Lexer
-import Cauterize.Specification.Types
-import Cauterize.Common.ParserUtils
-import Cauterize.Common.Types
-
 import Control.Monad
+import Data.SCargot.General
+import Data.SCargot.Repr
+import Data.SCargot.Repr.WellFormed
+import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T
+import Text.Parsec
+import Text.Parsec.Text
 
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as T
+import Cauterize.Specification.TypesNew
+import Cauterize.CommonTypesNew
+import qualified Cauterize.HashNew as H
 
-parseFile :: FilePath -> IO (Either ParseError Spec)
-parseFile path = liftM (parseText path) $ T.readFile path
+defaultSpecification :: Specification
+defaultSpecification = Specification
+  { specName = "specification"
+  , specVersion = "0.0.0.0"
+  , specFingerprint = H.hashNull
+  , specSize = mkConstSize 1
+  , specDepth = 0
+  , specTypeLength = 0
+  , specLengthTag = T1
+  , specTypes = []
+  }
 
-parseText :: FilePath -> T.Text -> Either ParseError Spec
-parseText path str =
-  case parse parseSpec path str of
-     Left e -> Left e
-     Right s -> Right s
+data Atom
+  = Number Integer
+  | Ident Text
+  | Str Text
+  | Hash H.Hash
+  | Tag Tag
+  deriving (Show)
 
-parseSpec :: Parser Spec
-parseSpec = do
-  whiteSpace
-  s <- pSpec
-  eof
-  return s
+data Component
+  = Name Text
+  | Version Text
+  | Fingerprint H.Hash
+  | SpecSize Size
+  | Depth Integer
+  | TypeLength Integer
+  | LengthTag Tag
+  | TypeDef Type
+  deriving (Show)
+
+pAtom :: Parser Atom
+pAtom = try pString <|> try pTag <|> try pHash <|> pNumber <|> pIdent
   where
-    pSpec = pSexp "specification" $ do
-      qname <- identifier
-      qver <- parseSchemaVersion
-      qhash <- parseFormHash
-      sz <- parseRangeSize
-      depth <- parseDepth
-      tyTag <- parseTypeTagWidth
-      lnTag <- parseLengthTagWidth
-      types <- pTypes
-      return $ Spec qname qver qhash sz depth tyTag lnTag types
-    pTypes :: Parser [SpType]
-    pTypes = option [] $ many parseType
+    pString = do
+      _ <- char '"'
+      s <- many $ noneOf "\""
+      _ <- char '"'
+      (return . Str . pack) s
+    pTag = do
+      _ <- char 't'
+      d <- oneOf "1248"
+      return $ case d of
+                '1' -> Tag T1
+                '2' -> Tag T2
+                '4' -> Tag T4
+                '8' -> Tag T8
+                _ -> error "pAtom: should never happen."
+    pNumber = do
+      sign <- option '+' (oneOf "-+")
+      v <- fmap (read :: String -> Integer) (many1 digit)
+      let v' = if sign == '-'
+                then (-1) * v
+                else v
+      return (Number v')
+    pIdent = do
+      f <- oneOf ['a'..'z']
+      r <- many $ oneOf ['a'..'z'] <|> digit <|> char '_'
+      (return . Ident . pack) (f:r)
+    pHash = let bytes = count 20 pHexByte
+                htxt = liftM (pack . concat) bytes
+            in liftM (Hash . H.mkHashFromHexString) htxt
 
-parseType :: Parser SpType
-parseType = choice $ map try
-  [ parseBuiltin
-  , parseSynonym
-  , parseArray
-  , parseVector
-  , parseRecord
-  , parseCombination
-  , parseUnion
-  ]
+    pHexByte = let pNibble = oneOf "abcdef0123456789"
+               in count 2 pNibble
 
-parseBuiltin :: Parser SpType
-parseBuiltin = pSexp "builtin" $ do
-  bi <- liftM TBuiltIn parseBuiltInName
-  hs <- parseFormHash
-  sz <- parseFixedSize
-  return $ BuiltIn bi hs sz
+sAtom :: Atom -> Text
+sAtom (Number n) = pack (show n)
+sAtom (Ident i) = i
+sAtom (Str s) = T.concat ["\"", s, "\""]
+sAtom (Hash h) = H.hashToHex h
+sAtom (Tag t) = unIdentifier $ tagToText t
 
-parseSynonym :: Parser SpType
-parseSynonym = pSexp "synonym" $ do
-  n <- identifier
-  hs <- parseFormHash
-  sz <- parseFixedSize
-  bi <- parseBuiltInName
-  return $ Synonym (TSynonym n bi) hs sz
+pattern AI x = A (Ident x)
+pattern AN x = A (Number x)
+pattern AS x = A (Str x)
+pattern AH x = A (Hash x)
+pattern AT x = A (Tag x)
 
-parseArray :: Parser SpType
-parseArray = pSexp "array" $ do
-  n <- identifier
-  hs <- parseFormHash
-  sz <- parseRangeSize
-  len <- natural
-  t <- identifier
-  return $ Array (TArray n t len) hs sz
+toComponent :: WellFormedSExpr Atom -> Either String Component
+toComponent = asList go
+  where
+    go [A (Ident "name"), AS name] = Right (Name name)
+    go [A (Ident "version"), AS version] = Right (Version version)
+    go [A (Ident "fingerprint"), AH h] = Right (Fingerprint h)
+    go [A (Ident "size"), AN smin, AN smax] = Right (SpecSize $ mkSize smin smax)
+    go [A (Ident "depth"), AN d] = Right (Depth d)
+    go [A (Ident "typelength"), AN d] = Right (TypeLength d)
+    go [A (Ident "lengthtag"), AT t] = Right (LengthTag t)
 
-parseVector :: Parser SpType
-parseVector = pSexp "vector" $ do
-  n <- identifier
-  hs <- parseFormHash
-  sz <- parseRangeSize
-  repr <- parseLengthRepr
-  len <- natural
-  t <- identifier
-  return $ Vector (TVector n t len) hs sz repr
+    go (A (Ident "type") : rs ) = toType rs
 
-parseRecord :: Parser SpType
-parseRecord = pSexp "record" $ do
-  n <- identifier
-  hs <- parseFormHash
-  sz <- parseRangeSize
-  fs <- parseFields
-  return $ Record (TRecord n fs) hs sz
+    go (A (Ident x) : _ ) = Left ("Unhandled component: " ++ show x)
+    go y = Left ("Invalid component: " ++ show y)
 
-parseCombination :: Parser SpType
-parseCombination = pSexp "combination" $ do
-  n <- identifier
-  hs <- parseFormHash
-  sz <- parseRangeSize
-  repr <- parseFlagsRepr
-  fs <- parseFields
-  return $ Combination (TCombination n fs) hs sz repr
+toType :: [WellFormedSExpr Atom] -> Either String Component
+toType [] = Left "Empty type expression."
+toType (tproto:tbody) =
+  case tproto of
+    AI "synonym" -> toSynonym tbody
+    AI "range" -> toRange tbody
+    AI "array" -> toArray tbody
+    AI "vector" -> toVector tbody
+    AI "enumeration" -> toEnumeration tbody
+    AI "record" -> toRecord tbody
+    AI "combination" -> toCombination tbody
+    AI "union" -> toUnion tbody
+    AI x -> Left ("Invalid prototype: " ++ show x)
+    y -> Left ("Invalid type expression: " ++ show y)
+  where
+    umi = unsafeMkIdentifier . unpack
 
-parseUnion :: Parser SpType
-parseUnion = pSexp "union" $ do
-  n <- identifier
-  hs <- parseFormHash
-  sz <- parseRangeSize
-  repr <- parseTagRepr
-  fs <- parseFields
-  return $ Union (TUnion n fs) hs sz repr
+    mkTD :: Text
+         -> WellFormedSExpr Atom -- Hash atom
+         -> WellFormedSExpr Atom -- Size atom
+         -> TypeDesc
+         -> Either String Component
+    mkTD n f s t = do
+      f' <- toHash f
+      s' <- toSize s
+      return (TypeDef $ Type (umi n) f' s' t)
 
-parseFieldList :: Parser [Field]
-parseFieldList = option [] $ many parseField
+    ueb p b = Left ("Unexpected " ++ p ++ " body: " ++ show b)
 
-parseFixedSize :: Parser FixedSize
-parseFixedSize = pSexp "fixed-size" $ liftM FixedSize natural
+    toSize (L [ AI "size", AN smin, AN smax ]) = Right $ mkSize smin smax
+    toSize x = ueb "size" x
 
-parseRangeSize :: Parser RangeSize
-parseRangeSize = pSexp "range-size" $ liftM2 RangeSize natural natural
+    toHash (L [ AI "fingerprint", AH h]) = Right h
+    toHash x = ueb "fingerprint" x
 
-parseDepth :: Parser Depth
-parseDepth = pSexp "depth" (liftM Depth natural)
+    toField (L [AI "field", AI fname, AN ix, AI ref]) = Right $ DataField (umi fname) ix (umi ref)
+    toField (L [AI "empty", AI fname, AN ix]) = Right $ EmptyField (umi fname) ix
+    toField x = ueb "field" x
 
-parseTypeTagWidth :: Parser TypeTagWidth
-parseTypeTagWidth = pSexp "type-width" (liftM TypeTagWidth natural)
+    toSynonym [AI name, f, s, AI ref] =
+      mkTD name f s (Synonym $ umi ref)
+    toSynonym x = ueb "synonym" x
 
-parseLengthTagWidth :: Parser LengthTagWidth
-parseLengthTagWidth = pSexp "length-width" (liftM LengthTagWidth natural)
+    toRange [AI name, f, s, AN rmin, AN rmax, AT t] =
+      mkTD name f s (Range o l t)
+      where
+        o = fromIntegral rmin
+        l = fromIntegral rmax - fromIntegral rmin
+    toRange x = ueb "range" x
 
-parseField :: Parser Field
-parseField = pSexp "field" $ do
-  n <- identifier
-  try (parseFullField n) <|> parseEmptyField n
+    toArray [AI name, f, s, AI ref, AN l] =
+      mkTD name f s (Array (umi ref) (fromIntegral l))
+    toArray x = ueb "array" x
 
-parseFullField :: T.Text -> Parser Field
-parseFullField n = do
-  t <- identifier
-  ix <- natural
-  return $ Field n t ix
+    toVector [AI name, f, s, AI ref, AN l, AT t] =
+      mkTD name f s (Vector (umi ref) (fromIntegral l) t)
+    toVector x = ueb "vector" x
 
-parseEmptyField :: T.Text -> Parser Field
-parseEmptyField n = liftM (EmptyField n) natural
+    toEnumeration [AI name, f, s, AT t, L (AI "values":vs)] = do
+        vs' <- mapM toValue vs
+        mkTD name f s (Enumeration vs' t)
+      where
+        toValue (L [AI "value", AI n, AN ix]) = Right $ EnumVal (umi n) ix
+        toValue x = ueb "value" x
+    toEnumeration x = ueb "enumeration" x
 
-parseLengthRepr :: Parser LengthRepr
-parseLengthRepr = pSexp "length-repr" $ liftM LengthRepr parseBuiltInName
+    toRecord [AI name, f, s, L (AI "fields":fs)] = do
+        fs' <- mapM toField fs
+        mkTD name f s (Record fs')
+    toRecord x = ueb "record" x
 
-parseTagRepr :: Parser TagRepr
-parseTagRepr = pSexp "tag-repr" $ liftM TagRepr parseBuiltInName
+    toCombination [AI name, f, s, AT t, L (AI "fields":fs)] = do
+        fs' <- mapM toField fs
+        mkTD name f s (Combination fs' t)
+    toCombination x = ueb "combination" x
 
-parseFlagsRepr :: Parser FlagsRepr
-parseFlagsRepr = pSexp "flags-repr" $ liftM FlagsRepr parseBuiltInName
+    toUnion [AI name, f, s, AT t, L (AI "fields":fs)] = do
+        fs' <- mapM toField fs
+        mkTD name f s (Union fs' t)
+    toUnion x = ueb "combination" x
 
-parseFields :: Parser Fields
-parseFields = pSexp "fields" $ liftM Fields parseFieldList
+fromComponent :: Component -> WellFormedSExpr Atom
+fromComponent c =
+  case c of
+    (Name n) -> L [ ident "name", A . Str $ n ]
+    (Version v) -> L [ ident "version", A . Str $ v ]
+    (Fingerprint h) -> L [ ident "fingerprint", hash h ]
+    (SpecSize s) | sizeMin s == sizeMax s -> L [ ident "size", number (sizeMax s) ]
+                 | otherwise -> L [ ident "size", number (sizeMin s), number (sizeMax s) ]
+    (Depth d) -> L [ ident "depth", number d ]
+    (TypeLength l) -> L [ ident "typelength", number l ]
+    (LengthTag t) -> L [ ident "lengthtag", tag t ]
+
+    (TypeDef t) -> fromType t
+
+  where
+    ident = A . Ident
+    hash = A . Hash
+    number = A . Number
+    tag = A . Tag
+
+fromType :: Type -> WellFormedSExpr Atom
+fromType (Type n f s d) = L (A (Ident "type") : rest)
+  where
+    na = A (Ident (unIdentifier n))
+    fl = L [ ai "fingerprint", ah f ]
+    sl = L [ ai "size", an (sizeMin s), an (sizeMax s) ]
+
+    aiu = A . Ident . unIdentifier
+    ai = A . Ident
+    an = A . Number
+    ah = A . Hash
+    at = A . Tag
+
+    fromField (DataField fn ix fr) = L [ai "field", aiu fn, an ix, aiu fr]
+    fromField (EmptyField fn ix) = L [ai "empty", aiu fn, an ix]
+
+    fromEnumVal (EnumVal v i) = L [ ai "value", aiu v, an i ]
+
+    rest =
+      case d of
+        Synonym r -> [ai "synonym", na, fl, sl, aiu r]
+        Range o l t ->
+          let rmin = fromIntegral o
+              rmax = (fromIntegral o + fromIntegral l)
+          in [ai "range", na, fl, sl, an rmin, an rmax, at t]
+        Array r l -> [ai "array", na, fl, sl, aiu r, an (fromIntegral l)]
+        Vector r l t -> [ai "vector", na, fl, sl, aiu r, an (fromIntegral l), at t]
+        Enumeration vs t ->
+          [ai "enumeration", na, fl, sl, at t, L (ai "values" : map fromEnumVal vs)]
+        Record fs ->
+          [ai "record", na, fl, sl, L (ai "fields" : map fromField fs)]
+        Combination fs t ->
+          [ai "combination", na, fl, sl, at t, L (ai "fields" : map fromField fs)]
+        Union fs t ->
+          [ai "union", na, fl, sl, at t, L (ai "fields" : map fromField fs)]
+
+cauterizeSpec :: SExprSpec Atom Component
+cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom
+
+componentsToSpec :: [Component] -> Specification
+componentsToSpec = foldl go defaultSpecification
+  where
+    go s (Name n) = s { specName = n }
+    go s (Version v) = s { specVersion = v }
+    go s (Fingerprint h) = s { specFingerprint = h }
+    go s (SpecSize sz) = s { specSize = sz }
+    go s (Depth d) = s { specDepth = d }
+    go s (TypeLength l) = s { specTypeLength = l }
+    go s (LengthTag t) = s { specLengthTag = t }
+    go s (TypeDef t) = let ts = specTypes s
+                        in s { specTypes = t:ts }
+
+specToComponents :: Specification -> [Component]
+specToComponents s =
+    Name (specName s)
+  : Version (specVersion s)
+  : Fingerprint (specFingerprint s)
+  : SpecSize (specSize s)
+  : Depth (specDepth s)
+  : TypeLength (specTypeLength s)
+  : LengthTag (specLengthTag s)
+  : map TypeDef (specTypes s)
+
+
+parseSpecification :: Text -> Either String Specification
+parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec t
+
+formatSpecificiation :: Specification -> Text
+formatSpecificiation s = encode cauterizeSpec (specToComponents s)
