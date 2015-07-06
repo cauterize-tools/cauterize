@@ -1,19 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Cauterize.Specification.TypesNew
+module Cauterize.Specification.Types
   ( Specification(..)
   , Type(..)
   , TypeDesc(..)
   , Field(..)
   , EnumVal(..)
   , mkSpecification
+  , specTypeMap
   ) where
 
-import Cauterize.CommonTypesNew
-import Cauterize.HashNew
+import Cauterize.CommonTypes
+import Cauterize.Hash
 import Data.Graph
 import Data.Maybe
-import qualified Cauterize.Schema.TypesNew as Schema
-import qualified Cauterize.Schema.UtilNew as Schema
+import qualified Cauterize.Schema.Types as Schema
+import qualified Cauterize.Schema.Util as Schema
 import qualified Data.List as L
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -145,6 +146,12 @@ uniquePrefixes ls = let count = length ls
                     in case dropWhile (\l -> length l < count) $ map L.nub $ L.transpose $ map L.inits ls of
                           [] -> Nothing
                           l -> (Just . head) l
+
+specTypeMap :: Specification -> M.Map Identifier Type
+specTypeMap s = M.fromList $ zip ns ts
+  where
+    ns = map typeName ts
+    ts = specTypes s
 
 instance Schema.IsSchema Specification where
   getSchema spec =

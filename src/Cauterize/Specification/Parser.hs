@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms  #-}
-module Cauterize.Specification.ParserNew
+module Cauterize.Specification.Parser
   ( parseSpecification
   , formatSpecificiation
   ) where
@@ -13,9 +13,9 @@ import qualified Data.Text as T
 import Text.Parsec
 import Text.Parsec.Text
 
-import Cauterize.Specification.TypesNew
-import Cauterize.CommonTypesNew
-import qualified Cauterize.HashNew as H
+import Cauterize.Specification.Types
+import Cauterize.CommonTypes
+import qualified Cauterize.Hash as H
 
 defaultSpecification :: Specification
 defaultSpecification = Specification
