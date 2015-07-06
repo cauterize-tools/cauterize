@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms  #-}
 module Cauterize.Specification.ParserNew
   ( parseSpecification
+  , formatSpecificiation
   ) where
 
 import Control.Monad
@@ -8,6 +9,7 @@ import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
 import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T
 import Text.Parsec
 import Text.Parsec.Text
 
@@ -84,7 +86,7 @@ pAtom = try pString <|> try pTag <|> try pHash <|> pNumber <|> pIdent
 sAtom :: Atom -> Text
 sAtom (Number n) = pack (show n)
 sAtom (Ident i) = i
-sAtom (Str s) = pack ("\"" ++ show s ++ "\"")
+sAtom (Str s) = T.concat ["\"", s, "\""]
 sAtom (Hash h) = H.hashToHex h
 sAtom (Tag t) = unIdentifier $ tagToText t
 
@@ -194,8 +196,8 @@ toType (tproto:tbody) =
 fromComponent :: Component -> WellFormedSExpr Atom
 fromComponent c =
   case c of
-    (Name n) -> L [ ident "name", A . Ident $ n ]
-    (Version v) -> L [ ident "version", A . Ident $ v ]
+    (Name n) -> L [ ident "name", A . Str $ n ]
+    (Version v) -> L [ ident "version", A . Str $ v ]
     (Fingerprint h) -> L [ ident "fingerprint", hash h ]
     (SpecSize s) | sizeMin s == sizeMax s -> L [ ident "size", number (sizeMax s) ]
                  | otherwise -> L [ ident "size", number (sizeMin s), number (sizeMax s) ]
@@ -235,11 +237,11 @@ fromType (Type n f s d) = L (A (Ident "type") : rest)
         Range o l t ->
           let rmin = fromIntegral o
               rmax = (fromIntegral o + fromIntegral l)
-          in [ai "range", na, fl, an rmin, an rmax, at t]
+          in [ai "range", na, fl, sl, an rmin, an rmax, at t]
         Array r l -> [ai "array", na, fl, sl, aiu r, an (fromIntegral l)]
         Vector r l t -> [ai "vector", na, fl, sl, aiu r, an (fromIntegral l), at t]
         Enumeration vs t ->
-          ai "enumeration" : na : fl : sl : at t : map fromEnumVal vs
+          [ai "enumeration", na, fl, sl, at t, L (ai "values" : map fromEnumVal vs)]
         Record fs ->
           [ai "record", na, fl, sl, L (ai "fields" : map fromField fs)]
         Combination fs t ->
@@ -263,6 +265,20 @@ componentsToSpec = foldl go defaultSpecification
     go s (TypeDef t) = let ts = specTypes s
                         in s { specTypes = t:ts }
 
+specToComponents :: Specification -> [Component]
+specToComponents s =
+    Name (specName s)
+  : Version (specVersion s)
+  : Fingerprint (specFingerprint s)
+  : SpecSize (specSize s)
+  : Depth (specDepth s)
+  : TypeLength (specTypeLength s)
+  : LengthTag (specLengthTag s)
+  : map TypeDef (specTypes s)
 
-parseSpecification :: String -> Either String Specification
-parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec (pack t)
+
+parseSpecification :: Text -> Either String Specification
+parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec t
+
+formatSpecificiation :: Specification -> Text
+formatSpecificiation s = encode cauterizeSpec (specToComponents s)
