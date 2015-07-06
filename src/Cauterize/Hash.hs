@@ -1,4 +1,4 @@
-module Cauterize.HashNew
+module Cauterize.Hash
   ( Hash(unHash)
   , mkHash
   , mkHashFromHexString
