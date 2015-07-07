@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, PatternSynonyms  #-}
 module Cauterize.Specification.Parser
   ( parseSpecification
+  , parseSpecificationFromFile
   , formatSpecification
   ) where
 
@@ -10,6 +11,7 @@ import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Text.Parsec
 import Text.Parsec.Text
 
@@ -282,3 +284,6 @@ parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec t
 
 formatSpecification :: Specification -> Text
 formatSpecification s = encode cauterizeSpec (specToComponents s)
+
+parseSpecificationFromFile :: FilePath -> IO (Either String Specification)
+parseSpecificationFromFile p = liftM parseSpecification (T.readFile p)

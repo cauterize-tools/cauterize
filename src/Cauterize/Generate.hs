@@ -65,7 +65,6 @@ generateSchemaWith' maximumTypes maximumSize margin allowedPrototypes =
               else go tCount maximumSize (n:names) s
 
 genVariant :: [Schema.Type] -> [PrototypeVariant] -> Identifier -> Gen Schema.Type
-genVariant [] _ _ = error "Cannot create new prototype without preexisting types."
 genVariant _ [] _ = error "Must specify at least one prototype variant."
 genVariant existingTypes variants name = do
   v <- elements variants
@@ -82,9 +81,9 @@ genVariant existingTypes variants name = do
     genSynonym = liftM (twrap . Schema.Synonym) (elements existingNames)
     genArray = liftM2 (\t l -> twrap (Schema.Array t (fromIntegral l))) (elements existingNames) arbLength
     genVector = liftM2 (\t l -> twrap (Schema.Vector t (fromIntegral l))) (elements existingNames) arbLength
-    genRecord = liftM (\fs -> twrap (Schema.Record fs)) (genFieldsWithoutEmpty existingNames)
-    genCombination = liftM (\fs -> twrap (Schema.Combination fs)) (genFields existingNames)
-    genUnion = liftM (\fs -> twrap (Schema.Union fs)) (genFields existingNames)
+    genRecord = liftM (twrap . Schema.Record) (genFieldsWithoutEmpty existingNames)
+    genCombination = liftM (twrap . Schema.Combination) (genFields existingNames)
+    genUnion = liftM (twrap . Schema.Union) (genFields existingNames)
 
 defaultMaximumTypes :: Integer
 defaultMaximumTypes = 10

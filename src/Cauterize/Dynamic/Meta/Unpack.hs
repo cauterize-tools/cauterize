@@ -15,7 +15,7 @@ import qualified Cauterize.CommonTypes as C
 import qualified Cauterize.Specification as Spec
 import qualified Data.ByteString as B
 import qualified Data.Map as M
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 dynamicMetaUnpackHeader :: Spec.Specification -> B.ByteString -> Either String (MetaHeader, B.ByteString)
 dynamicMetaUnpackHeader spec b = runGetState p b 0

@@ -11,6 +11,7 @@ module Cauterize.CommonTypes
     , allPrimNames
     , primToText
     , primToSize
+    , primMap
   , Tag(..)
     , tagToText
     , tagToSize
@@ -30,6 +31,8 @@ import Data.Char
 import Data.Text (Text, pack, empty)
 import Data.Maybe
 import Data.Data
+
+import qualified Data.Map as M
 
 type Offset = Int64
 
@@ -117,6 +120,9 @@ primToSize PS64   = mkConstSize 8
 primToSize PF32   = mkConstSize 4
 primToSize PF64   = mkConstSize 8
 primToSize PBool  = mkConstSize 1
+
+primMap :: M.Map Identifier Prim
+primMap = M.fromList $ zip allPrimNames allPrims
 
 tagToText :: Tag -> Identifier
 tagToText T1 = "t1"

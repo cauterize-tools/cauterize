@@ -32,6 +32,7 @@ data CautDetails
   | CDRecord { cdRecordFields :: M.Map C.Identifier FieldValue }
   | CDCombination { cdCombinationFields :: M.Map C.Identifier FieldValue }
   | CDUnion { cdUnionFieldName :: C.Identifier, cdUnionFieldDetails :: FieldValue }
+  | CDPrim { cdPrimDetails :: PrimDetails }
   deriving (Show, Ord, Eq, Data, Typeable)
 
 data PrimDetails = PDu8 Word8

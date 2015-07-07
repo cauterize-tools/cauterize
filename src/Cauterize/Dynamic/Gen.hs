@@ -32,30 +32,35 @@ dynamicGenType' s n = do
 
 dynamicGenDetails :: TyMap -> C.Identifier -> Gen CautDetails
 dynamicGenDetails m n =
-  case S.typeDesc (n `lu` m) of
-   S.Synonym { S.synonymRef = sy } -> dynamicGenSynonym m sy
-   S.Range { S.rangeOffset = o, S.rangeLength = l } -> dynamicGenRange o l
-   S.Array { S.arrayRef = a, S.arrayLength = l } -> dynamicGenArray m a l
-   S.Vector { S.vectorRef = v, S.vectorLength = l } -> dynamicGenVector m v l
-   S.Enumeration { S.enumerationValues = vs } -> dynamicGenEnumeration vs
-   S.Record { S.recordFields = r } -> dynamicGenRecord m r
-   S.Combination { S.combinationFields = c } -> dynamicGenCombination m c
-   S.Union { S.unionFields = u } -> dynamicGenUnion m u
+  case n `M.lookup` C.primMap of
+    Just p -> dynamicGenPrim p
+    Nothing ->
+      case S.typeDesc (n `lu` m) of
+       S.Synonym { S.synonymRef = sy } -> dynamicGenSynonym m sy
+       S.Range { S.rangeOffset = o, S.rangeLength = l } -> dynamicGenRange o l
+       S.Array { S.arrayRef = a, S.arrayLength = l } -> dynamicGenArray m a l
+       S.Vector { S.vectorRef = v, S.vectorLength = l } -> dynamicGenVector m v l
+       S.Enumeration { S.enumerationValues = vs } -> dynamicGenEnumeration vs
+       S.Record { S.recordFields = r } -> dynamicGenRecord m r
+       S.Combination { S.combinationFields = c } -> dynamicGenCombination m c
+       S.Union { S.unionFields = u } -> dynamicGenUnion m u
 
-dynamicGenPrim :: C.Prim -> Gen PrimDetails
+dynamicGenPrim :: C.Prim -> Gen CautDetails
 dynamicGenPrim p =
-  case p of
-    C.PU8   -> liftM PDu8 arbitrary
-    C.PU16  -> liftM PDu16 arbitrary
-    C.PU32  -> liftM PDu32 arbitrary
-    C.PU64  -> liftM PDu64 arbitrary
-    C.PS8   -> liftM PDs8 arbitrary
-    C.PS16  -> liftM PDs16 arbitrary
-    C.PS32  -> liftM PDs32 arbitrary
-    C.PS64  -> liftM PDs64 arbitrary
-    C.PF32  -> liftM PDf32 arbitrary
-    C.PF64  -> liftM PDf64 arbitrary
-    C.PBool -> liftM PDbool arbitrary
+  let p' =
+        case p of
+          C.PU8   -> liftM PDu8 arbitrary
+          C.PU16  -> liftM PDu16 arbitrary
+          C.PU32  -> liftM PDu32 arbitrary
+          C.PU64  -> liftM PDu64 arbitrary
+          C.PS8   -> liftM PDs8 arbitrary
+          C.PS16  -> liftM PDs16 arbitrary
+          C.PS32  -> liftM PDs32 arbitrary
+          C.PS64  -> liftM PDs64 arbitrary
+          C.PF32  -> liftM PDf32 arbitrary
+          C.PF64  -> liftM PDf64 arbitrary
+          C.PBool -> liftM PDbool arbitrary
+  in liftM CDPrim p'
 
 dynamicGenSynonym :: TyMap -> C.Identifier -> Gen CautDetails
 dynamicGenSynonym m s = liftM CDSynonym (dynamicGenDetails m s)

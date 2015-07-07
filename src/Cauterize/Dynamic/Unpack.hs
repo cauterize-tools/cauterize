@@ -31,36 +31,41 @@ dynamicUnpack' s n =
 
 dynamicUnpackDetails :: TyMap -> C.Identifier -> Get CautDetails
 dynamicUnpackDetails m n =
-  let ty = n `lu` m
-  in case S.typeDesc ty of
-      S.Synonym { S.synonymRef = s } -> dynamicUnpackSynonym m s
-      S.Range { S.rangeOffset = o, S.rangeLength = l, S.rangeTag = t } -> dynamicUnpackRange o l t
-      S.Array { S.arrayRef = a, S.arrayLength = l } -> dynamicUnpackArray m a l
-      S.Vector { S.vectorRef = v, S.vectorLength = l, S.vectorTag = t } -> dynamicUnpackVector m v l t
-      S.Enumeration { S.enumerationValues = vs, S.enumerationTag = t } -> dynamicUnpackEnumeration vs t
-      S.Record { S.recordFields = fs } -> dynamicUnpackRecord m fs
-      S.Combination { S.combinationFields = fs, S.combinationTag = t } -> dynamicUnpackCombination m fs t
-      S.Union { S.unionFields = fs, S.unionTag = t } -> dynamicUnpackUnion m fs t
+  case n `M.lookup` C.primMap of
+    Just p -> dynamicUnpackPrim p
+    Nothing ->
+      let ty = n `lu` m
+      in case S.typeDesc ty of
+          S.Synonym { S.synonymRef = s } -> dynamicUnpackSynonym m s
+          S.Range { S.rangeOffset = o, S.rangeLength = l, S.rangeTag = t } -> dynamicUnpackRange o l t
+          S.Array { S.arrayRef = a, S.arrayLength = l } -> dynamicUnpackArray m a l
+          S.Vector { S.vectorRef = v, S.vectorLength = l, S.vectorTag = t } -> dynamicUnpackVector m v l t
+          S.Enumeration { S.enumerationValues = vs, S.enumerationTag = t } -> dynamicUnpackEnumeration vs t
+          S.Record { S.recordFields = fs } -> dynamicUnpackRecord m fs
+          S.Combination { S.combinationFields = fs, S.combinationTag = t } -> dynamicUnpackCombination m fs t
+          S.Union { S.unionFields = fs, S.unionTag = t } -> dynamicUnpackUnion m fs t
 
-dynamicUnpackPrim :: C.Prim -> Get PrimDetails
+dynamicUnpackPrim :: C.Prim -> Get CautDetails
 dynamicUnpackPrim b =
-  case b of
-    C.PU8   -> liftM PDu8 getWord8
-    C.PU16  -> liftM PDu16 getWord16le
-    C.PU32  -> liftM PDu32 getWord32le
-    C.PU64  -> liftM PDu64 getWord64le
-    C.PS8   -> liftM (PDs8 . fromIntegral) getWord8
-    C.PS16  -> liftM (PDs16 . fromIntegral) getWord16le
-    C.PS32  -> liftM (PDs32 . fromIntegral) getWord32le
-    C.PS64  -> liftM (PDs64 . fromIntegral) getWord64le
-    C.PF32  -> liftM PDf32 getFloat32le
-    C.PF64  -> liftM PDf64 getFloat64le
-    C.PBool -> do
-      w8 <- getWord8
-      case w8 of
-        0 -> return $ PDbool False
-        1 -> return $ PDbool True
-        x -> fail $ "unexpected value for boolean: " ++ show x
+  let b' =
+        case b of
+          C.PU8   -> liftM PDu8 getWord8
+          C.PU16  -> liftM PDu16 getWord16le
+          C.PU32  -> liftM PDu32 getWord32le
+          C.PU64  -> liftM PDu64 getWord64le
+          C.PS8   -> liftM (PDs8 . fromIntegral) getWord8
+          C.PS16  -> liftM (PDs16 . fromIntegral) getWord16le
+          C.PS32  -> liftM (PDs32 . fromIntegral) getWord32le
+          C.PS64  -> liftM (PDs64 . fromIntegral) getWord64le
+          C.PF32  -> liftM PDf32 getFloat32le
+          C.PF64  -> liftM PDf64 getFloat64le
+          C.PBool -> do
+            w8 <- getWord8
+            case w8 of
+              0 -> return $ PDbool False
+              1 -> return $ PDbool True
+              x -> fail $ "unexpected value for boolean: " ++ show x
+  in liftM CDPrim b'
 
 dynamicUnpackSynonym :: TyMap -> C.Identifier -> Get CautDetails
 dynamicUnpackSynonym m i = liftM CDSynonym (dynamicUnpackDetails m i)

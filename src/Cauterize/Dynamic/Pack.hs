@@ -33,6 +33,7 @@ dynamicPackDetails m n det =
     CDEnumeration v -> dynamicPackEnumeration m n v
     CDCombination fs -> dynamicPackCombination m n fs
     CDUnion fn fd -> dynamicPackUnion m n fn fd
+    CDPrim p -> dynamicPackPrim p
 
 -- There are 4 tag widths in Cauterize: 8, 16, 32, and 64 bits. This will pack
 -- an Integer as if it was one of those tag variants. If the specified Integer
@@ -52,22 +53,20 @@ dynamicPackTag b v =
     t32Max = 2^(32 :: Integer) - 1
     t64Max = 2^(64 :: Integer) - 1
 
-dynamicPackPrim :: C.Identifier -> PrimDetails -> Put
-dynamicPackPrim n det =
-  if not (n `elem` C.allPrimNames)
-  then throw $ TypeMisMatch n (fromJust $ C.mkIdentifier $ show $ det)
-  else case det of
-         PDu8 d -> putWord8 d
-         PDu16 d -> putWord16le d
-         PDu32 d -> putWord32le d
-         PDu64 d -> putWord64le d
-         PDs8 d -> putWord8 $ fromIntegral d
-         PDs16 d -> putWord16le $ fromIntegral d
-         PDs32 d -> putWord32le $ fromIntegral d
-         PDs64 d -> putWord64le $ fromIntegral d
-         PDf32 d -> putFloat32le d
-         PDf64 d -> putFloat64le d
-         PDbool d -> putWord8 $ if d then 1 else 0
+dynamicPackPrim :: PrimDetails -> Put
+dynamicPackPrim det =
+  case det of
+    PDu8 d -> putWord8 d
+    PDu16 d -> putWord16le d
+    PDu32 d -> putWord32le d
+    PDu64 d -> putWord64le d
+    PDs8 d -> putWord8 $ fromIntegral d
+    PDs16 d -> putWord16le $ fromIntegral d
+    PDs32 d -> putWord32le $ fromIntegral d
+    PDs64 d -> putWord64le $ fromIntegral d
+    PDf32 d -> putFloat32le d
+    PDf64 d -> putFloat64le d
+    PDbool d -> putWord8 $ if d then 1 else 0
 
 dynamicPackSynonym :: TyMap -> C.Identifier -> CautDetails -> Put
 dynamicPackSynonym m n det =
@@ -78,7 +77,7 @@ dynamicPackRange :: TyMap -> C.Identifier -> Integer -> Put
 dynamicPackRange m n v =
   let (S.Type { S.typeDesc = t }) = checkedTypeLookup m n isRange "range"
       rmin = fromIntegral $ S.rangeOffset t
-      rmax = (fromIntegral $ S.rangeLength t) - (fromIntegral $ S.rangeOffset t)
+      rmax = fromIntegral (S.rangeLength t) - fromIntegral (S.rangeOffset t)
   in if v < rmin || v > rmax
         then throw $ RangeOutOfBounds rmin rmax v
         else dynamicPackTag (S.rangeTag t) v
@@ -119,9 +118,7 @@ dynamicPackEnumeration m n val = dynamicPackTag tag ix
     tag = S.enumerationTag t
     vals = let ev = S.enumerationValues t
            in zip (map S.enumValName ev) (map S.enumValIndex ev)
-    ix = case val `lookup` vals of
-            Just ix' -> ix'
-            Nothing -> throw $ InvalidEnumerable val
+    ix = fromMaybe (throw $ InvalidEnumerable val) (val `lookup` vals)
 
 dynamicPackCombination :: TyMap -> C.Identifier -> M.Map C.Identifier FieldValue -> Put
 dynamicPackCombination m n fields = checkedDynamicFields fs fields go
@@ -147,7 +144,7 @@ dynamicPackUnion m n fn fv = do
   where
     (S.Type { S.typeDesc = t }) = checkedTypeLookup m n isUnion "union"
     fm = fieldsToNameMap . S.unionFields $ t
-    fir = S.unionTag $ t
+    fir = S.unionTag t
     field = fromMaybe (throw $ UnexpectedFields [fn])
                       (fn `M.lookup` fm)
 

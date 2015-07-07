@@ -28,7 +28,7 @@ ident :: Identifier -> Doc
 ident = text . TL.fromChunks . (:[]) .  unIdentifier
 
 prettyDetails :: M.Map Identifier Type -> Identifier -> CautDetails -> Doc
-prettyDetails m n (CDSynonym s) = parens $ "synonym" <+> (prettyDetails m r s)
+prettyDetails m n (CDSynonym s) = parens $ "synonym" <+> prettyDetails m r s
   where
     Type { typeDesc = (Synonym { synonymRef = r }) } = n `lu` m
 prettyDetails _ n (CDRange v) =
@@ -59,7 +59,7 @@ prettyDetails s n (CDUnion unionFieldName unionFieldValue) =
   parens ("union" <+> ident n <$> indent 2 (prettyUnionField unionFieldName unionFieldValue))
   where
     prettyUnionField fn fv = prettyField s n (fn, fv) (unionFields . typeDesc)
-
+prettyDetails _ _ (CDPrim p) = prettyPrim p
 
 prettyPrim :: PrimDetails -> Doc
 prettyPrim (PDu8 v) = ii v
@@ -82,7 +82,7 @@ prettyField :: M.Map Identifier Type -- the spec type map
             -> (Identifier, FieldValue) -- the name/field-value pair to pretty print
             -> (Type -> [Field]) -- unwraps a record/combination/union into fields
             -> Doc
-prettyField _ _ (_, DT.EmptyField) _ = empty
+prettyField _ _ (fn, DT.EmptyField) _ = parens $ "empty" <+> ident fn
 prettyField s n (fn, DT.DataField fd) unwrap =
   parens $ "field" <+> ident fn <$> indent 2 (prettyDetails s (typeName ft) fd)
   where
