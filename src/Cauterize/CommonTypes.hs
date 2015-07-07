@@ -12,6 +12,7 @@ module Cauterize.CommonTypes
     , primToText
     , primToSize
     , primMap
+    , primFittingAllInts
   , Tag(..)
     , tagToText
     , tagToSize
@@ -120,6 +121,37 @@ primToSize PS64   = mkConstSize 8
 primToSize PF32   = mkConstSize 4
 primToSize PF64   = mkConstSize 8
 primToSize PBool  = mkConstSize 1
+
+primFittingAllInts :: [Integer] -> Prim
+primFittingAllInts vs
+    | not signed && all (<= w8max) vs  = PU8
+    | not signed && all (<= w16max) vs = PU16
+    | not signed && all (<= w32max) vs = PU32
+    | not signed && all (<= w64max) vs = PU64
+
+    | signed && all (\i -> i8min  <= i && i <= i8max)  vs = PS8
+    | signed && all (\i -> i16min <= i && i <= i16max) vs = PS16
+    | signed && all (\i -> i32min <= i && i <= i32max) vs = PS32
+    | signed && all (\i -> i64min <= i && i <= i64max) vs = PS64
+
+    | otherwise = error $ "Unable to express all values in a single primitive: " ++ show vs
+  where
+    signed = any (< 0) vs
+
+    w64max = fromIntegral (maxBound :: Word64)
+    w32max = fromIntegral (maxBound :: Word32)
+    w16max = fromIntegral (maxBound :: Word16)
+    w8max  = fromIntegral (maxBound :: Word8)
+
+    i64max = fromIntegral (maxBound :: Int64)
+    i32max = fromIntegral (maxBound :: Int32)
+    i16max = fromIntegral (maxBound :: Int16)
+    i8max  = fromIntegral (maxBound :: Int8)
+
+    i64min = fromIntegral (minBound :: Int64)
+    i32min = fromIntegral (minBound :: Int32)
+    i16min = fromIntegral (minBound :: Int16)
+    i8min  = fromIntegral (minBound :: Int8)
 
 primMap :: M.Map Identifier Prim
 primMap = M.fromList $ zip allPrimNames allPrims

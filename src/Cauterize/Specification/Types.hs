@@ -37,7 +37,7 @@ data Type = Type
 data TypeDesc
   = Synonym { synonymRef :: Identifier }
   | Range { rangeOffset :: Offset, rangeLength :: Length
-          , rangeTag :: Tag }
+          , rangeTag :: Tag, rangePrim :: Prim }
   | Array { arrayRef :: Identifier, arrayLength :: Length }
   | Vector { vectorRef :: Identifier, vectorLength :: Length
            , vectorTag :: Tag }
@@ -81,7 +81,7 @@ instance Schema.IsSchema Specification where
         let
           d' = case d of
                 Synonym r        -> Schema.Synonym r
-                Range o l _      -> Schema.Range o l
+                Range o l _ _    -> Schema.Range o l
                 Array r l        -> Schema.Array r l
                 Vector r l _     -> Schema.Vector r l
                 Enumeration vs _ -> Schema.Enumeration (map enumValName vs)

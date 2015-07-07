@@ -158,10 +158,11 @@ toType (tproto:tbody) =
     toSynonym x = ueb "synonym" x
 
     toRange [AI name, f, s, AN rmin, AN rmax, AT t] =
-      mkTD name f s (Range o l t)
+      mkTD name f s (Range o l t p)
       where
         o = fromIntegral rmin
         l = fromIntegral rmax - fromIntegral rmin
+        p = primFittingAllInts [rmin, rmax]
     toRange x = ueb "range" x
 
     toArray [AI name, f, s, AI ref, AN l] =
@@ -236,10 +237,10 @@ fromType (Type n f s d) = L (A (Ident "type") : rest)
     rest =
       case d of
         Synonym r -> [ai "synonym", na, fl, sl, aiu r]
-        Range o l t ->
+        Range o l t p ->
           let rmin = fromIntegral o
               rmax = (fromIntegral o + fromIntegral l)
-          in [ai "range", na, fl, sl, an rmin, an rmax, at t]
+          in [ai "range", na, fl, sl, an rmin, an rmax, at t, ai (unIdentifier . primToText $ p)]
         Array r l -> [ai "array", na, fl, sl, aiu r, an (fromIntegral l)]
         Vector r l t -> [ai "vector", na, fl, sl, aiu r, an (fromIntegral l), at t]
         Enumeration vs t ->

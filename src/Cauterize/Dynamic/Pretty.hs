@@ -62,17 +62,20 @@ prettyDetails s n (CDUnion unionFieldName unionFieldValue) =
 prettyDetails _ _ (CDPrim p) = prettyPrim p
 
 prettyPrim :: PrimDetails -> Doc
-prettyPrim (PDu8 v) = ii v
-prettyPrim (PDu16 v) = ii v
-prettyPrim (PDu32 v) = ii v
-prettyPrim (PDu64 v) = ii v
-prettyPrim (PDs8 v) = ii v
-prettyPrim (PDs16 v) = ii v
-prettyPrim (PDs32 v) = ii v
-prettyPrim (PDs64 v) = ii v
-prettyPrim (PDf32 v) = float v
-prettyPrim (PDf64 v) = double v
-prettyPrim (PDbool v) = bool v
+prettyPrim d = parens (n <+> val)
+  where
+    (n, val) = case d of
+                PDu8 v   -> ("u8", ii v)
+                PDu16 v  -> ("u16", ii v)
+                PDu32 v  -> ("u32", ii v)
+                PDu64 v  -> ("u64", ii v)
+                PDs8 v   -> ("s8", ii v)
+                PDs16 v  -> ("s16", ii v)
+                PDs32 v  -> ("s32", ii v)
+                PDs64 v  -> ("s64", ii v)
+                PDf32 v  -> ("f32", float v)
+                PDf64 v  -> ("f64", double v)
+                PDbool v -> ("bool", bool v)
 
 ii :: Integral a => a -> Doc
 ii = integer . fromIntegral

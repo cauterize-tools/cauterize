@@ -71,7 +71,7 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
           tsz = lus sn
           d' = case d of
                 Schema.Synonym r       -> Synonym r
-                Schema.Range o l       -> Range o l tt
+                Schema.Range o l       -> Range o l tt (primFittingAllInts [fromIntegral o, fromIntegral l + fromIntegral o])
                 Schema.Array r l       -> Array r l
                 Schema.Vector r l      -> Vector r l tt
                 Schema.Enumeration vs  -> Enumeration (zipWith EnumVal vs [0..]) tt
