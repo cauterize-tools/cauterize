@@ -256,8 +256,9 @@ cauterizeSpec :: SExprSpec Atom Component
 cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom
 
 componentsToSpec :: [Component] -> Specification
-componentsToSpec = foldl go defaultSpecification
+componentsToSpec cs = spec { specTypes = reverse $ specTypes spec }
   where
+    spec = foldl go defaultSpecification cs
     go s (Name n) = s { specName = n }
     go s (Version v) = s { specVersion = v }
     go s (Fingerprint h) = s { specFingerprint = h }
