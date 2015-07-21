@@ -14,14 +14,19 @@ module Cauterize.Generate
 import Cauterize.CommonTypes
 import Control.Monad
 import Test.QuickCheck.Gen
+import Test.QuickCheck.Arbitrary
+import Data.Word
+import Data.Int
 import qualified Cauterize.Schema as Schema
 import qualified Cauterize.Specification as Spec
 import qualified Data.Text as T
 
 data PrototypeVariant
   = PVSynonym
+  | PVRange
   | PVArray
   | PVVector
+  | PVEnumeration
   | PVRecord
   | PVCombination
   | PVUnion
@@ -70,8 +75,10 @@ genVariant existingTypes variants name = do
   v <- elements variants
   case v of
     PVSynonym -> genSynonym
+    PVRange -> genRange
     PVArray -> genArray
     PVVector -> genVector
+    PVEnumeration -> genEnumeration
     PVRecord -> genRecord
     PVCombination -> genCombination
     PVUnion -> genUnion
@@ -84,6 +91,19 @@ genVariant existingTypes variants name = do
     genRecord = liftM (twrap . Schema.Record) (genFieldsWithoutEmpty existingNames)
     genCombination = liftM (twrap . Schema.Combination) (genFields existingNames)
     genUnion = liftM (twrap . Schema.Union) (genFields existingNames)
+    genEnumeration = liftM (twrap . Schema.Enumeration) genEnumValues
+    genRange = do
+      o <- arbitrary
+
+      let op1 = fromIntegral o + 1 :: Integer
+      let mbi = fromIntegral (maxBound :: Int64) :: Integer
+      let mbw = fromIntegral (maxBound :: Word64) :: Integer
+
+      r <- if o < 0
+            then liftM fromIntegral (choose (op1, mbi))
+            else liftM fromIntegral (choose (op1, mbw))
+
+      return $ twrap (Schema.Range o r)
 
 defaultMaximumTypes :: Integer
 defaultMaximumTypes = 10
@@ -146,6 +166,11 @@ genFields ts =
   genFields_ $ frequency [(1, liftM (flip Schema.DataField) (elements ts))
                          ,(1, return Schema.EmptyField)
                          ]
+
+genEnumValues :: Gen [Identifier]
+genEnumValues = sized (\s -> let s' | s <= 0 = 1
+                                    | otherwise = s
+                             in shuffle $ take s' allNames)
 
 genFieldsWithoutEmpty :: [Identifier] -> Gen [Schema.Field]
 genFieldsWithoutEmpty ts = genFields_ $ liftM (flip Schema.DataField) (elements ts)
