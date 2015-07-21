@@ -12,6 +12,7 @@ import Data.SCargot.Repr.WellFormed
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.Map as M
 import Text.Parsec
 import Text.Parsec.Text
 
@@ -50,6 +51,12 @@ data Component
   | TypeDef Type
   deriving (Show)
 
+pIdentLeading :: Parser Char
+pIdentLeading = oneOf ['a'..'z']
+
+pIdentTrailing :: Parser Char
+pIdentTrailing = oneOf ['a'..'z'] <|> digit <|> char '_'
+
 pAtom :: Parser Atom
 pAtom = try pString <|> try pTag <|> try pHash <|> pNumber <|> pIdent
   where
@@ -75,8 +82,8 @@ pAtom = try pString <|> try pTag <|> try pHash <|> pNumber <|> pIdent
                 else v
       return (Number v')
     pIdent = do
-      f <- oneOf ['a'..'z']
-      r <- many $ oneOf ['a'..'z'] <|> digit <|> char '_'
+      f <- pIdentLeading
+      r <- many pIdentTrailing
       (return . Ident . pack) (f:r)
     pHash = let bytes = count 20 pHexByte
                 htxt = liftM (pack . concat) bytes
@@ -157,12 +164,16 @@ toType (tproto:tbody) =
       mkTD name f s (Synonym $ umi ref)
     toSynonym x = ueb "synonym" x
 
-    toRange [AI name, f, s, AN rmin, AN rmax, AT t] =
-      mkTD name f s (Range o l t p)
+    toRange [AI name, f, s, AN rmin, AN rmax, AT t, AI p] =
+      case umi p `M.lookup` primMap of
+        Nothing -> Left ("toRange: Not a primitive: '" ++ pstr ++ "'.")
+        Just p' | p' `elem` badPrims -> Left ("toRange: Not a suitable primitve: '" ++ pstr ++ "'.")
+                | otherwise -> mkTD name f s (Range o l t p')
       where
+        pstr = T.unpack p
+        badPrims = [PBool, PF32, PF64]
         o = fromIntegral rmin
         l = fromIntegral rmax - fromIntegral rmin
-        p = primFittingAllInts [rmin, rmax]
     toRange x = ueb "range" x
 
     toArray [AI name, f, s, AI ref, AN l] =

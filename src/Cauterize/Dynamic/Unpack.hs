@@ -9,6 +9,7 @@ import Cauterize.Dynamic.Common
 import Control.Exception
 import Control.Monad
 import Data.Bits
+import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as T
 import qualified Cauterize.Specification as S
@@ -93,7 +94,20 @@ dynamicUnpackVector m r maxLen t = do
     getter = dynamicUnpackDetails m r
 
 dynamicUnpackEnumeration :: [S.EnumVal] -> C.Tag -> Get CautDetails
-dynamicUnpackEnumeration = undefined
+dynamicUnpackEnumeration [] _ = error "dynamicUnpackEnumeration: enumerations must have at least one value!"
+dynamicUnpackEnumeration vs t = do
+  valIx <- unpackTag t
+  if valIx > maxValIx
+    then fail $ "enumeration tag out of bounds: " ++ show valIx ++ " > " ++ show maxValIx
+    else return (CDEnumeration (S.enumValName (ixToVal valIx)))
+  where
+    maxValIx = S.enumValIndex (last vs)
+
+    ixToVal :: Integer -> S.EnumVal
+    ixToVal ix =
+      let e = error "dynamicUnpackEnumeration: SHOULD NEVER HAPPEN. Tag not a val."
+      in fromMaybe e (ix `M.lookup` ixMap)
+    ixMap = M.fromList $ zip (map S.enumValIndex vs) vs
 
 dynamicUnpackRecord :: TyMap -> [S.Field] -> Get CautDetails
 dynamicUnpackRecord m fs =
