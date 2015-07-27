@@ -9,6 +9,7 @@ import Control.Monad
 import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
+import Data.SCargot.Pretty
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -296,7 +297,9 @@ parseSpecification :: Text -> Either String Specification
 parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec t
 
 formatSpecification :: Specification -> Text
-formatSpecification s = encode cauterizeSpec (specToComponents s)
+formatSpecification s = let pp = prettyPrintSExpr (basicPrint sAtom)
+                            s' = map (pp . fromWellFormed . fromComponent) (specToComponents s)
+                        in T.unlines s'
 
 parseSpecificationFromFile :: FilePath -> IO (Either String Specification)
 parseSpecificationFromFile p = liftM parseSpecification (T.readFile p)

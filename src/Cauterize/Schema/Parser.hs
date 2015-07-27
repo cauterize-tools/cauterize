@@ -9,6 +9,7 @@ import Control.Monad
 import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
+import Data.SCargot.Pretty
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -188,8 +189,8 @@ componentsToSchema = foldl go defaultSchema
     go s (TypeDef t) = let ts = schemaTypes s
                         in s { schemaTypes = t:ts }
 
-specToComponents :: Schema -> [Component]
-specToComponents s =
+schemaToComponents :: Schema -> [Component]
+schemaToComponents s =
     Name (schemaName s)
   : Version (schemaVersion s)
   : map TypeDef (schemaTypes s)
@@ -198,7 +199,9 @@ parseSchema :: Text -> Either String Schema
 parseSchema t = componentsToSchema `fmap` decode cauterizeSpec t
 
 formatSchema :: IsSchema a => a -> Text
-formatSchema s = encode cauterizeSpec (specToComponents (getSchema s))
+formatSchema s = let pp = prettyPrintSExpr (basicPrint sAtom)
+                     s' = map (pp . fromWellFormed . fromComponent) (schemaToComponents (getSchema s))
+                 in T.unlines s'
 
 parseSchemaFromFile :: FilePath -> IO (Either String Schema)
 parseSchemaFromFile p = liftM parseSchema (T.readFile p)
