@@ -167,10 +167,11 @@ genFields ts =
                          ,(1, return Schema.EmptyField)
                          ]
 
+-- TODO: Use shuffle here when we can move to QuickCheck >=2.8
 genEnumValues :: Gen [Identifier]
 genEnumValues = sized (\s -> let s' | s <= 0 = 1
                                     | otherwise = s
-                             in shuffle $ take s' allNames)
+                             in return $ take s' allNames)
 
 genFieldsWithoutEmpty :: [Identifier] -> Gen [Schema.Field]
 genFieldsWithoutEmpty ts = genFields_ $ liftM (flip Schema.DataField) (elements ts)
