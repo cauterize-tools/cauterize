@@ -220,7 +220,8 @@ All types must list a name. That name follows the following rule:
 #### Synonyms
 
 Synonyms are used to give one of the built-in types a new name. Their encoded
-representation is identical to that of the built-in value they wrap.
+representation is identical to that of the built-in value they wrap, but has 
+a type that is distinct from the wrapped value.
 
 ```
 (synonym [type name] [built-in type name])
