@@ -61,6 +61,7 @@ your purposes, perhaps one of these tools is. These are listed alphabetically.
 * [extprot](https://github.com/mfp/extprot)
 * [FlatBuffers](http://google-opensource.blogspot.com/2014/06/flatbuffers-memory-efficient.html)
 * [Fressian (Datomic)](https://github.com/Datomic/fressian)
+* [Linden Labs Structured Data](http://wiki.secondlife.com/wiki/LLSD)
 * [Message Pack](http://msgpack.org/)
 * [Piqi](http://piqi.org/)
 * [Protocol Buffers](https://developers.google.com/protocol-buffers/)
