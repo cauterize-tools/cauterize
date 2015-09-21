@@ -10,6 +10,7 @@ import Data.SCargot.General
 import Data.SCargot.Repr
 import Data.SCargot.Repr.WellFormed
 import Data.SCargot.Pretty
+import Data.SCargot.Comments
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -179,7 +180,7 @@ fromComponent c =
     ident = A . Ident . pack
 
 cauterizeSpec :: SExprSpec Atom Component
-cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom
+cauterizeSpec = convertSpec toComponent fromComponent $ withLispComments $ asWellFormed $ mkSpec pAtom sAtom
 
 componentsToSchema :: [Component] -> Schema
 componentsToSchema = foldl go defaultSchema
