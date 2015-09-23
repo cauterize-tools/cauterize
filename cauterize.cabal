@@ -62,6 +62,7 @@ executable cauterize
   hs-source-dirs:      bin
   ghc-options:         -Wall -O2 -threaded -static
   main-is:             Main.hs
+  other-modules:       Cauterize.Options
   build-depends:       base,
                        cauterize,
                        text >= 1.2,
