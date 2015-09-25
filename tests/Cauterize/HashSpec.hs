@@ -4,9 +4,7 @@ module Cauterize.HashSpec
   ) where
 
 import Cauterize.Hash
-
 import Test.Hspec
-import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -17,4 +15,3 @@ spec = do
   where
     h0 = mkHash "cauterize is neat"
     h1 = mkHash "i've spent so much time on this library..."
-       

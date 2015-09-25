@@ -80,6 +80,8 @@ test-suite spec
                        cauterize,
                        hspec,
                        text
-  other-modules:
-    Cauterize.HashSpec
   default-language:    Haskell2010
+  other-modules:
+                Cauterize.CommonTypesSpec,
+                Cauterize.HashSpec,
+                Cauterize.Schema.ParserSpec
