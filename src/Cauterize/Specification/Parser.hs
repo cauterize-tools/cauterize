@@ -124,17 +124,17 @@ toComponent = asList go
 
 toType :: [WellFormedSExpr Atom] -> Either String Component
 toType [] = Left "Empty type expression."
-toType (tproto:tbody) =
+toType [_] = Left "Type expression without prototype."
+toType (AI name:AI tproto:tbody) =
   case tproto of
-    AI "synonym" -> toSynonym tbody
-    AI "range" -> toRange tbody
-    AI "array" -> toArray tbody
-    AI "vector" -> toVector tbody
-    AI "enumeration" -> toEnumeration tbody
-    AI "record" -> toRecord tbody
-    AI "combination" -> toCombination tbody
-    AI "union" -> toUnion tbody
-    AI x -> Left ("Invalid prototype: " ++ show x)
+    "synonym" -> toSynonym tbody
+    "range" -> toRange tbody
+    "array" -> toArray tbody
+    "vector" -> toVector tbody
+    "enumeration" -> toEnumeration tbody
+    "record" -> toRecord tbody
+    "combination" -> toCombination tbody
+    "union" -> toUnion tbody
     y -> Left ("Invalid type expression: " ++ show y)
   where
     umi = unsafeMkIdentifier . unpack
@@ -161,11 +161,11 @@ toType (tproto:tbody) =
     toField (L [AI "empty", AI fname, AN ix]) = Right $ EmptyField (umi fname) ix
     toField x = ueb "field" x
 
-    toSynonym [AI name, f, s, AI ref] =
+    toSynonym [f, s, AI ref] =
       mkTD name f s (Synonym $ umi ref)
     toSynonym x = ueb "synonym" x
 
-    toRange [AI name, f, s, AN rmin, AN rmax, AT t, AI p] =
+    toRange [f, s, AN rmin, AN rmax, AT t, AI p] =
       case umi p `M.lookup` primMap of
         Nothing -> Left ("toRange: Not a primitive: '" ++ pstr ++ "'.")
         Just p' | p' `elem` badPrims -> Left ("toRange: Not a suitable primitve: '" ++ pstr ++ "'.")
@@ -177,15 +177,15 @@ toType (tproto:tbody) =
         l = fromIntegral rmax - fromIntegral rmin
     toRange x = ueb "range" x
 
-    toArray [AI name, f, s, AI ref, AN l] =
+    toArray [f, s, AI ref, AN l] =
       mkTD name f s (Array (umi ref) (fromIntegral l))
     toArray x = ueb "array" x
 
-    toVector [AI name, f, s, AI ref, AN l, AT t] =
+    toVector [f, s, AI ref, AN l, AT t] =
       mkTD name f s (Vector (umi ref) (fromIntegral l) t)
     toVector x = ueb "vector" x
 
-    toEnumeration [AI name, f, s, AT t, L (AI "values":vs)] = do
+    toEnumeration [f, s, AT t, L (AI "values":vs)] = do
         vs' <- mapM toValue vs
         mkTD name f s (Enumeration vs' t)
       where
@@ -193,20 +193,21 @@ toType (tproto:tbody) =
         toValue x = ueb "value" x
     toEnumeration x = ueb "enumeration" x
 
-    toRecord [AI name, f, s, L (AI "fields":fs)] = do
+    toRecord [f, s, L (AI "fields":fs)] = do
         fs' <- mapM toField fs
         mkTD name f s (Record fs')
     toRecord x = ueb "record" x
 
-    toCombination [AI name, f, s, AT t, L (AI "fields":fs)] = do
+    toCombination [f, s, AT t, L (AI "fields":fs)] = do
         fs' <- mapM toField fs
         mkTD name f s (Combination fs' t)
     toCombination x = ueb "combination" x
 
-    toUnion [AI name, f, s, AT t, L (AI "fields":fs)] = do
+    toUnion [f, s, AT t, L (AI "fields":fs)] = do
         fs' <- mapM toField fs
         mkTD name f s (Union fs' t)
     toUnion x = ueb "combination" x
+toType _ = Left "Unexpected atom types."
 
 fromComponent :: Component -> WellFormedSExpr Atom
 fromComponent c =
@@ -214,8 +215,7 @@ fromComponent c =
     (Name n) -> L [ ident "name", A . Str $ n ]
     (Version v) -> L [ ident "version", A . Str $ v ]
     (Fingerprint h) -> L [ ident "fingerprint", hash h ]
-    (SpecSize s) | sizeMin s == sizeMax s -> L [ ident "size", number (sizeMax s) ]
-                 | otherwise -> L [ ident "size", number (sizeMin s), number (sizeMax s) ]
+    (SpecSize s) -> L [ ident "size", number (sizeMin s), number (sizeMax s) ]
     (Depth d) -> L [ ident "depth", number d ]
     (TypeLength l) -> L [ ident "typelength", number l ]
     (LengthTag t) -> L [ ident "lengthtag", tag t ]
@@ -248,21 +248,21 @@ fromType (Type n f s d) = L (A (Ident "type") : rest)
 
     rest =
       case d of
-        Synonym r -> [ai "synonym", na, fl, sl, aiu r]
+        Synonym r -> [na, ai "synonym", fl, sl, aiu r]
         Range o l t p ->
           let rmin = fromIntegral o
               rmax = (fromIntegral o + fromIntegral l)
-          in [ai "range", na, fl, sl, an rmin, an rmax, at t, ai (unIdentifier . primToText $ p)]
-        Array r l -> [ai "array", na, fl, sl, aiu r, an (fromIntegral l)]
-        Vector r l t -> [ai "vector", na, fl, sl, aiu r, an (fromIntegral l), at t]
+          in [na, ai "range", fl, sl, an rmin, an rmax, at t, ai (unIdentifier . primToText $ p)]
+        Array r l -> [na, ai "array", fl, sl, aiu r, an (fromIntegral l)]
+        Vector r l t -> [na, ai "vector", fl, sl, aiu r, an (fromIntegral l), at t]
         Enumeration vs t ->
-          [ai "enumeration", na, fl, sl, at t, L (ai "values" : map fromEnumVal vs)]
+          [na, ai "enumeration", fl, sl, at t, L (ai "values" : map fromEnumVal vs)]
         Record fs ->
-          [ai "record", na, fl, sl, L (ai "fields" : map fromField fs)]
+          [na, ai "record", fl, sl, L (ai "fields" : map fromField fs)]
         Combination fs t ->
-          [ai "combination", na, fl, sl, at t, L (ai "fields" : map fromField fs)]
+          [na, ai "combination", fl, sl, at t, L (ai "fields" : map fromField fs)]
         Union fs t ->
-          [ai "union", na, fl, sl, at t, L (ai "fields" : map fromField fs)]
+          [na, ai "union", fl, sl, at t, L (ai "fields" : map fromField fs)]
 
 cauterizeSpec :: SExprSpec Atom Component
 cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom

@@ -25,14 +25,14 @@ data Specification = Specification
   , specTypeLength :: Integer
   , specLengthTag :: Tag
   , specTypes :: [Type]
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data Type = Type
   { typeName :: Identifier
   , typeFingerprint :: Hash
   , typeSize :: Size
   , typeDesc :: TypeDesc
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data TypeDesc
   = Synonym { synonymRef :: Identifier }
@@ -48,15 +48,15 @@ data TypeDesc
                 , combinationTag :: Tag }
   | Union { unionFields :: [Field]
           , unionTag :: Tag}
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Field
   = DataField { fieldName :: Identifier, fieldIndex :: Integer, fieldRef :: Identifier }
   | EmptyField { fieldName :: Identifier, fieldIndex :: Integer }
-  deriving (Show)
+  deriving (Show, Eq)
 
 data EnumVal = EnumVal { enumValName :: Identifier, enumValIndex :: Integer }
-  deriving (Show)
+  deriving (Show, Eq)
 
 specTypeMap :: Specification -> M.Map Identifier Type
 specTypeMap s = M.fromList $ zip ns ts

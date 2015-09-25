@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall -Werror -O2
   build-depends:       base >= 4.7 && < 5,
                        mtl >=2.1,
                        parsec,
@@ -62,7 +62,7 @@ library
 -- schemas into specifications.
 executable cauterize
   hs-source-dirs:      bin
-  ghc-options:         -Wall -O2 -threaded -static
+  ghc-options:         -Wall -Werror -O2 -threaded -static
   main-is:             Main.hs
   build-depends:       base,
                        cauterize,
@@ -74,7 +74,7 @@ executable cauterize
 test-suite spec
   type:                exitcode-stdio-1.0
   hs-source-dirs:      tests
-  ghc-options:         -Wall -O2 -threaded
+  ghc-options:         -Wall -Werror -O2 -threaded
   main-is:             Spec.hs
   build-depends:       base,
                        cauterize,
@@ -84,4 +84,5 @@ test-suite spec
   other-modules:
                 Cauterize.CommonTypesSpec,
                 Cauterize.HashSpec,
-                Cauterize.Schema.ParserSpec
+                Cauterize.Schema.ParserSpec,
+                Cauterize.Specification.ParserSpec
