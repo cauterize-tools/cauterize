@@ -15,12 +15,12 @@ data Schema = Schema
   { schemaName :: Text
   , schemaVersion :: Text
   , schemaTypes :: [Type]
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data Type = Type
   { typeName :: Identifier
   , typeDesc :: TypeDesc
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data TypeDesc
   = Synonym { synonymRef :: Identifier }
@@ -31,12 +31,12 @@ data TypeDesc
   | Record { recordFields :: [Field] }
   | Combination { combinationFields :: [Field] }
   | Union { unionFields :: [Field] }
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Field
   = DataField { fieldName :: Identifier, fieldRef :: Identifier }
   | EmptyField { fieldName :: Identifier }
-  deriving (Show)
+  deriving (Show, Eq)
 
 class IsSchema a where
   getSchema :: a -> Schema

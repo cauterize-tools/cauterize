@@ -60,6 +60,7 @@ data Tag = T1 | T2 | T4 | T8
   deriving (Show, Eq)
 
 data Size = Size { sizeMin :: Integer, sizeMax :: Integer }
+  deriving (Eq)
 
 isValidIdentifier :: String -> Bool
 isValidIdentifier [] = False

@@ -78,67 +78,68 @@ pattern AN x = A (Number x)
 
 toType :: [WellFormedSExpr Atom] -> Either String Component
 toType [] = Left "Empty type expression."
-toType (tproto:tbody) =
+toType [_] = Left "Type expression without a prototype."
+toType (AI name:AI tproto:tbody) =
   case tproto of
-    AI "synonym" -> toSynonym tbody
-    AI "range" -> toRange tbody
-    AI "array" -> toArray tbody
-    AI "vector" -> toVector tbody
-    AI "enumeration" -> toEnumeration tbody
-    AI "record" -> toRecord tbody
-    AI "combination" -> toCombination tbody
-    AI "union" -> toUnion tbody
-    AI x -> Left ("Invalid prototype: " ++ show x)
-    y -> Left ("Invalid type expression: " ++ show y)
+    "synonym" -> toSynonym tbody
+    "range" -> toRange tbody
+    "array" -> toArray tbody
+    "vector" -> toVector tbody
+    "enumeration" -> toEnumeration tbody
+    "record" -> toRecord tbody
+    "combination" -> toCombination tbody
+    "union" -> toUnion tbody
+    x -> Left ("Invalid prototype: " ++ show x)
   where
     umi = unsafeMkIdentifier . unpack
     mkTD n t = (Right . TypeDef) (Type (umi n) t)
 
-    toField (L [AI "field", AI name, AI ref]) =
-      Right $ DataField (umi name) (umi ref)
-    toField (L [AI "empty", AI name]) =
-      Right $ EmptyField (umi name)
+    toField (L [AI "field", AI fname, AI ref]) =
+      Right $ DataField (umi fname) (umi ref)
+    toField (L [AI "empty", AI fname]) =
+      Right $ EmptyField (umi fname)
     toField x = Left ("Unexpected field body: " ++ show x)
 
-    toSynonym [AI name, AI ref] =
+    toSynonym [AI ref] =
       mkTD name (Synonym (umi ref))
     toSynonym x = Left ("Unexpected synonym body: " ++ show x)
 
-    toRange [AI name, AN rmin, AN rmax] =
+    toRange [AN rmin, AN rmax] =
       mkTD name (Range (fromIntegral rmin) (fromIntegral (rmax - rmin)))
     toRange x = Left ("Unexpected range body: " ++ show x)
 
-    toArray [AI name, AI ref, AN size]
+    toArray [AI ref, AN size]
       | size < 0 = Left ("Size must be positive: " ++ show size)
       | otherwise = mkTD name (Array (umi ref) (fromIntegral size))
     toArray x = Left ("Unexpected array body: " ++ show x)
 
-    toVector [AI name, AI ref, AN size]
+    toVector [AI ref, AN size]
       | size < 0 = Left ("Size must be positive: " ++ show size)
       | otherwise = mkTD name (Vector (umi ref) (fromIntegral size))
     toVector x = Left ("Unexpected vector body: " ++ show x)
 
-    toEnumeration [AI name, L (AI "values":vs)] = do
+    toEnumeration [L (AI "values":vs)] = do
       let toValue (AI val) = Right (umi val)
           toValue x = Left ("Unexpected value: " ++ show x)
       vs' <- mapM toValue vs
       mkTD name (Enumeration vs')
     toEnumeration x = Left ("Unexpected enumeration body: " ++ show x)
 
-    toRecord [AI name, L (AI "fields":fs)] = do
+    toRecord [L (AI "fields":fs)] = do
       fs' <- mapM toField fs
       mkTD name (Record fs')
     toRecord x = Left ("Unexpected record body: " ++ show x)
 
-    toCombination [AI name, L (AI "fields":fs)] = do
+    toCombination [L (AI "fields":fs)] = do
       fs' <- mapM toField fs
       mkTD name (Combination fs')
     toCombination x = Left ("Unexpected combination body: " ++ show x)
 
-    toUnion [AI name, L (AI "fields":fs)] = do
+    toUnion [L (AI "fields":fs)] = do
       fs' <- mapM toField fs
       mkTD name (Union fs')
     toUnion x = Left ("Unexpected union body: " ++ show x)
+toType _ = Left "Unexpected atom types."
 
 fromType :: Type -> WellFormedSExpr Atom
 fromType (Type n d) = L (A (Ident "type") : rest)
@@ -154,21 +155,21 @@ fromType (Type n d) = L (A (Ident "type") : rest)
     rest =
       case d of
         Synonym { synonymRef = r } ->
-          [ai "synonym", na, aiu r]
+          [na, ai "synonym", aiu r]
         Range { rangeOffset = o, rangeLength = l } ->
-          [ai "range", na, an (fromIntegral o), an (fromIntegral o + fromIntegral l)]
+          [na, ai "range", an (fromIntegral o), an (fromIntegral o + fromIntegral l)]
         Array { arrayRef = r, arrayLength = l } ->
-          [ai "array", na, aiu r, an (fromIntegral l)]
+          [na, ai "array", aiu r, an (fromIntegral l)]
         Vector { vectorRef = r, vectorLength = l } ->
-          [ai "vector", na, aiu r, an (fromIntegral l)]
+          [na, ai "vector", aiu r, an (fromIntegral l)]
         Enumeration { enumerationValues = vs } ->
-          [ai "enumeration", na, L (ai "values" : map aiu vs)]
+          [na, ai "enumeration", L (ai "values" : map aiu vs)]
         Record { recordFields = fs } ->
-          [ai "record", na, L (ai "fields" : map fromField fs)]
+          [na, ai "record", L (ai "fields" : map fromField fs)]
         Combination { combinationFields = fs } ->
-          [ai "combination", na, L (ai "fields" : map fromField fs)]
+          [na, ai "combination", L (ai "fields" : map fromField fs)]
         Union { unionFields = fs } ->
-          [ai "union", na, L (ai "fields" : map fromField fs)]
+          [na, ai "union", L (ai "fields" : map fromField fs)]
 
 fromComponent :: Component -> WellFormedSExpr Atom
 fromComponent c =
