@@ -129,16 +129,30 @@ better.
 ## Schema Language
 
 The schema language uses parentheses to enclose each of its expressions. All
-expressions have an assigned order for any and all arguments. Each expression
-defines a new type with the exception of the top level expression. This top
-level expression defines the outer details for the Cauterize schema.
+expressions have an assigned order for all arguments.
+
+### Schema Name
+
+The schema name is optional. If it's omitted, it will be set to "schema".
 
 ```
-(schema schema_name schema_version ...)
+(name [name])
 ```
 
-* `schema_name` - `[a-z]([a-z]|[0-9]|_)*`
-* `schema_version` - `([a-z]|[0-9])([a-z]|[0-9]|_|.|-)*`
+Names can consist of the following characters and must be enclosed in
+double quotations:
+
+`[a-z]([a-z]|[0-9]|_)*`
+
+### Schema Version
+
+The schema version is optional. If it's omittied, it will be set to
+"0.0.0". The version may consist of the following characters in
+quotations:
+
+```
+([a-z]|[0-9])([a-z]|[0-9]|_|.|-)*
+```
 
 The reason the name and version patterns are restrictive is to ease the
 burden on code generators. Some languages, such as Haskell and Ruby, have
@@ -151,12 +165,12 @@ that is readable and matches the target language's normal conventions.
 Line comments are defined by using two `;` characters in a row. Here's an example.
 
 ```
-(schema example 0.0.1
-  ;; this is comment
-  (some type definition))
+;; this is comment
+(name "some name")
+(version "0.0.1")
 ```
 
-### Built-In Types
+### Primitive Types
 
 There are several types that represent the foundation of the Cauterize types.
 These are the fundamental types available for creating your own more complex
@@ -164,7 +178,7 @@ types. It is not possible to define new built-in types in a schema. All
 builtins referenced by a schema will have definitions in the output
 specification.
 
-#### Unsigned Types
+#### Unsigned Primitive Types
 
 Unsigned values are encoded as [little
 endian](http://en.wikipedia.org/wiki/Endianness).
@@ -174,7 +188,7 @@ endian](http://en.wikipedia.org/wiki/Endianness).
   * `u32` - 32 bits wide
   * `u64` - 64 bits wide
 
-#### Signed Types
+#### Signed Primitive Types
 
 Signed values are encoded as [two's
 complement](http://en.wikipedia.org/wiki/Two%27s_complement) [little
@@ -185,14 +199,14 @@ endian](http://en.wikipedia.org/wiki/Endianness) values.
   * `s32` - 32 bits wide
   * `s64` - 64 bits wide
 
-#### Boolean Type
+#### Boolean Primitive Type
 
 Booleans are encoded with a single byte. The only valid values are 0 and 1
 where 0 represents `false` and 1 represents `true`.
 
   * `bool` - 8 bits wide
 
-#### Floating Point Types
+#### Floating Point Primitive Types
 
 Floating point types are hard. Their definitions can be different (or missing
 entirely!) across CPU architectures. Therefore, Cauterize only defines the
@@ -221,19 +235,18 @@ All types must list a name. That name follows the following rule:
 #### Synonyms
 
 Synonyms are used to give one of the built-in types a new name. Their encoded
-representation is identical to that of the built-in value they wrap, but has 
+representation is identical to that of the built-in value they wrap, but has
 a type that is distinct from the wrapped value.
 
 ```
-(synonym [type name] [built-in type name])
+(type [type name] synonym [built-in type name])
 ```
 
 The following example defines the type `age` that has the same representation
 as a `u8`.
 
 ```
-(schema example 1.0
-  (synonym age u8))
+(type age synonym u8)
 ```
 
 #### Arrays
@@ -242,15 +255,14 @@ Arrays are fixed-length sequences of identially typed objects. These are to be
 used when the sequence only makes sense with a fixed number of elements.
 
 ```
-(array [type name] [element type] [array length])
+(type [type name] array [element type] [array length])
 ```
 
 Consider the following example that defines a type `mac` that encodes a Media
 Access Control address (which is always 6 bytes long).
 
 ```
-(schema example 1.0
-  (array mac u8 6))
+(type mac array u8 6)
 ```
 
 #### Vector
@@ -260,15 +272,14 @@ to be used when a sequence of elements has a maximum length, but may contain
 fewer elements.
 
 ```
-(vector [type name] [target type] [maximum array length])
+(type [type name] vector [target type] [maximum array length])
 ```
 
 The following example defines a generic byte buffer with a maximum length of
 4096 bytes.
 
 ```
-(schema example 1.0
-  (vector byte_buffer_4k u8 4096))
+(type byte_buffer_4k vector u8 4096)
 ```
 
 
@@ -295,7 +306,7 @@ enclosing expression.
 Records are a collection of named fields where each field has a distinct type.
 
 ```
-(record [type name] [field list])
+(type [type name] record [field list])
 ```
 
 An empty field in a record lacks any semantic meaning. It can neither be
@@ -305,9 +316,9 @@ This is an example of a record describing a person's age, height, and whether or
 not they like cats:
 
 ```
-(record person (fields (field age u8)
-                       (field height u8)
-                       (field likes_cats bool)))
+(type person record (fields (field age u8)
+                            (field height u8)
+                            (field likes_cats bool)))
 ```
 
 #### Union
@@ -320,7 +331,7 @@ Unions in Cauterize are very similar to algebraic data types found in other
 languages such as OCaml, Haskell, and Rust.
 
 ```
-(union [type name] [field list])
+(type [type name] union [field list])
 ```
 
 An empty field in a union represents that a variant of the union is set. This
@@ -331,18 +342,17 @@ This example shows a `request` type for some key-value storage system. The
 system stores `u64` values according to names that are up to 128 bytes long.
 
 ```
-(schema example 1.0.0
-  (vector key_name u8 128)
-  (record key_pair (fields
-                     (field name key_name)
-                     (field value u64)))
+(type key_name vector _name u8 128)
+(type key_pair record (fields
+                       (field name key_name)
+                       (field value u64)))
 
-  (union request (fields
-                   (field get_key_count)
-                   (field check_key_exists key_name)
-                   (field get_key key_name)
-                   (field erase_key key_name)
-                   (field set_key key_pair))))
+(type request union (fields
+                     (field get_key_count)
+                     (field check_key_exists key_name)
+                     (field get_key key_name)
+                     (field erase_key key_name)
+                     (field set_key key_pair))))
 ```
 
 The `get_key_count` variant does not contain any associated data while the
@@ -356,7 +366,7 @@ has a distinct type. The difference is that each field in the combination can
 either be present or not present in the encoded output.
 
 ```
-(combination [type name] [field list])
+(type [type name] combination [field list])
 ```
 As an example, consider the following description of a type capable of storing
 changes in some observed values in a sensor rig:
@@ -364,13 +374,13 @@ changes in some observed values in a sensor rig:
 An empty field in a Combination behaves like a boolean flag.
 
 ```
-(combination sensed (fields
-                      (field ambient_temp u16)
-                      (field ambient_light u16)
-                      (field air_pressure u16)
-                      (field position_x u32)
-                      (field position_y u32)
-                      (field position_z u32)))
+(type sensed combination (fields
+                          (field ambient_temp u16)
+                          (field ambient_light u16)
+                          (field air_pressure u16)
+                          (field position_x u32)
+                          (field position_y u32)
+                          (field position_z u32)))
 ```
 
 If a sensor value hasn't changed since the last time the message was sent, the
@@ -504,51 +514,18 @@ tag. It only occurs in `union` specifications.
 
 ### `specification` Expression
 
-All specification documents start with one top-level expression. It has the
-following layout:
+All specification documents contain several top-level expressions.
 
 ```
-(specification [schema name] [schema version]
-  (sha1 [a sha1 hash])
-  (range-size [minimum encoded size] [maximum encoded size])
-  (depth [maximum referential depth of the schema])
-  (type-width [type-tag width hint])
-  (length-width [length-tag width hint])
-  [[type expression]])
-```
+(name [schema name])
+(version [schema version])
+(sha1 [a sha1 hash])
+(range-size [minimum encoded size] [maximum encoded size])
+(depth [maximum referential depth of the schema])
+(type-width [type-tag width hint])
+(length-width [length-tag width hint])
 
-### `builtin` Specification Expression
-
-Built-In expressions are included for each built-in type directly or indirectly
-used by the schema. If a built-in type is never used by the input schema, it is
-not emitted in the specification.
-
-All built-in expressions have the following layout:
-
-```
-(builtin [type name] (sha1 ...) (fixed-size ...))
-```
-
-It should be noted that all builtin types have the same hash in every schema.
-This is because the hash is calculated by taking the SHA1 sum of the builtin
-type name.
-
-For example: `sha1("f64") == 41e1543a419fc7200b80fd9cf7a5673551ddb2fc`.
-
-The hashes for the builtin types are as follows.
-
-```
-u8   :: 3c3c92ff20335765dbadd2930de367c0a8a9d9cb
-u16  :: 496042011a876c687fd713edb8388ab69e8b0bc6
-u32  :: 13f56a24961b824565b27c3f7416dbd041ae6308
-u64  :: ca58000caffa24364cf821488e348159a5d3ed11
-s8   :: 535ef5ca16209340872eb261f409065ac457c249
-s16  :: 4adf241e28122c703cf2114da78a378e24d9dcf8
-s32  :: 0fff94187f39bdda61fa4895b0305e24cc319f2c
-s64  :: 11ed8bc946c52edffcf60718f6719bf9602e8146
-f32  :: ef36790b487559cff915a358e27813681db6a6ea
-f64  :: 41e1543a419fc7200b80fd9cf7a5673551ddb2fc
-bool :: 5039d155a71c0a5f7a2b2654ad49cb7ee47a8980
+[[type expressions]]
 ```
 
 ### `synonym` Specification Expression
@@ -556,7 +533,7 @@ bool :: 5039d155a71c0a5f7a2b2654ad49cb7ee47a8980
 All synonym expressions have the following layout:
 
 ```
-(synonym [type name] (sha1 ...) (fixed-size ...))
+(type [type name] synonym (sha1 ...) (fixed-size ...))
 ```
 
 ### `array` Specification Expression
@@ -564,7 +541,7 @@ All synonym expressions have the following layout:
 All array expressions have the following layout:
 
 ```
-(array [type name] (sha1 ...) (range-size ...)
+(type [type name] array (sha1 ...) (range-size ...)
   [array length] [element type])
 ```
 
@@ -573,7 +550,7 @@ All array expressions have the following layout:
 All vectors have the following layout:
 
 ```
-(vector [type name] (sha1 ...) (range-size ...)
+(type [type name] vector (sha1 ...) (range-size ...)
   (length-repr ...)
   [vector max length] [element type])
 ```
@@ -608,7 +585,7 @@ field. These are known as "empty" fields.
 All records have the following layout:
 
 ```
-(record [type name] (sha1 ...) (range-size ...)
+(type [type name] record (sha1 ...) (range-size ...)
   (fields ...))
 ```
 
@@ -617,7 +594,7 @@ All records have the following layout:
 All unions have the following layout:
 
 ```
-(record [type name] (sha1 ...) (range-size ...)
+(type [type name] record (sha1 ...) (range-size ...)
   (tag-repr [built-in type])
   (fields ...))
 ```
@@ -627,7 +604,7 @@ All unions have the following layout:
 All combinations have the following layout:
 
 ```
-(combination [type name] (sha1 ...) (range-size ...)
+(type [type name] combination (sha1 ...) (range-size ...)
   (flags-repr [built-in type])
   (fields ...))
 ```
@@ -699,60 +676,49 @@ The following command converts this schema into a specification: `cauterize
 When we inspect the specification, we see the following:
 
 ```
-(specification binterp 0.0.0.0
-  (sha1 ac9fda94cadb44d18af85d498f169609fd716efb)
-  (range-size 1 17) (depth 2) (type-width 1) (length-width 1)
-  (builtin u8
-    (sha1 3c3c92ff20335765dbadd2930de367c0a8a9d9cb)
-    (fixed-size 1))
-  (builtin u64
-    (sha1 ca58000caffa24364cf821488e348159a5d3ed11)
-    (fixed-size 8))
-  (builtin u32
-    (sha1 13f56a24961b824565b27c3f7416dbd041ae6308)
-    (fixed-size 4))
-  (vector vec_u32
-    (sha1 35832f3b7bd6dbeb8d3b5c92f73b2f06759d2e7a)
-    (range-size 1 17)
-    (length-repr u8)
-    4 u32)
-  (builtin u16
-    (sha1 496042011a876c687fd713edb8388ab69e8b0bc6)
-    (fixed-size 2))
-  (union union_unsigned
-    (sha1 e59761d5c25294927e5026c278db565f7190b693)
-    (range-size 2 9)
-    (tag-repr u8)
-    (fields
-      (field fu8 u8 0)
-      (field fu16 u16 1)
-      (field fu32 u32 2)
-      (field fu64 u64 3)))
-  (synonym syn_u32
-    (sha1 f180b823f00f965e1f0f68ba5c82400f2d9dd32a)
-    (fixed-size 4)
-    u32)
-  (record rec_unsigned
-    (sha1 b58dd55deef9faf22ac07ced17cf6f87d1c95111)
-    (range-size 15 15)
-    (fields
-      (field fu8 u8 0)
-      (field fu16 u16 1)
-      (field fu32 u32 2)
-      (field fu64 u64 3)))
-  (combination comb_unsigned
-    (sha1 d67b5d0a49e122140f418c12ad445ed013a52fc3)
-    (range-size 1 16)
-    (flags-repr u8)
-    (fields
-      (field fu8 u8 0)
-      (field fu16 u16 1)
-      (field fu32 u32 2)
-      (field fu64 u64 3)))
-  (array arr_u32
-    (sha1 965f3610970341adb1132d27a668a4c94e9e3d57)
-    (range-size 16 16)
-    4 u32))
+(name "binterp")
+(version "0.0.0.0")
+(sha1 ac9fda94cadb44d18af85d498f169609fd716efb)
+(range-size 1 17) (depth 2) (type-width 1) (length-width 1)
+(type vec_u32 vector
+  (sha1 35832f3b7bd6dbeb8d3b5c92f73b2f06759d2e7a)
+  (range-size 1 17)
+  (length-repr u8)
+  4 u32)
+(type union_unsigned union
+  (sha1 e59761d5c25294927e5026c278db565f7190b693)
+  (range-size 2 9)
+  (tag-repr u8)
+  (fields
+    (field fu8 u8 0)
+    (field fu16 u16 1)
+    (field fu32 u32 2)
+    (field fu64 u64 3)))
+(type syn_u32 synonym
+  (sha1 f180b823f00f965e1f0f68ba5c82400f2d9dd32a)
+  (fixed-size 4)
+  u32)
+(type rec_unsigned record
+  (sha1 b58dd55deef9faf22ac07ced17cf6f87d1c95111)
+  (range-size 15 15)
+  (fields
+    (field fu8 u8 0)
+    (field fu16 u16 1)
+    (field fu32 u32 2)
+    (field fu64 u64 3)))
+(type comb_unsigned combination
+  (sha1 d67b5d0a49e122140f418c12ad445ed013a52fc3)
+  (range-size 1 16)
+  (flags-repr u8)
+  (fields
+    (field fu8 u8 0)
+    (field fu16 u16 1)
+    (field fu32 u32 2)
+    (field fu64 u64 3)))
+(type arr_u32 array
+  (sha1 965f3610970341adb1132d27a668a4c94e9e3d57)
+  (range-size 16 16)
+  4 u32))
 ```
 
 Using this document and the knowledge of what type we're trying to decode, we
@@ -767,7 +733,7 @@ based off the `type-width` and `length-width` parameters in the specification.
 
 In the following exercises, all encoded messages will be listed in hexadecimal.
 
-## Decoding a BuiltIn
+## Decoding a Primtive
 
 The following is an encoded `u64` type:
 
@@ -775,17 +741,9 @@ The following is an encoded `u64` type:
 2a75030000000000
 ```
 
-Let's take a look at the `u64` specification:
-
-```
-(builtin u64
-  (sha1 ca58000caffa24364cf821488e348159a5d3ed11)
-  (fixed-size 8))
-```
-
-Decoding builtins is pretty simple. Each builtin type has a `fixed-size`
-expression in the type. To decode a builtin, read that many bytes from the
-encoded string as a little endian value of the proper type.
+Decoding primitives is pretty simple. Each builtin type has a fixed
+size. To decode a primitive, read that many bytes from the encoded
+string as a little endian value of the proper type.
 
 The above example is, therefore, the following 64-bit value: `0x000000000003752A`.
 
@@ -805,7 +763,7 @@ The following is an encoded `arr_u32` type.
 Let's take a look at the `arr_u32` specification:
 
 ```
-(array arr_u32
+(type arr_u32 array
   (sha1 965f3610970341adb1132d27a668a4c94e9e3d57)
   (range-size 16 16)
   4 u32))
@@ -838,7 +796,7 @@ fb5e0f0b080000ce85000000000000
 Let's take a look at the `rec_unsigned` specification:
 
 ```
-(record rec_unsigned
+(type rec_unsigned record
   (sha1 b58dd55deef9faf22ac07ced17cf6f87d1c95111)
   (range-size 15 15)
   (fields
@@ -874,7 +832,7 @@ The following is an example of an encoded `vec_u32`.
 Let's take a look at the specification for a `vec_u32` again.
 
 ```
-(vector vec_u32
+(type vec_u32 vector
   (sha1 35832f3b7bd6dbeb8d3b5c92f73b2f06759d2e7a)
   (range-size 1 17)
   (length-repr u8)
@@ -904,7 +862,7 @@ To interpret this, we can reference the `union_unsigned` definition in our
 specification.
 
 ```
-(union union_unsigned
+(type union_unsigned union
   (sha1 e59761d5c25294927e5026c278db565f7190b693)
   (range-size 2 9)
   (tag-repr u8)
@@ -927,18 +885,10 @@ we're decoding a union, this tag will match one of the field indices. As it
 turns out, this index maps to the field `fu16`. This field is associated with
 the `u16` type.
 
-Once again, we'll refer to our specification to determine how to decode a `u16`
-type.
-
-```
-(builtin u16
-  (sha1 496042011a876c687fd713edb8388ab69e8b0bc6)
-  (fixed-size 2))
-```
-
-A `u16` is a builtin type. This means that it is a type that contains an actual
-value. Furthermore, we can see that this type has a fixed-size of 2. To decode
-a `u16` type, all we need to do is read out 2 bytes from the binary stream
+A `u16` is a primitive type. This means that it is a type that
+contains an actual value. Furthermore, we know that that this type has
+a fixed-size of 2. To decode a `u16` type, all we need to do is read
+out 2 bytes from the binary stream
 
 The next two bytes are `af 04`. We know that all Cauterize primitives are
 expressed in little endian, so this yields the final hex value of 0x04AF, or
@@ -962,7 +912,7 @@ To interpret this, we can reference the `comb_unsigned` type in our
 specification.
 
 ```
-(combination comb_unsigned
+(type comb_unsigned combination
   (sha1 d67b5d0a49e122140f418c12ad445ed013a52fc3)
   (range-size 1 16)
   (flags-repr u8)
@@ -1038,10 +988,12 @@ complexity to the C code that would need to be generated.
 Take this hypothetical (but invalid) example:
 
 ```
-(schema multi_data_union_example 1.0.0
-  (union multi_type_field
-    (fields
-      (field a u8 u16 u32))))
+(name "multi_data_union_example")
+(version "1.0.0")
+
+(type multi_type_field union
+  (fields
+   (field a u8 u16 u32)))
 ```
 
 In Haskell, we might be able to expand this union expression into the following type:
@@ -1081,4 +1033,3 @@ For this reason, we've chosen to omit multiple types per field in unions.
 * Add small expression language to schemas for computing sizes or sharing numeric information
 * Consider addition of generics to the schema
 * Expand the things synonyms can refer to.
-
