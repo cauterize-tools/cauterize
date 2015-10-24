@@ -6,10 +6,8 @@ module Cauterize.Specification.Parser
   ) where
 
 import Control.Monad
-import Data.SCargot.General
-import Data.SCargot.Repr
+import Data.SCargot
 import Data.SCargot.Repr.WellFormed
-import Data.SCargot.Pretty
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -264,8 +262,8 @@ fromType (Type n f s d) = L (A (Ident "type") : rest)
         Union fs t ->
           [na, ai "union", fl, sl, at t, L (ai "fields" : map fromField fs)]
 
-cauterizeSpec :: SExprSpec Atom Component
-cauterizeSpec = convertSpec toComponent fromComponent $ asWellFormed $ mkSpec pAtom sAtom
+cauterizeParser :: SExprParser Atom Component
+cauterizeParser = setCarrier toComponent $ asWellFormed $ mkParser pAtom
 
 componentsToSpec :: [Component] -> Specification
 componentsToSpec cs = spec { specTypes = reverse $ specTypes spec }
@@ -294,10 +292,10 @@ specToComponents s =
 
 
 parseSpecification :: Text -> Either String Specification
-parseSpecification t = componentsToSpec `fmap` decode cauterizeSpec t
+parseSpecification t = componentsToSpec `fmap` decode cauterizeParser t
 
 formatSpecification :: Specification -> Text
-formatSpecification s = let pp = prettyPrintSExpr (basicPrint sAtom)
+formatSpecification s = let pp = encodeOne (basicPrint sAtom)
                             s' = map (pp . fromWellFormed . fromComponent) (specToComponents s)
                         in T.unlines s'
 
