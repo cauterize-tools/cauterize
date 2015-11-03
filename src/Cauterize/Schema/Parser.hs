@@ -6,10 +6,8 @@ module Cauterize.Schema.Parser
   ) where
 
 import Control.Monad
-import Data.SCargot.General
-import Data.SCargot.Repr
+import Data.SCargot
 import Data.SCargot.Repr.WellFormed
-import Data.SCargot.Pretty
 import Data.SCargot.Comments
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as T
@@ -180,8 +178,8 @@ fromComponent c =
   where
     ident = A . Ident . pack
 
-cauterizeSpec :: SExprSpec Atom Component
-cauterizeSpec = convertSpec toComponent fromComponent $ withLispComments $ asWellFormed $ mkSpec pAtom sAtom
+cauterizeParser :: SExprParser Atom Component
+cauterizeParser = setCarrier toComponent $ withLispComments $ asWellFormed $ mkParser pAtom
 
 componentsToSchema :: [Component] -> Schema
 componentsToSchema = foldl go defaultSchema
@@ -198,10 +196,10 @@ schemaToComponents s =
   : map TypeDef (schemaTypes s)
 
 parseSchema :: Text -> Either String Schema
-parseSchema t = componentsToSchema `fmap` decode cauterizeSpec t
+parseSchema t = componentsToSchema `fmap` decode cauterizeParser t
 
 formatSchema :: IsSchema a => a -> Text
-formatSchema s = let pp = prettyPrintSExpr (basicPrint sAtom)
+formatSchema s = let pp = encodeOne (basicPrint sAtom)
                      s' = map (pp . fromWellFormed . fromComponent) (schemaToComponents (getSchema s))
                  in T.unlines s'
 
