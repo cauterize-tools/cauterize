@@ -65,8 +65,8 @@ typeHashMap schema = th
             case d of
               Synonym r       -> fmt "synonym" [n',unIdentifier r,lu r]
               Range o l       -> fmt "range" [n',showNumSigned o,showNumSigned l]
-              Array r l       -> fmt "array" [n',unIdentifier r,showNumSigned l]
-              Vector r l      -> fmt "vector" [n',unIdentifier r,showNumSigned l]
+              Array r l       -> fmt "array" [n',unIdentifier r,showNumSigned l, lu r]
+              Vector r l      -> fmt "vector" [n',unIdentifier r,showNumSigned l, lu r]
               Enumeration vs  -> fmt "enumeration" (n':map unIdentifier vs)
               Record fs       -> fmt "record" (n':map fmtField fs)
               Combination fs  -> fmt "combination" (n':map fmtField fs)
