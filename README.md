@@ -249,6 +249,25 @@ as a `u8`.
 (type age synonym u8)
 ```
 
+#### Ranges
+
+Ranges are used to encode an integer value between two other integer
+values. They are encoded in a word suitable for expressing all
+possible values in the range. That is, a range with less than 256
+members will be encoded in a 8 bit word, a range with less than 65535
+members will be encoded in a 16 bit word, and so on.
+
+```
+(type [type name] range [minimum value] [maximum value])
+```
+
+The following is an example of a range that only encodes the values
+from 1000 to 1010.
+
+```
+(type some_range range 1000 1010)
+```
+
 #### Arrays
 
 Arrays are fixed-length sequences of identially typed objects. These are to be
@@ -282,6 +301,31 @@ The following example defines a generic byte buffer with a maximum length of
 (type byte_buffer_4k vector u8 4096)
 ```
 
+#### Enumeration
+
+Enumerations are types with a fixed set of named members. Members of
+an enumeration are assign integer values starting from 0. These values
+are assigned automatically by the Cauterize compiler. Enumerations are
+encoded in the smallest word necessary to express every value in the
+enumeration.
+
+```
+(type [type name] enumeration (values [space-separated list of identifiers])
+```
+
+The following is an enumeration encoding the days of the week:
+
+```
+(type days_of_week enumeration
+ (values
+  sunday
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday))
+```
 
 #### Field Lists
 
@@ -342,7 +386,7 @@ This example shows a `request` type for some key-value storage system. The
 system stores `u64` values according to names that are up to 128 bytes long.
 
 ```
-(type key_name vector _name u8 128)
+(type key_name vector key_name u8 128)
 (type key_pair record (fields
                        (field name key_name)
                        (field value u64)))
