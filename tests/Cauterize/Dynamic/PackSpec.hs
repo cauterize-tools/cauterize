@@ -18,6 +18,6 @@ spec = do
       let (Right schema) = parseSchema "(type test_range range 181538 13054296747032613673)"
       let sp = mkSpecification schema
       let ty = CautType "test_range" (CDRange 1759352636039645935)
-      let expected = [239,74,202,169,230,121,106,24]
+      let expected = [0xcd, 0x85, 0xc7, 0xa9, 0xe6, 0x79, 0x6a, 0x18]
       let bs = B.unpack $ dynamicPack sp ty
       bs `shouldBe` expected
