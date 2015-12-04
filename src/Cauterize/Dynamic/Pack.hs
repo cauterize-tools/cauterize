@@ -80,7 +80,7 @@ dynamicPackRange m n v =
       rmax = fromIntegral (S.rangeLength t) - fromIntegral (S.rangeOffset t)
   in if v < rmin || v > rmax
         then throw $ RangeOutOfBounds rmin rmax v
-        else dynamicPackTag (S.rangeTag t) v
+        else dynamicPackTag (S.rangeTag t) (v - rmin)
 
 dynamicPackArray :: TyMap -> C.Identifier -> [CautDetails] -> Put
 dynamicPackArray m n elems =

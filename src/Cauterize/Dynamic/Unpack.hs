@@ -76,7 +76,7 @@ dynamicUnpackRange o l t = do
   tag <- unpackTag t
   if fromIntegral tag > l
     then throw $ RangeDecodeOutOfBounds o l tag
-    else return $ CDRange tag
+    else return $ CDRange (tag + (fromIntegral o))
 
 dynamicUnpackArray :: TyMap -> C.Identifier -> C.Length -> Get CautDetails
 dynamicUnpackArray m r l =
