@@ -1,7 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, CPP #-}
 module Cauterize.Dynamic.Pretty
   ( dynamicPretty
   ) where
+
+#if __GLASGOW_HASKELL__ >= 710
+import Prelude hiding ((<$>))
+#endif
 
 import Cauterize.CommonTypes
 import Cauterize.Dynamic.Types as DT

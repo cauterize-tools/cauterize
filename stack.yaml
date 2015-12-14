@@ -3,4 +3,4 @@ packages:
 - '.'
 extra-deps:
   - s-cargot-0.1.0.0
-resolver: lts-2.21
+resolver: lts-3.16
