@@ -57,33 +57,33 @@ isNameOf "bool" (PDbool _) = True
 isNameOf _ _ = False
 
 isSynonym :: S.Type -> Bool
-isSynonym (S.Type _ _ _ (S.Synonym {})) = True
+isSynonym (S.Type { S.typeDesc = S.Synonym {} }) = True
 isSynonym _ = False
 
 isRange :: S.Type -> Bool
-isRange (S.Type _ _ _ (S.Range {})) = True
+isRange (S.Type { S.typeDesc = S.Range {} }) = True
 isRange _ = False
 
 isArray :: S.Type -> Bool
-isArray (S.Type _ _ _ (S.Array {})) = True
+isArray (S.Type { S.typeDesc = S.Array {} }) = True
 isArray _ = False
 
 isVector :: S.Type -> Bool
-isVector (S.Type _ _ _ (S.Vector {})) = True
+isVector (S.Type { S.typeDesc = S.Vector {} }) = True
 isVector _ = False
 
 isEnumeration :: S.Type -> Bool
-isEnumeration (S.Type _ _ _ (S.Enumeration {})) = True
+isEnumeration (S.Type { S.typeDesc = S.Enumeration {} }) = True
 isEnumeration _ = False
 
 isRecord :: S.Type -> Bool
-isRecord (S.Type _ _ _ (S.Record {})) = True
+isRecord (S.Type { S.typeDesc = S.Record {} }) = True
 isRecord _ = False
 
 isCombination :: S.Type -> Bool
-isCombination (S.Type _ _ _ (S.Combination {})) = True
+isCombination (S.Type { S.typeDesc = S.Combination {} }) = True
 isCombination _ = False
 
 isUnion :: S.Type -> Bool
-isUnion (S.Type _ _ _ (S.Union {})) = True
+isUnion (S.Type { S.typeDesc = S.Union {} }) = True
 isUnion _ = False

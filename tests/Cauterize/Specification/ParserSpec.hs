@@ -25,13 +25,14 @@ spec = do
               return (s == s')
         r `shouldBe` (Right True)
   where
-    synFoo = "(type foo synonym (fingerprint 0cb7bd78634eba6f3633dbf0a5f69537aa1916df) (size 1 1) u8)"
+    synFoo = "(type foo synonym (fingerprint 0cb7bd78634eba6f3633dbf0a5f69537aa1916df) (size 1 1) (depth 1) u8)"
     hasSynNamedFoo
       (Right
        (Specification {
             specTypes = [Type {
                                typeName = n,
-                               typeDesc = Synonym _
+                               typeDesc = Synonym _,
+                               typeDepth = 1
                                }]
             })) = unIdentifier n == "foo"
     hasSynNamedFoo _ = False

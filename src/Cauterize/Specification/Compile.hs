@@ -64,6 +64,9 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
     lus k = fromMaybe
              (error $ "compile: key '" ++ (T.unpack . unIdentifier) k ++ "' not in hash schemaSizeMap")
              (k `M.lookup` schemaSizeMap)
+    lud k = fromMaybe
+             (error $ "compile: key '" ++ (T.unpack . unIdentifier) k ++ "' not in hash schemaDepthMap")
+             (k `M.lookup` schemaDepthMap)
 
     convertType t@(Schema.Type sn d) =
       let tt = Schema.tagForType t
@@ -78,7 +81,12 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
                 Schema.Record fs       -> Record (convertFields fs)
                 Schema.Combination fs  -> Combination (convertFields fs) tt
                 Schema.Union fs        -> Union (convertFields fs) tt
-      in Type sn tha tsz d'
+      in Type { typeName = sn
+              , typeFingerprint = tha
+              , typeSize = tsz
+              , typeDesc = d'
+              , typeDepth = lud sn
+              }
 
     convertFields = zipWith convertField [0 ..]
 

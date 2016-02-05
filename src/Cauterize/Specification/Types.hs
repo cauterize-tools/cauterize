@@ -31,6 +31,7 @@ data Type = Type
   { typeName :: Identifier
   , typeFingerprint :: Hash
   , typeSize :: Size
+  , typeDepth :: Integer
   , typeDesc :: TypeDesc
   } deriving (Show, Eq)
 
@@ -77,7 +78,7 @@ instance Schema.IsSchema Specification where
       , Schema.schemaTypes = map extractType (specTypes spec)
       }
     where
-      extractType (Type n _ _ d) =
+      extractType (Type { typeName = n, typeDesc = d}) =
         let
           d' = case d of
                 Synonym r        -> Schema.Synonym r
