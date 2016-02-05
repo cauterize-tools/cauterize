@@ -20,11 +20,13 @@ optParser :: Parser CautOpts
 optParser = CautOpts
   <$> strOption
     ( long "schema"
-   <> metavar "FILE_PATH"
+   <> short 's'
+   <> metavar "SCHEMA_PATH"
    <> help "Input Cauterize schema file."
     )
   <*> strOption
-    ( long "output"
-   <> metavar "OUTPUT_PATH"
+    ( long "specification"
+   <> short 'p'
+   <> metavar "OUTPUT_SPEC_PATH"
    <> help "Output path for specification file."
     )
