@@ -3,6 +3,9 @@ module Cauterize.Schema.Parser
   ( parseSchema
   , parseSchemaFromFile
   , formatSchema
+  , toType
+  , pAtom
+  , Atom(..)
   ) where
 
 import Control.Monad
@@ -67,14 +70,14 @@ toComponent = asList go
   where
     go [A (Ident "name"), A (Str name)] = Right (Name name)
     go [A (Ident "version"), A (Str version)] = Right (Version version)
-    go (A (Ident "type") : rs ) = toType rs
+    go (A (Ident "type") : rs ) = TypeDef <$> toType rs
     go (A (Ident x) : _ ) = Left ("Unhandled component: " ++ show x)
     go y = Left ("Not a component name: " ++ show y)
 
 pattern AI x = A (Ident x)
 pattern AN x = A (Number x)
 
-toType :: [WellFormedSExpr Atom] -> Either String Component
+toType :: [WellFormedSExpr Atom] -> Either String Type
 toType [] = Left "Empty type expression."
 toType [_] = Left "Type expression without a prototype."
 toType (AI name:AI tproto:tbody) =
@@ -90,7 +93,7 @@ toType (AI name:AI tproto:tbody) =
     x -> Left ("Invalid prototype: " ++ show x)
   where
     umi = unsafeMkIdentifier . unpack
-    mkTD n t = (Right . TypeDef) (Type (umi n) t)
+    mkTD n t = Right (Type (umi n) t)
 
     toField (L [AI "field", AI fname, AI ref]) =
       Right $ DataField (umi fname) (umi ref)
