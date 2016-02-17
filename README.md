@@ -334,11 +334,15 @@ parameter to a `record`, `union`, or `combination` expression (which are
 defined later in this document). Field lists are used to designate a set of
 (name/type) pairs.
 
+Unions and combinations can use the `empty` keyword instead of the
+`field` keyword. Empty fields do not have any associated data.
+
 Field lists are defined like this:
 
 ```
 (fields
-  (field [field name] [optional type])
+  (field [field name] [type]) ;; a field with some data
+  (empty [field name])        ;; an empty field (just the tag)
   (field ...))
 ```
 
