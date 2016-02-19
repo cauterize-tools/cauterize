@@ -87,4 +87,5 @@ test-suite spec
                 Cauterize.CommonTypesSpec,
                 Cauterize.HashSpec,
                 Cauterize.Schema.ParserSpec,
-                Cauterize.Specification.ParserSpec
+                Cauterize.Specification.ParserSpec,
+                Cauterize.Dynamic.PackSpec
