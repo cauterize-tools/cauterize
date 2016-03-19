@@ -1,6 +1,7 @@
 module Cauterize.Options where
 
 import Options.Applicative
+import Cauterize.Version (versionString)
 
 data CautOpts = CautOpts
   { schemaFile :: FilePath
@@ -8,25 +9,28 @@ data CautOpts = CautOpts
   } deriving (Show)
 
 runWithOptions :: (CautOpts -> IO ()) -> IO ()
-runWithOptions fn = execParser options >>= fn
+runWithOptions fn = do
+  mopts <- execParser options
+  case mopts of
+    Just opts -> fn opts
+    Nothing -> putStr versionString
 
-options :: ParserInfo CautOpts
-options = info (optParser <**> helper)
-            ( fullDesc
-           <> progDesc "Process Cauterize schema files."
-            )
+options :: ParserInfo (Maybe CautOpts)
+options = info (helper <*> o)
+   ( fullDesc
+  <> progDesc "Compile a Cauterize schema into a Cauterize specification"
+   )
+  where
+  o = flag' Nothing (long "version" <> hidden)
+   <|> (Just <$> optParser)
 
 optParser :: Parser CautOpts
 optParser = CautOpts
-  <$> strOption
-    ( long "schema"
-   <> short 's'
-   <> metavar "SCHEMA_PATH"
-   <> help "Input Cauterize schema file."
+  <$> argument str
+    ( metavar "SCHEMA"
+   <> help "Cauterize schema input file."
     )
-  <*> strOption
-    ( long "specification"
-   <> short 'p'
-   <> metavar "OUTPUT_SPEC_PATH"
-   <> help "Output path for specification file."
+  <*> argument str
+    ( metavar "SPEC"
+   <> help "Cauterize specification output file."
     )
