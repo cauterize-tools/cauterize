@@ -4,4 +4,4 @@ packages:
 extra-deps:
   - s-cargot-0.1.0.0
   - gitrev-1.2.0
-resolver: lts-3.16
+resolver: nightly-2016-04-16
