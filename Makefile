@@ -16,6 +16,7 @@ test:
 	@stack test
 
 install:
+	stack setup
 	stack build
 	mkdir -p $(INSTALL_DIR)
 	cp `stack path --dist-dir`/build/cauterize/cauterize \
