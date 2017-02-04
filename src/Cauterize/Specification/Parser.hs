@@ -98,10 +98,15 @@ sAtom (Str s) = T.concat ["\"", s, "\""]
 sAtom (Hash h) = H.hashToHex h
 sAtom (Tag t) = unIdentifier $ tagToText t
 
+pattern AI :: Text -> WellFormedSExpr Atom
 pattern AI x = A (Ident x)
+pattern AN :: Integer -> WellFormedSExpr Atom
 pattern AN x = A (Number x)
+pattern AS :: Text -> WellFormedSExpr Atom
 pattern AS x = A (Str x)
+pattern AH :: H.Hash -> WellFormedSExpr Atom
 pattern AH x = A (Hash x)
+pattern AT :: Tag -> WellFormedSExpr Atom
 pattern AT x = A (Tag x)
 
 toComponent :: WellFormedSExpr Atom -> Either String Component

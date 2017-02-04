@@ -74,7 +74,10 @@ toComponent = asList go
     go (A (Ident x) : _ ) = Left ("Unhandled component: " ++ show x)
     go y = Left ("Not a component name: " ++ show y)
 
+pattern AI :: Text -> WellFormedSExpr Atom
 pattern AI x = A (Ident x)
+
+pattern AN :: Integer -> WellFormedSExpr Atom
 pattern AN x = A (Number x)
 
 toType :: [WellFormedSExpr Atom] -> Either String Type
