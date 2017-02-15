@@ -4,8 +4,10 @@ export PATH := $(INSTALL_DIR):$(PATH)
 
 ifeq ($(OS),Windows_NT)
 	EXECUTABLE=$(shell stack path --dist-dir)\build\cauterize\cauterize.exe
+	MKDIR=if not exist $(INSTALL_DIR) mkdir $(INSTALL_DIR)
 else
 	EXECUTABLE=$(shell stack path --dist-dir)/build/cauterize/cauterize
+	MKDIR=mkdir -p $(INSTALL_DIR)
 endif
 
 .PHONY: default clean build test
@@ -24,5 +26,5 @@ test:
 install:
 	stack setup
 	stack build
-	mkdir -p $(INSTALL_DIR)
+	$(MKDIR)
 	cp $(EXECUTABLE) $(INSTALL_DIR)
