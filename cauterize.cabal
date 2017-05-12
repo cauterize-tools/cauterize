@@ -1,5 +1,5 @@
 name:                cauterize
-version:             1.0.0.0
+version:             1.1.0.0
 synopsis:            Compiler for the Cauterize data description language.
 description:
   Cauterize is a data-description language suitable for hard-real-time systems

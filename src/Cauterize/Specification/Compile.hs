@@ -77,10 +77,13 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
                 Schema.Range o l       -> Range o l tt (primFittingAllInts [fromIntegral o, fromIntegral l + fromIntegral o])
                 Schema.Array r l       -> Array r l
                 Schema.Vector r l      -> Vector r l tt
-                Schema.Enumeration vs  -> Enumeration (zipWith EnumVal vs [0..]) tt
-                Schema.Record fs       -> Record (convertFields fs)
-                Schema.Combination fs  -> Combination (convertFields fs) tt
-                Schema.Union fs        -> Union (convertFields fs) tt
+                -- Enumeration tags start with 1 rather than 0 to
+                -- avoid having the default initialization in C be a
+                -- meaningful value.
+                Schema.Enumeration vs  -> Enumeration (zipWith EnumVal vs [1..]) tt
+                Schema.Record fs       -> Record (convertFields1 fs)
+                Schema.Combination fs  -> Combination (convertFields0 fs) tt
+                Schema.Union fs        -> Union (convertFields1 fs) tt
       in Type { typeName = sn
               , typeFingerprint = tha
               , typeSize = tsz
@@ -88,7 +91,12 @@ compile s@(Schema.Schema schemaName schemaVersion schemaTypes) = Specification
               , typeDepth = lud sn
               }
 
-    convertFields = zipWith convertField [0 ..]
+    convertFields0 = zipWith convertField [0 ..]
+
+    -- Field indicies start with 1 to avoid having the default
+    -- initializer in C be a meaningful value. Really only useful for
+    -- Unions but used for records as well.
+    convertFields1 = zipWith convertField [1 ..]
 
     convertField ix (Schema.EmptyField sn) = EmptyField sn ix
     convertField ix (Schema.DataField sn r) = DataField sn ix r

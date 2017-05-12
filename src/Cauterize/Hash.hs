@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Cauterize.Hash
   ( Hash(unHash)
   , mkHash
@@ -9,16 +10,23 @@ module Cauterize.Hash
 
 import Numeric
 import Data.Word (Word8)
+import Data.Version
 import qualified Crypto.Hash.SHA1 as SHA1
 import qualified Data.ByteString as B
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
+import qualified Paths_cauterize as C (version)
+
 newtype Hash = Hash { unHash :: B.ByteString }
   deriving (Eq, Ord)
 
 mkHash :: T.Text -> Hash
-mkHash t = let h = SHA1.init `SHA1.update` T.encodeUtf8 t
+mkHash t = let (Version [vmaj, vmin, _, _] _) = C.version
+               svmaj = T.pack . show $ vmaj
+               svmin = T.pack . show $ vmin
+               t' = T.concat ["{", svmaj, ".", svmin, "|", t, "}"]
+               h = SHA1.init `SHA1.update` T.encodeUtf8 t'
            in Hash (SHA1.finalize h)
 
 mkHashFromHexString :: T.Text -> Hash
@@ -51,4 +59,3 @@ hashNull = Hash $ B.pack (replicate 20 0)
 
 instance Show Hash where
   show h = "SHA1:" ++ T.unpack (hashToHex h)
-
