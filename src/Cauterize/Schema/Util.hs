@@ -147,9 +147,15 @@ tagForType (Type _ d) =
     Record _        -> error "No tag for records."
     Range _ l       -> tagRequired l
     Vector _ l      -> tagRequired l
-    Enumeration vs  -> tagRequired (length vs)
     Combination fs  -> tagForBits (length fs)
-    Union fs        -> tagRequired (length fs)
+
+    -- For enumerations and unions, we add one to the length because
+    -- we do not allow tags for these two prototypes with a value of
+    -- 0. This is to avoid a common class of errors where a
+    -- default-initialized struct/enum in C is 0. This helps catch
+    -- cases where the user forgot to initialize the tag.
+    Enumeration vs  -> tagRequired (length vs + 1)
+    Union fs        -> tagRequired (length fs + 1)
 
 
 primHashMap :: M.Map Identifier (T.Text,Hash)
